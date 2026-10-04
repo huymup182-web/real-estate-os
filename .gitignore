@@ -13,6 +13,7 @@
 # Node.js (backend, admin)
 node_modules/
 dist/
+.test-dist/
 coverage/
 .next/
 out/
