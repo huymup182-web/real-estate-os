@@ -30,8 +30,9 @@ describe('Ứng dụng NestJS', () => {
     assert.equal(API_PREFIX, 'api/v1');
     const response = await fetch(`${baseUrl}/api/v1/khong-ton-tai`);
     assert.equal(response.status, 404);
-    const body = (await response.json()) as { statusCode: number };
-    assert.equal(body.statusCode, 404);
+    const body = (await response.json()) as { success: boolean; error: { code: string } };
+    assert.equal(body.success, false);
+    assert.equal(body.error.code, 'NOT_FOUND');
   });
 
   it('không có route nào ngoài tiền tố /api/v1', async () => {
