@@ -276,3 +276,26 @@ list(@GrantedScope() scope: PermissionScope) { … } // scope: OWN | TEAM | DEPA
 - `@GrantedScope()` trả scope của quyền đó để service áp vào truy vấn (vd `OWN` → chỉ bản ghi mình phụ trách). Áp scope vào truy vấn làm ở từng module nghiệp vụ.
 - Chỉ kiểm theo permission, không theo tên role. Permission mới thêm bằng migration seed, không sửa guard.
 - Route không có `@RequirePermission` chỉ cần đăng nhập. `@Public()` kèm `@RequirePermission` là cấu hình sai và bị chặn (401).
+
+## Tách dữ liệu theo công ty — tenant isolation (TASK-047)
+
+Ba lớp theo phase0/02-ARCHITECTURE.md mục 3:
+
+1. **Tenant từ token**: `JwtAuthGuard` lấy `tenantId` từ access token, không bao giờ từ body/query (body có `tenantId` bị chặn 400 vì `forbidNonWhitelisted`).
+2. **`TenantGuard`** (`src/auth/tenant.guard.ts`, guard toàn cục chạy ngay sau `JwtAuthGuard`): mỗi request đã đăng nhập đọc lại user trong DB (không cache):
+   - user đã xoá, hoặc `tenant_id` trong DB khác tenant trong token → 401;
+   - user không `ACTIVE` hoặc công ty không `ACTIVE` → 403. Khoá tài khoản/tạm ngưng công ty có hiệu lực ngay, không phải chờ access token hết hạn.
+3. **Repository bắt buộc tenant**: handler lấy tenant bằng `@TenantId()` rồi truyền cho `TenantRepository` (TASK-030), mọi truy vấn tự thêm `tenant_id`. Tài khoản nền tảng (không thuộc công ty) gọi route có `@TenantId()` → 403.
+
+```ts
+@Get(':id')
+@RequirePermission('customer.view')
+async get(@TenantId() tenantId: string, @Param('id', ParseUuidPipe) id: string) {
+  const customer = await this.customers.findById(tenantId, id); // bản ghi công ty khác → null
+  if (!customer) throw new NotFoundException(); // 404, không lộ bản ghi có tồn tại
+  …
+}
+```
+
+- `test/tenant-isolation.spec.ts` là mẫu test cô lập: 2 công ty, chứng minh công ty A không đọc/sửa/xoá được dữ liệu công ty B. Mỗi module nghiệp vụ sau này phải có test tương tự.
+- Chi phí: thêm 1 truy vấn theo khoá chính mỗi request đã đăng nhập.

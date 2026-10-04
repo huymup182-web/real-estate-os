@@ -11,6 +11,7 @@ import { LoginService } from './login.service.js';
 import { PasswordResetService } from './password-reset.service.js';
 import { PermissionService } from './permission.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
+import { TenantGuard } from './tenant.guard.js';
 
 @Module({
   imports: [MailModule],
@@ -23,7 +24,9 @@ import { RefreshTokenService } from './refresh-token.service.js';
     PasswordResetService,
     PermissionService,
     CurrentUserService,
+    // Thứ tự đăng ký = thứ tự chạy: xác thực token rồi mới kiểm tenant/tài khoản.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: TenantGuard },
   ],
   exports: [AccessTokenService, PermissionService],
 })
