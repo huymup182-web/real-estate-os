@@ -164,7 +164,8 @@ export async function seedDemo(dataSource: DataSource, password: string): Promis
     throw new Error(`${DEMO_PASSWORD_ENV} phải có ít nhất 8 ký tự`);
   }
   // algorithm 2 = Argon2id (enum const của thư viện không import được khi bật verbatimModuleSyntax).
-  const passwordHash = await hash(password, { algorithm: 2 });
+  // Chuẩn hoá NFKC giống backend (backend/src/auth/password.ts) để mật khẩu có dấu vẫn đăng nhập được.
+  const passwordHash = await hash(password.normalize('NFKC'), { algorithm: 2 });
 
   return dataSource.transaction(async (manager) => {
     const existing: { id: string }[] = await manager.query(
