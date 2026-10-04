@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.next
+**/build
+**/coverage
+**/.dart_tool
+.git
+.env
+.env.*
+!.env.example
+mobile

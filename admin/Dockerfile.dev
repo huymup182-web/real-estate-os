@@ -1,0 +1,15 @@
+# Image dùng cho môi trường phát triển (docker-compose.yml).
+# Mã nguồn được mount vào /app, nên sửa code không cần build lại image.
+FROM node:22-alpine
+
+WORKDIR /app
+
+COPY scripts/docker/dev-start.sh /opt/dev/dev-start.sh
+COPY scripts/docker/placeholder-server.js /opt/dev/placeholder-server.js
+RUN chmod +x /opt/dev/dev-start.sh \
+  && mkdir -p /app/node_modules \
+  && chown -R node:node /app
+
+USER node
+
+CMD ["/opt/dev/dev-start.sh"]

@@ -14,6 +14,7 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 ├── database/   # Thiết kế, migration, seed PostgreSQL
 ├── docs/       # Tài liệu dự án
 ├── scripts/    # Script hỗ trợ phát triển
+├── docker-compose.yml
 ├── .env.example
 └── README.md
 ```
@@ -39,13 +40,24 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 - Không commit secret. Biến môi trường mẫu nằm trong `.env.example`.
 - Mọi thay đổi database đi qua migration.
 
-## Bắt đầu
+## Môi trường phát triển (Docker)
 
-Môi trường phát triển (Docker Compose, cấu hình biến môi trường) sẽ được bổ sung ở TASK-002 và TASK-003.
+Yêu cầu: Docker và Docker Compose v2.
 
 ```bash
-cp .env.example .env   # sau đó điền giá trị thật, không commit file .env
+cp .env.example .env     # chỉnh giá trị nếu cần, không commit file .env
+docker compose up        # thêm -d để chạy nền
 ```
+
+| Service | Mô tả | Cổng host |
+|---|---|---|
+| `postgres` | PostgreSQL 16 + PostGIS 3.4, dữ liệu lưu trong volume `postgres_data` | `5432` |
+| `backend` | Container Node.js 22 cho NestJS API, mount thư mục `backend/` | `3000` |
+| `admin` | Container Node.js 22 cho Next.js admin, mount thư mục `admin/` | `3001` |
+
+- Các service nói chuyện với nhau qua network nội bộ `internal`, gọi nhau bằng tên service (vd backend kết nối `postgres:5432`).
+- Khi `backend/` hoặc `admin/` chưa có `package.json` (trước TASK-028 và TASK-100), container chạy một server giữ chỗ trả về `{"status":"placeholder"}`. Khi ứng dụng đã được khởi tạo, container tự `npm install` (lần đầu) rồi chạy `npm run start:dev` (backend) hoặc `npm run dev` (admin).
+- Dừng: `docker compose down`. Xoá cả dữ liệu database: `docker compose down -v`.
 
 ## Quy trình phát triển
 
