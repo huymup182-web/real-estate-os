@@ -74,7 +74,7 @@ export class PropertiesController {
   /**
    * `GET /api/v1/properties?page=1&pageSize=20&q=…` → danh sách BĐS xem được, mới tạo trước, kèm `meta`
    * phân trang (TASK-051). BĐS HIDDEN chỉ hiện với người sửa được BĐS đó (TASK-054). `q` tìm theo từ khoá
-   * (TASK-064).
+   * (TASK-064), `priceMin`/`priceMax` lọc giá (TASK-065).
    */
   @Get()
   @RequirePermission('property.view')

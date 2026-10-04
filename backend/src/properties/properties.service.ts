@@ -228,7 +228,14 @@ export class PropertiesService {
     query: PropertySearchQueryDto,
     scopes: PropertyScopes,
   ): Promise<Paginated<PropertyListItem>> {
-    return this.list(actor, query, scopes, false, query.q);
+    if (
+      query.priceMin !== undefined &&
+      query.priceMax !== undefined &&
+      query.priceMin > query.priceMax
+    ) {
+      throw invalid([{ field: 'priceMax', message: 'priceMax phải lớn hơn hoặc bằng priceMin' }]);
+    }
+    return this.list(actor, query, scopes, false, query);
   }
 
   /**
@@ -307,8 +314,9 @@ export class PropertiesService {
     query: PaginationQueryDto,
     scopes: PropertyScopes,
     favoritesOnly: boolean,
-    keyword?: string,
+    search?: PropertySearchQueryDto,
   ): Promise<Paginated<PropertyListItem>> {
+    const keyword = search?.q;
     let base = this.properties
       .createQueryBuilder(actor.tenantId, 'p', (builder) =>
         builder.where(this.visibleCondition(scopes)),
@@ -319,6 +327,13 @@ export class PropertiesService {
         keywordCode: keyword.toUpperCase(),
         keywordQuery: keywordTsQuery(keyword),
       });
+    }
+    // Lọc giá (TASK-065), gồm cả hai đầu.
+    if (search?.priceMin !== undefined) {
+      base = base.andWhere('p.price >= :priceMin', { priceMin: search.priceMin });
+    }
+    if (search?.priceMax !== undefined) {
+      base = base.andWhere('p.price <= :priceMax', { priceMax: search.priceMax });
     }
     if (favoritesOnly) {
       base = base.innerJoin(
