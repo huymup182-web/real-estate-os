@@ -101,3 +101,25 @@ Mọi lỗi trả về cùng một định dạng:
   - lỗi trả 400 `VALIDATION_ERROR`, `details` liệt kê từng trường (trường lồng nhau dạng `address.street`), không gửi lại giá trị client đã nhập.
 - Tham số `:id` dùng `@Param('id', ParseUuidPipe)`: không phải UUID → 400, không chạm database.
 - Chuỗi tự do: luôn có `@MaxLength(...)`, thêm `@NoHtml()` để từ chối HTML (lưu text thuần).
+
+## Định dạng response thành công (TASK-033)
+
+Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/`) tự bọc lại:
+
+```json
+{ "success": true, "data": { "id": "…" }, "message": null }
+```
+
+- Danh sách có phân trang: nhận query qua `PaginationQueryDto` (`?page=1&pageSize=20`, `pageSize` tối đa 100; DTO danh sách kế thừa class này), trả `new Paginated(items, page, pageSize, total)`:
+
+  ```json
+  {
+    "success": true,
+    "data": [],
+    "message": null,
+    "meta": { "page": 1, "pageSize": 20, "total": 342, "totalPages": 18 }
+  }
+  ```
+
+- Không trả gì → `data: null`. Response 204 (vd DELETE với `@HttpCode(204)`) không có body.
+- Lỗi theo định dạng ở mục Xử lý lỗi, không bị bọc lại.
