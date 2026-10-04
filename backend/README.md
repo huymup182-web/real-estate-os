@@ -366,3 +366,13 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
 - BĐS đã xoá không còn trong chi tiết, danh sách, sửa. Ảnh, giấy tờ, lịch hẹn, giao dịch của BĐS giữ nguyên trong database.
 - Sửa và xoá dùng chung `lockForAction` (khoá dòng + kiểm phạm vi theo bản ghi).
 - Test: `test/properties-delete.spec.ts`.
+
+## Trạng thái BĐS (TASK-054)
+
+`POST /api/v1/properties/:id/status` body `{ status, expectedUpdatedAt? }` → 200 chi tiết BĐS. Cần quyền `property.edit` với BĐS đó (404/403 như khi sửa). Quy tắc do Huy Lê chọn ngày 2026-10-04:
+
+- Người dùng chuyển tự do giữa `AVAILABLE`, `PENDING`, `SOLD`, `HIDDEN`. `EXPIRED`, `VERIFY_REQUIRED` chỉ hệ thống đặt (gửi lên → 400).
+- BĐS đang `EXPIRED`/`VERIFY_REQUIRED` không mở bán lại (`AVAILABLE`, `PENDING`) được → 422 `BUSINESS_RULE_VIOLATION`, phải xác minh (TASK-062); vẫn đặt `SOLD`/`HIDDEN` được.
+- Đặt lại trạng thái đang có → 200, không ghi gì. `expectedUpdatedAt` cũ → 409.
+- BĐS `HIDDEN` chỉ người có `property.edit` với BĐS đó thấy (chi tiết, danh sách, sửa, xoá); người khác nhận 404 như BĐS không tồn tại.
+- Luật chuyển ở `src/properties/property-values.ts` (`canUserChangeStatus`). Test: `test/properties-status.spec.ts`.
