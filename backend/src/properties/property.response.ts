@@ -96,14 +96,23 @@ export interface PropertyOwnerContact {
 export interface PropertyDetailResponse extends PropertyResponse {
   ownerContactVisible: boolean;
   owner: PropertyOwnerContact | null;
+  /** User đang xem đã lưu BĐS này vào danh sách yêu thích chưa (TASK-059). */
+  isFavorite: boolean;
+}
+
+/** Cờ riêng theo người xem của một BĐS. */
+export interface PropertyViewerFlags {
+  ownerContactVisible: boolean;
+  isFavorite: boolean;
 }
 
 export function toPropertyDetailResponse(
   property: Property,
   owner: PropertyOwnerContact | null,
-  ownerContactVisible: boolean,
+  flags: PropertyViewerFlags,
 ): PropertyDetailResponse {
-  const item = toPropertyListItem(property, ownerContactVisible);
+  const item = toPropertyListItem(property, flags);
+  const { ownerContactVisible } = flags;
   return { ...item, owner: ownerContactVisible ? owner : null };
 }
 
@@ -115,11 +124,11 @@ export type PropertyListItem = Omit<PropertyDetailResponse, 'owner'>;
 
 export function toPropertyListItem(
   property: Property,
-  ownerContactVisible: boolean,
+  { ownerContactVisible, isFavorite }: PropertyViewerFlags,
 ): PropertyListItem {
   const base = toPropertyResponse(property);
   if (!ownerContactVisible) {
-    return { ...base, streetAddress: null, ownerId: null, ownerContactVisible };
+    return { ...base, streetAddress: null, ownerId: null, ownerContactVisible, isFavorite };
   }
-  return { ...base, ownerContactVisible };
+  return { ...base, ownerContactVisible, isFavorite };
 }

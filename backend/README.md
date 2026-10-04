@@ -429,3 +429,11 @@ Luật:
 - Xem cần `property.view_documents` với BĐS (thiếu → 403). Thêm, xoá cần thêm `property.edit`.
 - CCCD chủ nhà cần thêm `property.view_owner_contact`: thiếu thì không thấy trong danh sách, xoá → 404, thêm → 403.
 - Không xem được BĐS → 404.
+
+## BĐS yêu thích (TASK-059)
+
+- `PUT /api/v1/properties/:id/favorite` → 204, lưu BĐS vào yêu thích của chính user. Cần xem được BĐS (không thì 404); lưu lại lần nữa không đổi gì.
+- `DELETE /api/v1/properties/:id/favorite` → 204, bỏ khỏi yêu thích. Không cần xem được BĐS (bỏ được cả BĐS đã ẩn); chưa lưu thì không đổi gì.
+- `GET /api/v1/properties/favorites?page=1&pageSize=20` → BĐS yêu thích, mới lưu trước, cùng dạng với danh sách BĐS. Chỉ gồm BĐS user vẫn xem được: BĐS đã xoá, bị ẩn hay ra khỏi phạm vi xem thì không hiện (hiện lại khi xem được lại).
+- Chi tiết và danh sách BĐS có thêm `isFavorite` theo người đang xem.
+- Cả ba API cần `property.view`. Yêu thích là của riêng từng user, người khác không thấy.

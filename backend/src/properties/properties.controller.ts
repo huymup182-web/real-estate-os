@@ -77,6 +77,44 @@ export class PropertiesController {
   }
 
   /**
+   * `GET /api/v1/properties/favorites?page=1&pageSize=20` → BĐS yêu thích của user, mới lưu trước
+   * (TASK-059). Khai báo trước `:id` để không bị hiểu là id.
+   */
+  @Get('favorites')
+  @RequirePermission('property.view')
+  findFavorites(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Query() query: PaginationQueryDto,
+  ): Promise<Paginated<PropertyListItem>> {
+    return this.properties.findFavorites(actorOf(tenantId, req.user), query, scopesOf(req.user));
+  }
+
+  /** `PUT /api/v1/properties/:id/favorite` → 204, lưu BĐS vào yêu thích (TASK-059). */
+  @Put(':id/favorite')
+  @HttpCode(204)
+  @RequirePermission('property.view')
+  async addFavorite(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+  ): Promise<void> {
+    await this.properties.addFavorite(actorOf(tenantId, req.user), id, scopesOf(req.user));
+  }
+
+  /** `DELETE /api/v1/properties/:id/favorite` → 204, bỏ khỏi yêu thích (TASK-059). */
+  @Delete(':id/favorite')
+  @HttpCode(204)
+  @RequirePermission('property.view')
+  async removeFavorite(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+  ): Promise<void> {
+    await this.properties.removeFavorite(actorOf(tenantId, req.user), id);
+  }
+
+  /**
    * `GET /api/v1/properties/:id` → chi tiết BĐS (TASK-050). Cần quyền `property.view`; không xem được → 404.
    * Địa chỉ chi tiết, chủ nhà chỉ có khi được xem liên hệ chủ nhà (`property.view_owner_contact`).
    */
