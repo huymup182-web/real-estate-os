@@ -10,6 +10,7 @@ backend/
 │   ├── main.ts            # điểm khởi động: đọc cấu hình, lắng nghe cổng
 │   ├── app.factory.ts     # tạo app dùng chung cho main.ts và test (tiền tố /api/v1)
 │   ├── app.module.ts      # module gốc; module nghiệp vụ thêm ở các task sau
+│   ├── auth/              # đăng ký (TASK-036); đăng nhập, token ở các task sau
 │   ├── common/            # dùng chung: lỗi, validation, response, logging, request id
 │   ├── config/            # đọc và kiểm tra biến môi trường (AppConfigModule, token APP_CONFIG)
 │   ├── database/          # kết nối TypeORM, TenantEntity, TenantRepository, SnakeNamingStrategy
@@ -159,3 +160,22 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 
 - Database trả lời `SELECT 1` trong 3 giây → 200 `{ "success": true, "data": { "status": "ok", "db": "up" }, "message": null }`.
 - Database tắt hoặc treo → 503, body theo định dạng lỗi (`INTERNAL_ERROR`), không lộ chi tiết lỗi.
+
+## Đăng ký công khai (TASK-036)
+
+`POST /api/v1/auth/register` (không cần đăng nhập) tạo một công ty mới cùng tài khoản quản trị đầu tiên. Đây là quyết định của người dùng ngày 2026-10-04, thay cho mục Q4 của Phase 0 ("chỉ admin tạo user").
+
+```json
+{
+  "companyName": "Công ty BĐS An Phát",
+  "fullName": "Nguyễn Văn An",
+  "email": "an@anphat.vn",
+  "phone": "+84901234567",
+  "password": "ít nhất 8 ký tự"
+}
+```
+
+- Cần ít nhất một trong `email`/`phone`. `phone` theo dạng quốc tế (`+84…`). Email và SĐT là duy nhất toàn hệ thống; bị trùng thì trả 409 `CONFLICT` kèm trường bị trùng.
+- Trong một transaction: công ty (ACTIVE, slug sinh từ tên, trùng thì thêm hậu tố), 6 role mặc định kèm quyền theo phase0/04-RBAC.md (`src/auth/default-roles.ts`, test kiểm tra khớp với `database/src/seed.ts`), user ACTIVE, gán role `COMPANY_ADMIN`.
+- Mật khẩu băm Argon2id (`@node-rs/argon2`), không trả về, không ghi log.
+- Trả 201 với `user` và `company`, không trả token: đăng nhập ở TASK-037.

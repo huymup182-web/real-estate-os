@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AuthModule } from './auth/auth.module.js';
 import { CommonModule } from './common/common.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -10,6 +11,6 @@ import { HealthModule } from './health/health.module.js';
  * ở các task sau, theo ranh giới module trong phase0/02-ARCHITECTURE.md mục 2.1.
  */
 @Module({
-  imports: [AppConfigModule, DatabaseModule, CommonModule, HealthModule],
+  imports: [AppConfigModule, DatabaseModule, CommonModule, HealthModule, AuthModule],
 })
 export class AppModule {}
