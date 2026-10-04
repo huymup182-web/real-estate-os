@@ -40,21 +40,22 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 
 ## Migration hiện có
 
-| Migration                                  | Task     | Nội dung                                                          |
-| ------------------------------------------ | -------- | ----------------------------------------------------------------- |
-| `1791093463414-create-updated-at-function` | TASK-007 | Hàm trigger `set_updated_at()` dùng chung cho mọi bảng            |
-| `1791093463415-create-companies`           | TASK-007 | Bảng `companies`                                                  |
-| `1791094180612-enable-citext`              | TASK-008 | Extension `citext` (email không phân biệt hoa thường)             |
-| `1791094180613-create-users`               | TASK-008 | Bảng `users` (`department_id` thêm ở TASK-011)                    |
-| `1791094605215-create-roles`               | TASK-009 | Bảng `roles` và `user_roles` (trigger chặn gán role chéo công ty) |
-| `1791095078398-create-permissions`         | TASK-010 | Bảng `permissions` (kèm danh mục quyền MVP) và `role_permissions` |
-| `1791095262098-create-departments`         | TASK-011 | Bảng `departments` và cột `users.department_id`                   |
-| `1791095454364-create-teams`               | TASK-012 | Bảng `teams` và `team_members`                                    |
-| `1791095795199-create-locations`           | TASK-013 | Bảng `provinces`, `districts`, `wards` (chưa có dữ liệu)          |
-| `1791096043111-enable-postgis-unaccent`    | TASK-014 | Extension `postgis`, `unaccent` và hàm `immutable_unaccent()`     |
-| `1791096044509-create-properties`          | TASK-014 | Bảng `properties` (`owner_id` thêm ở TASK-017)                    |
-| `1791096412946-create-property-images`     | TASK-015 | Bảng `property_images`                                            |
-| `1791096871613-create-property-documents`  | TASK-016 | Bảng `property_documents`                                         |
-| `1791097085181-create-owners`              | TASK-017 | Bảng `owners` và cột `properties.owner_id`                        |
-| `1791097408096-create-customers`           | TASK-018 | Bảng `customers` và `customer_preferences`                        |
-| `1791097819681-create-customer-activities` | TASK-019 | Bảng `customer_activities` (chỉ thêm, không sửa)                  |
+| Migration                                       | Task     | Nội dung                                                          |
+| ----------------------------------------------- | -------- | ----------------------------------------------------------------- |
+| `1791093463414-create-updated-at-function`      | TASK-007 | Hàm trigger `set_updated_at()` dùng chung cho mọi bảng            |
+| `1791093463415-create-companies`                | TASK-007 | Bảng `companies`                                                  |
+| `1791094180612-enable-citext`                   | TASK-008 | Extension `citext` (email không phân biệt hoa thường)             |
+| `1791094180613-create-users`                    | TASK-008 | Bảng `users` (`department_id` thêm ở TASK-011)                    |
+| `1791094605215-create-roles`                    | TASK-009 | Bảng `roles` và `user_roles` (trigger chặn gán role chéo công ty) |
+| `1791095078398-create-permissions`              | TASK-010 | Bảng `permissions` (kèm danh mục quyền MVP) và `role_permissions` |
+| `1791095262098-create-departments`              | TASK-011 | Bảng `departments` và cột `users.department_id`                   |
+| `1791095454364-create-teams`                    | TASK-012 | Bảng `teams` và `team_members`                                    |
+| `1791095795199-create-locations`                | TASK-013 | Bảng `provinces`, `districts`, `wards` (chưa có dữ liệu)          |
+| `1791096043111-enable-postgis-unaccent`         | TASK-014 | Extension `postgis`, `unaccent` và hàm `immutable_unaccent()`     |
+| `1791096044509-create-properties`               | TASK-014 | Bảng `properties` (`owner_id` thêm ở TASK-017)                    |
+| `1791096412946-create-property-images`          | TASK-015 | Bảng `property_images`                                            |
+| `1791096871613-create-property-documents`       | TASK-016 | Bảng `property_documents`                                         |
+| `1791097085181-create-owners`                   | TASK-017 | Bảng `owners` và cột `properties.owner_id`                        |
+| `1791097408096-create-customers`                | TASK-018 | Bảng `customers` và `customer_preferences`                        |
+| `1791097819681-create-customer-activities`      | TASK-019 | Bảng `customer_activities` (chỉ thêm, không sửa)                  |
+| `1791098216229-create-property-favorites-views` | TASK-020 | Bảng `property_favorites` và `property_views` (lượt xem chỉ thêm) |
