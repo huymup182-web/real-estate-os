@@ -8,8 +8,9 @@ import type { PermissionScope } from '../auth/permission.service.js';
 import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
 import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
-import { TenantRepository } from '../database/tenant.repository.js';
+import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { CreatePropertyDto } from './dto/create-property.dto.js';
+import { EDITABLE_PROPERTY_FIELDS, type UpdatePropertyDto } from './dto/update-property.dto.js';
 import { Property } from './property.entity.js';
 import {
   type PropertyDetailResponse,
@@ -26,6 +27,20 @@ import { formatPropertyCode } from './property-values.js';
 export interface Actor {
   userId: string;
   tenantId: string;
+}
+
+/** Phạm vi quyền của user với BĐS, lấy từ `req.user.permissions`. Không có key = không có quyền. */
+export interface PropertyScopes {
+  view: PermissionScope | undefined;
+  edit: PermissionScope | undefined;
+  contact: PermissionScope | undefined;
+}
+
+/** Địa giới của BĐS cần kiểm. */
+interface LocationInput {
+  provinceId: string;
+  wardId: string;
+  districtId?: string | null;
 }
 
 /** Cột xét phạm vi của BĐS: môi giới phụ trách và người tạo. */
@@ -150,9 +165,78 @@ export class PropertiesService {
     return new Paginated(items, query.page, query.pageSize, total);
   }
 
+  /**
+   * Sửa BĐS (TASK-052): chỉ đổi các trường được gửi, trong transaction có khoá dòng.
+   * - Ngoài phạm vi `property.view`, đã xoá hoặc công ty khác → 404; xem được nhưng ngoài phạm vi
+   *   `property.edit` → 403.
+   * - `expectedUpdatedAt` khác `updatedAt` hiện tại → 409 (phase0/05-API-CONVENTIONS.md mục 8).
+   * - Toạ độ, hoa hồng (theo cặp, % ≤ 100) và địa giới kiểm trên giá trị sau khi gộp.
+   * Trả về chi tiết BĐS như `GET /properties/:id`.
+   */
+  async update(
+    actor: Actor,
+    id: string,
+    dto: UpdatePropertyDto,
+    scopes: PropertyScopes,
+  ): Promise<PropertyDetailResponse> {
+    const patch: Record<string, unknown> = {};
+    for (const field of EDITABLE_PROPERTY_FIELDS) {
+      if (dto[field] !== undefined) {
+        patch[field] = dto[field];
+      }
+    }
+    if (Object.keys(patch).length === 0) {
+      throw invalid([{ message: 'Cần gửi ít nhất một trường để cập nhật' }]);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const properties = this.properties.withManager(manager);
+      const { entities, raw } = await properties
+        .createQueryBuilder(actor.tenantId, 'p', (query) => query.where('p.id = :id', { id }))
+        .addSelect(`(${this.scopeOrFalse(scopes.view)})`, 'in_view')
+        .addSelect(`(${this.scopeOrFalse(scopes.edit)})`, 'in_edit')
+        .setParameter('scopeUserId', actor.userId)
+        .setLock('pessimistic_write')
+        .getRawAndEntities<{ in_view: boolean; in_edit: boolean }>();
+      const current = entities[0];
+      if (!current || raw[0]?.in_view !== true) {
+        throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
+      }
+      if (raw[0].in_edit !== true) {
+        throw new AppException(ErrorCode.FORBIDDEN, 'Không có quyền sửa BĐS này');
+      }
+      if (
+        dto.expectedUpdatedAt &&
+        dto.expectedUpdatedAt.getTime() !== current.updatedAt.getTime()
+      ) {
+        throw new AppException(
+          ErrorCode.CONFLICT,
+          'BĐS đã được người khác cập nhật, vui lòng tải lại rồi sửa tiếp',
+        );
+      }
+
+      const merged = { ...current, ...patch } as Property;
+      assertPairs(merged);
+      if ('provinceId' in patch || 'wardId' in patch || 'districtId' in patch) {
+        await this.assertLocation(merged);
+      }
+      await properties.update(actor.tenantId, id, {
+        ...patch,
+        updatedBy: actor.userId,
+      } as TenantWritable<Property>);
+    });
+
+    return this.findOne(actor, id, scopes.view ?? 'OWN', scopes.contact);
+  }
+
+  /** Điều kiện phạm vi, hoặc FALSE khi user không có quyền đó. */
+  private scopeOrFalse(scope: PermissionScope | undefined): string {
+    return scope ? scopeCondition(scope, PROPERTY_SCOPE_COLUMNS) : 'FALSE';
+  }
+
   /** Điều kiện SQL "user được xem liên hệ chủ nhà của BĐS `p`". */
   private contactCondition(contactScope: PermissionScope | undefined): string {
-    return contactScope ? scopeCondition(contactScope, PROPERTY_SCOPE_COLUMNS) : 'FALSE';
+    return this.scopeOrFalse(contactScope);
   }
 
   private async findOwner(tenantId: string, ownerId: string): Promise<PropertyOwnerContact | null> {
@@ -166,7 +250,7 @@ export class PropertiesService {
   }
 
   /** Tỉnh, phường/xã (và quận/huyện nếu có) phải tồn tại, đang dùng và thuộc đúng tỉnh. */
-  private async assertLocation(dto: CreatePropertyDto): Promise<void> {
+  private async assertLocation(dto: LocationInput): Promise<void> {
     const [row] = (await this.dataSource.query(
       `SELECT
          EXISTS (SELECT 1 FROM provinces WHERE id = $1 AND is_active) AS province,
@@ -206,6 +290,25 @@ export class PropertiesService {
       [tenantId],
     )) as { last_value: string }[];
     return Number(row?.last_value);
+  }
+}
+
+/** Toạ độ và hoa hồng đi theo cặp; hoa hồng theo % không quá 100. */
+function assertPairs(property: Property): void {
+  const details: ErrorDetail[] = [];
+  if ((property.latitude === null) !== (property.longitude === null)) {
+    details.push({ field: 'latitude', message: 'latitude và longitude phải có cùng nhau' });
+  }
+  if ((property.commissionType === null) !== (property.commissionValue === null)) {
+    details.push({
+      field: 'commissionValue',
+      message: 'commissionType và commissionValue phải có cùng nhau',
+    });
+  } else if (property.commissionType === 'PERCENT' && (property.commissionValue ?? 0) > 100) {
+    details.push({ field: 'commissionValue', message: 'Hoa hồng theo % phải từ 0 đến 100' });
+  }
+  if (details.length > 0) {
+    throw invalid(details);
   }
 }
 

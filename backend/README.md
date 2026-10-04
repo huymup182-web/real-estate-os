@@ -346,3 +346,14 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
 - Mỗi dòng giống chi tiết nhưng không có `owner`; `streetAddress`, `ownerId` ẩn theo phạm vi `property.view_owner_contact` (`ownerContactVisible`), toạ độ luôn có.
 - `pageSize` tối đa 100. Tham số lạ (vd `status`) → 400: lọc, tìm kiếm, sắp xếp khác làm ở Phase 5 (TASK-064..074).
 - Test: `test/properties-list.spec.ts`.
+
+## Sửa BĐS (TASK-052)
+
+`PATCH /api/v1/properties/:id` → chi tiết BĐS sau khi sửa (cùng dạng `GET /properties/:id`). Cần quyền `property.edit`.
+
+- Chỉ đổi trường được gửi; trường tuỳ chọn gửi `null` (hoặc chuỗi rỗng) để xoá; trường bắt buộc (`title`, `propertyType`, `price`, `area`, `provinceId`, `wardId`) không nhận `null`. Body rỗng → 400.
+- Không sửa ở đây: `code`, `status`, `agentId`, `ownerId`, `transactionType`, xác minh (gửi lên → 400).
+- Quyền theo bản ghi: ngoài phạm vi `property.view` → 404; xem được nhưng ngoài phạm vi `property.edit` → 403 (vd AGENT sửa BĐS của agent khác).
+- Chống ghi đè: gửi `expectedUpdatedAt` (giá trị `updatedAt` đang có); BĐS đã bị sửa sau thời điểm đó → 409 `CONFLICT`. Không gửi thì ghi đè như bình thường.
+- Toạ độ, hoa hồng (theo cặp, `PERCENT` ≤ 100) và địa giới được kiểm trên giá trị sau khi gộp với bản ghi hiện tại. Dòng BĐS bị khoá (`FOR UPDATE`) trong lúc sửa.
+- Test: `test/properties-update.spec.ts`.
