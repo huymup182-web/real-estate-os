@@ -1,0 +1,13 @@
+// TypeScript cho package database. Chạy trực tiếp bằng Node (type stripping), không build.
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "types": ["node"],
+    "typeRoots": ["../node_modules/@types"]
+  },
+  "include": ["src/**/*.ts", "migrations/**/*.ts", "test/**/*.ts"]
+}

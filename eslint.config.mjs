@@ -63,6 +63,12 @@ export default tseslint.config(
     },
   },
 
+  // CLI in thông báo ra terminal
+  {
+    files: ['**/cli.ts'],
+    rules: { 'no-console': 'off' },
+  },
+
   {
     files: ['**/*.mjs'],
     languageOptions: { globals: globals.node },

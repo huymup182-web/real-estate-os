@@ -51,15 +51,19 @@ Bật `strict` cùng `noImplicitReturns`, `noUncheckedIndexedAccess`, `noImplici
 
 ### Database (PostgreSQL)
 
-| Loại       | Quy ước                     | Ví dụ                               |
-| ---------- | --------------------------- | ----------------------------------- |
-| Bảng       | snake_case, số nhiều        | `properties`, `customer_activities` |
-| Cột        | snake_case                  | `tenant_id`, `created_at`           |
-| Khoá chính | `id` (UUID)                 |                                     |
-| Khoá ngoại | `<bảng số ít>_id`           | `property_id`, `agent_id`           |
-| Index      | `idx_<bảng>_<cột>`          | `idx_properties_tenant_id_status`   |
-| Unique     | `uq_<bảng>_<cột>`           | `uq_users_email`                    |
-| Migration  | `<timestamp>-<mô-tả-kebab>` | `1759550000000-create-companies`    |
+| Loại              | Quy ước                     | Ví dụ                               |
+| ----------------- | --------------------------- | ----------------------------------- |
+| Bảng              | snake_case, số nhiều        | `properties`, `customer_activities` |
+| Cột               | snake_case                  | `tenant_id`, `created_at`           |
+| Khoá chính        | `id` (UUID)                 |                                     |
+| Khoá ngoại        | `<bảng số ít>_id`           | `property_id`, `agent_id`           |
+| Index             | `idx_<bảng>_<cột>`          | `idx_properties_tenant_id_status`   |
+| Unique            | `uq_<bảng>_<cột>`           | `uq_users_email`                    |
+| Tên constraint PK | `pk_<bảng>`                 | `pk_companies`                      |
+| Tên constraint FK | `fk_<bảng>_<cột>`           | `fk_teams_department_id`            |
+| Check             | `ck_<bảng>_<mô tả>`         | `ck_companies_status`               |
+| Trigger           | `trg_<bảng>_<mô tả>`        | `trg_companies_updated_at`          |
+| Migration         | `<timestamp>-<mô-tả-kebab>` | `1759550000000-create-companies`    |
 
 ### API
 
