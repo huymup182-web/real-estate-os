@@ -3,14 +3,7 @@ import { after, before, describe, it } from 'node:test';
 
 import type { DataSource } from 'typeorm';
 
-import { createCleanTestDataSource, revertAll } from './helpers.ts';
-
-interface ColumnInfo {
-  column_name: string;
-  data_type: string;
-  is_nullable: 'YES' | 'NO';
-  column_default: string | null;
-}
+import { createCleanTestDataSource, describeTable, insertRow, revertAll } from './helpers.ts';
 
 describe('TASK-007: bảng companies', () => {
   let db: DataSource;
@@ -24,26 +17,12 @@ describe('TASK-007: bảng companies', () => {
     await db.destroy();
   });
 
-  async function insertCompany(values: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const columns = Object.keys(values);
-    const params = columns.map((_, index) => `$${index + 1}`).join(', ');
-    const rows: Record<string, unknown>[] = await db.query(
-      `INSERT INTO companies (${columns.join(', ')}) VALUES (${params}) RETURNING *`,
-      Object.values(values),
-    );
-    const row = rows[0];
-    assert.ok(row);
-    return row;
+  function insertCompany(values: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return insertRow(db, 'companies', values);
   }
 
   it('có đủ cột đúng kiểu và ràng buộc NULL', async () => {
-    const columns: ColumnInfo[] = await db.query(
-      `SELECT column_name, data_type, is_nullable, column_default
-         FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'companies'
-        ORDER BY ordinal_position`,
-    );
-    const summary = columns.map((c) => [c.column_name, c.data_type, c.is_nullable]);
+    const summary = await describeTable(db, 'companies');
     assert.deepEqual(summary, [
       ['id', 'uuid', 'NO'],
       ['name', 'character varying', 'NO'],
@@ -125,6 +104,6 @@ describe('TASK-007: bảng companies', () => {
     assert.equal(functions.length, 0);
 
     const applied = await db.runMigrations();
-    assert.equal(applied.length, 2);
+    assert.equal(applied.length, db.migrations.length);
   });
 });
