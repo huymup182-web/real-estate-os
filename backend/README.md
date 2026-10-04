@@ -357,3 +357,12 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
 - Chống ghi đè: gửi `expectedUpdatedAt` (giá trị `updatedAt` đang có); BĐS đã bị sửa sau thời điểm đó → 409 `CONFLICT`. Không gửi thì ghi đè như bình thường.
 - Toạ độ, hoa hồng (theo cặp, `PERCENT` ≤ 100) và địa giới được kiểm trên giá trị sau khi gộp với bản ghi hiện tại. Dòng BĐS bị khoá (`FOR UPDATE`) trong lúc sửa.
 - Test: `test/properties-update.spec.ts`.
+
+## Xoá BĐS (TASK-053)
+
+`DELETE /api/v1/properties/:id` → 204, xoá mềm (`deleted_at`, người xoá ghi vào `updated_by`). Cần quyền `property.delete` (ma trận mặc định: COMPANY_ADMIN, DIRECTOR phạm vi công ty; MANAGER phạm vi phòng; TEAM_LEADER, AGENT, COLLABORATOR không có).
+
+- Ngoài phạm vi `property.view`, đã xoá hoặc công ty khác → 404; xem được nhưng ngoài phạm vi `property.delete` → 403.
+- BĐS đã xoá không còn trong chi tiết, danh sách, sửa. Ảnh, giấy tờ, lịch hẹn, giao dịch của BĐS giữ nguyên trong database.
+- Sửa và xoá dùng chung `lockForAction` (khoá dòng + kiểm phạm vi theo bản ghi).
+- Test: `test/properties-delete.spec.ts`.

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../auth/access-token.service.js';
 import type { RequestUser } from '../auth/jwt-auth.guard.js';
@@ -90,6 +101,25 @@ export class PropertiesController {
       view: permissions['property.view'],
       edit: editScope,
       contact: permissions['property.view_owner_contact'],
+    });
+  }
+
+  /**
+   * `DELETE /api/v1/properties/:id` → 204 (TASK-053), xoá mềm. Cần quyền `property.delete` với BĐS đó;
+   * xem được nhưng ngoài phạm vi xoá → 403, không xem được → 404.
+   */
+  @Delete(':id')
+  @HttpCode(204)
+  @RequirePermission('property.delete')
+  async remove(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @GrantedScope() deleteScope: PermissionScope,
+    @Param('id', ParseUuidPipe) id: string,
+  ): Promise<void> {
+    await this.properties.remove({ tenantId, userId: req.user.userId }, id, {
+      view: req.user.permissions['property.view'],
+      delete: deleteScope,
     });
   }
 }

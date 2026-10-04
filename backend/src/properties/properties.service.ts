@@ -191,20 +191,14 @@ export class PropertiesService {
 
     await this.dataSource.transaction(async (manager) => {
       const properties = this.properties.withManager(manager);
-      const { entities, raw } = await properties
-        .createQueryBuilder(actor.tenantId, 'p', (query) => query.where('p.id = :id', { id }))
-        .addSelect(`(${this.scopeOrFalse(scopes.view)})`, 'in_view')
-        .addSelect(`(${this.scopeOrFalse(scopes.edit)})`, 'in_edit')
-        .setParameter('scopeUserId', actor.userId)
-        .setLock('pessimistic_write')
-        .getRawAndEntities<{ in_view: boolean; in_edit: boolean }>();
-      const current = entities[0];
-      if (!current || raw[0]?.in_view !== true) {
-        throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
-      }
-      if (raw[0].in_edit !== true) {
-        throw new AppException(ErrorCode.FORBIDDEN, 'Không có quyền sửa BĐS này');
-      }
+      const current = await this.lockForAction(
+        properties,
+        actor,
+        id,
+        scopes.view,
+        scopes.edit,
+        'Không có quyền sửa BĐS này',
+      );
       if (
         dto.expectedUpdatedAt &&
         dto.expectedUpdatedAt.getTime() !== current.updatedAt.getTime()
@@ -227,6 +221,60 @@ export class PropertiesService {
     });
 
     return this.findOne(actor, id, scopes.view ?? 'OWN', scopes.contact);
+  }
+
+  /**
+   * Xoá mềm BĐS (TASK-053) → 204. Ngoài phạm vi `property.view`, đã xoá hoặc công ty khác → 404;
+   * xem được nhưng ngoài phạm vi `property.delete` → 403. Ghi người xoá vào `updated_by`.
+   * Ảnh, giấy tờ, lịch hẹn, giao dịch… của BĐS giữ nguyên trong database.
+   */
+  async remove(
+    actor: Actor,
+    id: string,
+    scopes: { view: PermissionScope | undefined; delete: PermissionScope },
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const properties = this.properties.withManager(manager);
+      await this.lockForAction(
+        properties,
+        actor,
+        id,
+        scopes.view,
+        scopes.delete,
+        'Không có quyền xoá BĐS này',
+      );
+      await properties.update(actor.tenantId, id, { updatedBy: actor.userId });
+      await properties.softDelete(actor.tenantId, id);
+    });
+  }
+
+  /**
+   * Khoá dòng BĐS (FOR UPDATE) trước khi sửa/xoá và kiểm quyền theo bản ghi:
+   * không có, ngoài phạm vi xem → 404; xem được nhưng ngoài phạm vi thao tác → 403.
+   */
+  private async lockForAction(
+    properties: TenantRepository<Property>,
+    actor: Actor,
+    id: string,
+    viewScope: PermissionScope | undefined,
+    actionScope: PermissionScope | undefined,
+    forbiddenMessage: string,
+  ): Promise<Property> {
+    const { entities, raw } = await properties
+      .createQueryBuilder(actor.tenantId, 'p', (query) => query.where('p.id = :id', { id }))
+      .addSelect(`(${this.scopeOrFalse(viewScope)})`, 'in_view')
+      .addSelect(`(${this.scopeOrFalse(actionScope)})`, 'in_action')
+      .setParameter('scopeUserId', actor.userId)
+      .setLock('pessimistic_write')
+      .getRawAndEntities<{ in_view: boolean; in_action: boolean }>();
+    const current = entities[0];
+    if (!current || raw[0]?.in_view !== true) {
+      throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
+    }
+    if (raw[0].in_action !== true) {
+      throw new AppException(ErrorCode.FORBIDDEN, forbiddenMessage);
+    }
+    return current;
   }
 
   /** Điều kiện phạm vi, hoặc FALSE khi user không có quyền đó. */
