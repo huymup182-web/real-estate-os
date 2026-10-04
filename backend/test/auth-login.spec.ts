@@ -9,7 +9,9 @@ import { DataSource } from 'typeorm';
 
 import { createApp } from '../src/app.factory.js';
 import { INVALID_CREDENTIALS_MESSAGE } from '../src/auth/login.service.js';
-import { hashPassword, verifyPassword } from '../src/auth/password.js';
+import { hash } from '@node-rs/argon2';
+
+import { ARGON2_OPTIONS, hashPassword, needsRehash, verifyPassword } from '../src/auth/password.js';
 import { useTestDatabase } from './support/test-database.js';
 
 const PASSWORD = 'mat-khau-dung-8';
@@ -149,6 +151,22 @@ describe('POST /api/v1/auth/login', () => {
     } finally {
       await db.query(`UPDATE users SET deleted_at = NULL WHERE id = $1`, [userId]);
     }
+  });
+
+  it('mật khẩu băm bằng tham số cũ được băm lại khi đăng nhập thành công', async () => {
+    const weakHash = await hash(PASSWORD, { ...ARGON2_OPTIONS, timeCost: 1 });
+    await db.query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, weakHash]);
+    assert.equal((await login('login@test.vn', 'sai-mat-khau')).status, 401);
+    const [afterFailure] = await db.query('SELECT password_hash FROM users WHERE id = $1', [
+      userId,
+    ]);
+    assert.equal(afterFailure.password_hash, weakHash, 'sai mật khẩu thì không đổi gì');
+
+    assert.equal((await login('login@test.vn')).status, 200);
+    const [row] = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    assert.notEqual(row.password_hash, weakHash);
+    assert.equal(needsRehash(row.password_hash), false);
+    assert.equal(await verifyPassword(row.password_hash, PASSWORD), true);
   });
 
   it('tài khoản nền tảng (không thuộc công ty) đăng nhập được', async () => {

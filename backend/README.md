@@ -188,3 +188,12 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Sai email/SĐT/mật khẩu, hoặc tài khoản đã xoá → 401 `UNAUTHENTICATED`, luôn cùng một câu thông báo để không lộ tài khoản nào tồn tại. Khi không có tài khoản vẫn chạy so mật khẩu giả để thời gian phản hồi tương đương.
 - Đúng mật khẩu nhưng tài khoản bị khoá/ngừng hoạt động, hoặc công ty bị tạm ngưng → 403 `FORBIDDEN`.
 - Thành công → 200 `{ user: { id, tenantId, fullName, email, phone } }` và ghi `last_login_at`. Access/refresh token sẽ được thêm vào response ở TASK-039/040.
+
+## Mật khẩu (TASK-038)
+
+`src/auth/password.ts` là nơi duy nhất băm/so mật khẩu:
+
+- Argon2id với tham số ghi rõ trong code (`ARGON2_OPTIONS`: 19 MiB, 2 vòng, 1 luồng — mức tối thiểu OWASP), salt ngẫu nhiên mỗi lần băm. `@node-rs/argon2` có sẵn bản build cho Linux (glibc và musl/Alpine), macOS, Windows nên không cần biên dịch khi build Docker.
+- Mật khẩu được chuẩn hoá Unicode NFKC trước khi băm/so, để mật khẩu tiếng Việt có dấu gõ từ bộ gõ khác nhau vẫn khớp. Seed (`database/src/seed.ts`) chuẩn hoá giống vậy.
+- Độ dài 8–128 ký tự khi đăng ký.
+- Đổi `ARGON2_OPTIONS` thì mật khẩu cũ được băm lại tự động lần đăng nhập thành công tiếp theo (`needsRehash`).

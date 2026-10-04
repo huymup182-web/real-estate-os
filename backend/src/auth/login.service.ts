@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { AppException } from '../common/errors/app.exception.js';
 import { ErrorCode } from '../common/errors/error-code.js';
 import type { LoginDto } from './dto/login.dto.js';
-import { hashPassword, verifyPassword } from './password.js';
+import { hashPassword, needsRehash, verifyPassword } from './password.js';
 
 export interface LoginUser {
   id: string;
@@ -60,7 +60,12 @@ export class LoginService {
       throw new AppException(ErrorCode.FORBIDDEN, 'Công ty đang bị tạm ngưng');
     }
 
-    await this.dataSource.query(`UPDATE users SET last_login_at = now() WHERE id = $1`, [user.id]);
+    // Tham số băm đã đổi từ lần băm trước → băm lại bằng tham số hiện tại (lúc này mới có mật khẩu gốc).
+    const newHash = needsRehash(user.password_hash) ? await hashPassword(dto.password) : null;
+    await this.dataSource.query(
+      `UPDATE users SET last_login_at = now(), password_hash = COALESCE($2, password_hash) WHERE id = $1`,
+      [user.id, newHash],
+    );
     return {
       user: {
         id: user.id,
