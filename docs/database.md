@@ -280,15 +280,17 @@ Phường/xã và quận/huyện phải thuộc đúng tỉnh của BĐS (khoá 
 | id                     | uuid         | PK                                                                             |
 | tenant_id              | uuid         | NOT NULL, FK companies                                                         |
 | property_id            | uuid         | NOT NULL, T-FK properties                                                      |
-| storage_key            | varchar(500) | NOT NULL. vd `{tenant_id}/properties/{property_id}/{id}.webp`                  |
-| thumbnail_key          | varchar(500) | NULL                                                                           |
-| mime_type              | varchar(50)  | NOT NULL                                                                       |
+| storage_key            | varchar(500) | NOT NULL, UQ. Phải bắt đầu bằng `{tenant_id}/properties/{property_id}/`        |
+| thumbnail_key          | varchar(500) | NULL, cùng quy tắc thư mục với `storage_key`                                   |
+| mime_type              | varchar(50)  | NOT NULL. `image/jpeg` \| `image/png` \| `image/webp` \| `image/heic`          |
 | size_bytes             | integer      | NOT NULL, CHECK > 0                                                            |
-| width, height          | integer      | NULL                                                                           |
-| sort_order             | integer      | NOT NULL DEFAULT 0                                                             |
+| width, height          | integer      | NULL, CHECK > 0                                                                |
+| sort_order             | integer      | NOT NULL DEFAULT 0, CHECK ≥ 0                                                  |
 | is_cover               | boolean      | NOT NULL DEFAULT false. Tối đa một ảnh bìa mỗi BĐS (unique index có điều kiện) |
-| created_by             | uuid         | FK users                                                                       |
+| created_by             | uuid         | NULL, T-FK users                                                               |
 | created_at, deleted_at | timestamptz  |                                                                                |
+
+Xoá cứng BĐS còn ảnh bị chặn (`ON DELETE RESTRICT`) để không bỏ sót file trên storage; ảnh dùng soft delete.
 
 **property_documents** (giấy tờ pháp lý, quyền xem chặt hơn ảnh)
 

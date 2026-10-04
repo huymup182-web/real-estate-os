@@ -53,3 +53,4 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791095795199-create-locations`           | TASK-013 | Bảng `provinces`, `districts`, `wards` (chưa có dữ liệu)          |
 | `1791096043111-enable-postgis-unaccent`    | TASK-014 | Extension `postgis`, `unaccent` và hàm `immutable_unaccent()`     |
 | `1791096044509-create-properties`          | TASK-014 | Bảng `properties` (`owner_id` thêm ở TASK-017)                    |
+| `1791096412946-create-property-images`     | TASK-015 | Bảng `property_images`                                            |
