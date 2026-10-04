@@ -263,3 +263,16 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Không có chỗ nào kiểm quyền theo **tên role** (phase0/04-RBAC.md mục 1): guard phân quyền ở TASK-046 chỉ đọc `req.user.permissions`.
 - `PermissionService.getUserAccess(userId)` cache trong process 60 giây (`ACCESS_CACHE_TTL_MS`). Đổi role/quyền trực tiếp trong DB có hiệu lực chậm nhất sau 60 giây; API đổi role/quyền (sau này) phải gọi `invalidate(userId)` hoặc `invalidate()` để có hiệu lực ngay.
 - `GET /auth/me` vẫn đọc mới từ DB, không qua cache.
+
+## Kiểm quyền (TASK-046)
+
+```ts
+@Get()
+@RequirePermission('customer.view')
+list(@GrantedScope() scope: PermissionScope) { … } // scope: OWN | TEAM | DEPARTMENT | COMPANY
+```
+
+- `@RequirePermission(code)` (`src/auth/permission.guard.ts`) đặt trên handler hoặc controller (handler ghi đè controller). `PermissionGuard` chạy sau `JwtAuthGuard`, đọc `req.user.permissions` (TASK-045): không có quyền → 403 `FORBIDDEN`.
+- `@GrantedScope()` trả scope của quyền đó để service áp vào truy vấn (vd `OWN` → chỉ bản ghi mình phụ trách). Áp scope vào truy vấn làm ở từng module nghiệp vụ.
+- Chỉ kiểm theo permission, không theo tên role. Permission mới thêm bằng migration seed, không sửa guard.
+- Route không có `@RequirePermission` chỉ cần đăng nhập. `@Public()` kèm `@RequirePermission` là cấu hình sai và bị chặn (401).
