@@ -314,3 +314,13 @@ async get(@TenantId() tenantId: string, @Param('id', ParseUuidPipe) id: string) 
 | Kiểm quyền, tách dữ liệu theo công ty                                                                                                                                 | `permission-guard`, `tenant-isolation`                |
 
 Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS của người khác, TEAM_LEADER sửa được trong nhóm, COLLABORATOR không thấy khách của người khác — phase0/04-RBAC.md mục 7) sẽ viết cùng module BĐS/khách hàng.
+
+## Tạo BĐS (TASK-049)
+
+`POST /api/v1/properties` → 201 BĐS vừa tạo. Cần quyền `property.create` (mọi role mặc định đều có, scope COMPANY).
+
+- Bắt buộc: `title`, `propertyType`, `price` (số nguyên, đồng), `area` (m², tối đa 2 số lẻ), `provinceId`, `wardId`. Các trường khác tuỳ chọn; `latitude`/`longitude` và `commissionType`/`commissionValue` phải gửi theo cặp, hoa hồng `PERCENT` ≤ 100.
+- Backend tự gán: `code` (`BDS-000001`… đếm riêng theo công ty, bảng `property_code_counters`), `status = AVAILABLE`, `verificationStatus = UNVERIFIED`, `transactionType = SALE`, môi giới phụ trách và người tạo là user đang đăng nhập, `tenant_id` lấy từ token.
+- Client gửi `tenantId`, `code`, `status`, `agentId`, `ownerId`, `transactionType` → 400 (đổi trạng thái, chủ nhà, phân môi giới làm ở TASK-054..056).
+- Tỉnh, phường/xã (và quận/huyện nếu gửi) phải tồn tại, đang dùng và cùng tỉnh, sai → 400 chỉ rõ trường.
+- Mã nguồn: `src/properties/` (entity, DTO, service, controller). Test: `test/properties-create.spec.ts`.

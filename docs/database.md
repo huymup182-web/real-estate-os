@@ -275,6 +275,8 @@ Danh sách giá trị (Huy Lê duyệt ngày 2026-10-04):
 
 Phường/xã và quận/huyện phải thuộc đúng tỉnh của BĐS (khoá ngoại kép theo `province_id`). Môi giới, người xác minh, người tạo/sửa là user cùng công ty. Index lọc/tìm kiếm (GIN, GIST, B-tree) làm ở TASK-026.
 
+**property_code_counters** (TASK-049): bộ đếm mã BĐS theo công ty. `tenant_id` PK, FK companies · `last_value` bigint NOT NULL, CHECK > 0 · `updated_at`. Backend tăng bằng `INSERT … ON CONFLICT (tenant_id) DO UPDATE SET last_value = last_value + 1 RETURNING last_value` trong cùng transaction với lệnh tạo BĐS, rồi sinh `code` = `BDS-` + số đệm 6 chữ số (vd `BDS-000125`). Số đã cấp không dùng lại.
+
 **property_images** (file nằm trên S3/R2, bảng chỉ lưu đường dẫn)
 
 | Cột                    | Kiểu         | Ràng buộc                                                                      |
