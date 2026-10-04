@@ -18,6 +18,7 @@ import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
 
 import { createApp } from '../src/app.factory.js';
+import { Public } from '../src/auth/public.decorator.js';
 import { AppModule } from '../src/app.module.js';
 import { ErrorCode } from '../src/common/errors/error-code.js';
 import { NoHtml } from '../src/common/validation/no-html.decorator.js';
@@ -55,6 +56,7 @@ class ListQueryDto {
 }
 
 /** Controller chỉ dùng cho test: trả lại dữ liệu đã qua validation. */
+@Public()
 @Controller('test-validation')
 class ValidationController {
   @Post()

@@ -1,6 +1,8 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
+import { Public } from '../auth/public.decorator.js';
+
 /** Thời gian tối đa chờ database trả lời, để health check không treo khi database mất kết nối. */
 export const DATABASE_CHECK_TIMEOUT_MS = 3000;
 
@@ -33,6 +35,7 @@ export async function isDatabaseUp(
  * `GET /api/v1/health`: không cần đăng nhập, không trả thông tin nhạy cảm (phase0/05-API-CONVENTIONS.md).
  * Database chạy → 200 `{ status: 'ok', db: 'up' }`; database không trả lời → 503.
  */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly dataSource: DataSource) {}

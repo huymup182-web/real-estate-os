@@ -7,6 +7,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import { Controller, Get, type INestApplication, Logger, Module } from '@nestjs/common';
 
 import { createApp } from '../src/app.factory.js';
+import { Public } from '../src/auth/public.decorator.js';
 import { AppModule } from '../src/app.module.js';
 import { AppLogger, enabledLogLevels } from '../src/common/logging/app-logger.js';
 import { getRequestContext } from '../src/common/logging/request-context.js';
@@ -38,6 +39,7 @@ function captureLogs(): { lines: LogLine[]; restore: () => void } {
 }
 
 /** Controller chỉ dùng cho test: ghi log bên trong request. */
+@Public()
 @Controller('test-logging')
 class LoggingController {
   private readonly logger = new Logger('LoggingController');

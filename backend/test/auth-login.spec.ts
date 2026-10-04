@@ -20,6 +20,8 @@ interface ApiBody {
   success: boolean;
   message: string | null;
   data: {
+    accessToken?: string;
+    expiresIn?: number;
     user: {
       id: string;
       tenantId: string | null;
@@ -92,7 +94,10 @@ describe('POST /api/v1/auth/login', () => {
   it('đăng nhập bằng email (không phân biệt hoa thường) → 200, ghi last_login_at', async () => {
     const result = await login('  LOGIN@Test.VN ');
     assert.equal(result.status, 200);
-    assert.deepEqual(result.body.data, {
+    const { accessToken, expiresIn, ...rest } = result.body.data ?? {};
+    assert.equal(typeof accessToken, 'string');
+    assert.equal(expiresIn, 900);
+    assert.deepEqual(rest, {
       user: {
         id: userId,
         tenantId: companyId,

@@ -11,9 +11,16 @@ export interface AppConfig {
   nodeEnv: NodeEnv;
   databaseUrl: string;
   logLevel: LogLevel;
+  jwtSecret: string;
 }
 
 const DEFAULT_PORT = 3000;
+
+/** Độ dài tối thiểu của khoá ký JWT (docs/environment.md). */
+export const JWT_SECRET_MIN_LENGTH = 32;
+
+/** Khoá dev đã commit trong .env.development: không bao giờ được dùng ở production. */
+const DEV_JWT_SECRET = 'dev-only-insecure-jwt-secret-change-me';
 
 function isNodeEnv(value: string): value is NodeEnv {
   return (NODE_ENVS as readonly string[]).includes(value);
@@ -68,5 +75,18 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('DATABASE_URL không hợp lệ: cần dạng postgresql://USER:PASSWORD@HOST:PORT/DB');
   }
 
-  return { port, nodeEnv, databaseUrl, logLevel: loadLogLevel(env) };
+  const jwtSecret = env['JWT_SECRET'];
+  if (!jwtSecret) {
+    throw new Error('Thiếu JWT_SECRET (xem docs/environment.md)');
+  }
+  if (jwtSecret.length < JWT_SECRET_MIN_LENGTH) {
+    throw new Error(`JWT_SECRET phải có ít nhất ${JWT_SECRET_MIN_LENGTH} ký tự`);
+  }
+  if (nodeEnv === 'production' && jwtSecret === DEV_JWT_SECRET) {
+    throw new Error(
+      'JWT_SECRET đang là khoá dev của .env.development, không dùng được ở production',
+    );
+  }
+
+  return { port, nodeEnv, databaseUrl, logLevel: loadLogLevel(env), jwtSecret };
 }
