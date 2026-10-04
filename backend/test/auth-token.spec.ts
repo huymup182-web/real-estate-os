@@ -6,6 +6,7 @@ import { after, before, describe, it } from 'node:test';
 
 import { Controller, Get, type INestApplication, Module, Req } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { DataSource } from 'typeorm';
 
 import { createApp } from '../src/app.factory.js';
 import { AppModule } from '../src/app.module.js';
@@ -41,6 +42,8 @@ describe('JWT access token', () => {
   let companyId: string;
   let accessToken: string;
   let expiresIn: number;
+  let sessionId: string;
+  let db: DataSource;
 
   before(async () => {
     await useTestDatabase();
@@ -50,6 +53,7 @@ describe('JWT access token', () => {
     await app.listen(0, '127.0.0.1');
     const address = app.getHttpServer().address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
+    db = app.get(DataSource);
 
     const registered = (await (
       await post('/auth/register', {
@@ -67,6 +71,10 @@ describe('JWT access token', () => {
     ).json()) as { data: { accessToken: string; expiresIn: number } };
     accessToken = login.data.accessToken;
     expiresIn = login.data.expiresIn;
+    const [session] = await db.query('SELECT family_id FROM refresh_tokens WHERE user_id = $1', [
+      userId,
+    ]);
+    sessionId = session.family_id;
   });
 
   after(async () => {
@@ -93,7 +101,7 @@ describe('JWT access token', () => {
     };
   }
 
-  it('đăng nhập trả access token HS256 sống 15 phút, chỉ chứa user id và tenant id', () => {
+  it('đăng nhập trả access token HS256 sống 15 phút, chỉ chứa user, tenant và phiên', () => {
     assert.equal(expiresIn, ACCESS_TOKEN_TTL_SECONDS);
     assert.equal(ACCESS_TOKEN_TTL_SECONDS, 900);
     const [header, payload] = accessToken.split('.');
@@ -105,9 +113,10 @@ describe('JWT access token', () => {
       string,
       unknown
     >;
-    assert.deepEqual(Object.keys(claims).sort(), ['exp', 'iat', 'sub', 'tid']);
+    assert.deepEqual(Object.keys(claims).sort(), ['exp', 'iat', 'sid', 'sub', 'tid']);
     assert.equal(claims['sub'], userId);
     assert.equal(claims['tid'], companyId);
+    assert.equal(claims['sid'], sessionId);
     assert.equal((claims['exp'] as number) - (claims['iat'] as number), 900);
   });
 
@@ -115,7 +124,7 @@ describe('JWT access token', () => {
     const result = await callProtected(`Bearer ${accessToken}`);
     assert.equal(result.status, 200);
     assert.deepEqual(result.body.data, {
-      user: { userId, tenantId: companyId },
+      user: { userId, tenantId: companyId, sessionId },
       context: { userId, tenantId: companyId },
     });
   });
@@ -136,16 +145,24 @@ describe('JWT access token', () => {
 
   it('token giả mạo, ký bằng khoá khác, hoặc alg none → 401', async () => {
     const [header, , signature] = accessToken.split('.');
-    const tamperedPayload = base64url({ sub: userId, tid: 'tenant-khac', iat: 1, exp: 9999999999 });
+    const tamperedPayload = base64url({
+      sub: userId,
+      tid: 'tenant-khac',
+      sid: 'x',
+      iat: 1,
+      exp: 9999999999,
+    });
     const otherSecret = await new JwtService({
       secret: 'mot-khoa-khac-du-dai-32-ky-tu-xyz',
     }).signAsync({
       sub: userId,
       tid: companyId,
+      sid: sessionId,
     });
     const algNone = `${base64url({ alg: 'none', typ: 'JWT' })}.${base64url({
       sub: userId,
       tid: companyId,
+      sid: sessionId,
       exp: 9999999999,
     })}.`;
     for (const token of [
@@ -165,6 +182,7 @@ describe('JWT access token', () => {
     const expired = await new JwtService({ secret }).signAsync({
       sub: userId,
       tid: companyId,
+      sid: sessionId,
       iat: now - 1000,
       exp: now - 10,
     });
@@ -173,9 +191,14 @@ describe('JWT access token', () => {
     assert.equal(result.body.error?.code, 'TOKEN_EXPIRED');
   });
 
-  it('token đúng chữ ký nhưng thiếu sub/tid → 401', async () => {
+  it('token đúng chữ ký nhưng thiếu sub/tid/sid → 401', async () => {
     const jwt = new JwtService({ secret });
-    for (const claims of [{ tid: companyId }, { sub: userId }, { sub: 5, tid: null }]) {
+    for (const claims of [
+      { tid: companyId, sid: sessionId },
+      { sub: userId, sid: sessionId },
+      { sub: 5, tid: null, sid: sessionId },
+      { sub: userId, tid: companyId },
+    ]) {
       const token = await jwt.signAsync(claims, { expiresIn: 60 });
       const result = await callProtected(`Bearer ${token}`);
       assert.equal(result.status, 401, JSON.stringify(claims));
