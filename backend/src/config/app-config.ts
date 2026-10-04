@@ -1,3 +1,7 @@
+import type { LogLevel } from '@nestjs/common';
+
+import { LOG_LEVELS } from '../common/logging/app-logger.js';
+
 /** Cấu hình chạy ứng dụng, đọc và kiểm tra từ biến môi trường (xem docs/environment.md). */
 export const NODE_ENVS = ['development', 'production', 'test'] as const;
 export type NodeEnv = (typeof NODE_ENVS)[number];
@@ -6,6 +10,7 @@ export interface AppConfig {
   port: number;
   nodeEnv: NodeEnv;
   databaseUrl: string;
+  logLevel: LogLevel;
 }
 
 const DEFAULT_PORT = 3000;
@@ -25,6 +30,21 @@ function isPostgresUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+const DEFAULT_LOG_LEVEL: LogLevel = 'log';
+
+function isLogLevel(value: string): value is LogLevel {
+  return (LOG_LEVELS as readonly string[]).includes(value);
+}
+
+/** Mức log từ LOG_LEVEL (mặc định `log`). Tách riêng để logger dùng được trước khi tạo ứng dụng. */
+export function loadLogLevel(env: NodeJS.ProcessEnv = process.env): LogLevel {
+  const logLevel = env['LOG_LEVEL'] ?? DEFAULT_LOG_LEVEL;
+  if (!isLogLevel(logLevel)) {
+    throw new Error(`LOG_LEVEL không hợp lệ: "${logLevel}" (cần ${LOG_LEVELS.join(' | ')})`);
+  }
+  return logLevel;
 }
 
 /** Ném lỗi ngay khi khởi động nếu biến môi trường sai, thay vì chạy với cấu hình hỏng. */
@@ -48,5 +68,5 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('DATABASE_URL không hợp lệ: cần dạng postgresql://USER:PASSWORD@HOST:PORT/DB');
   }
 
-  return { port, nodeEnv, databaseUrl };
+  return { port, nodeEnv, databaseUrl, logLevel: loadLogLevel(env) };
 }

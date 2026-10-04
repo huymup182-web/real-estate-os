@@ -11,6 +11,7 @@ describe('loadAppConfig', () => {
       port: 3000,
       nodeEnv: 'development',
       databaseUrl: DATABASE_URL,
+      logLevel: 'log',
     });
   });
 
@@ -46,5 +47,16 @@ describe('loadAppConfig', () => {
       loadAppConfig({ DATABASE_URL: 'postgres://u:p@db:5432/x' }).databaseUrl,
       'postgres://u:p@db:5432/x',
     );
+  });
+
+  it('đọc LOG_LEVEL hợp lệ, từ chối giá trị lạ', () => {
+    assert.equal(loadAppConfig({ LOG_LEVEL: 'debug', DATABASE_URL }).logLevel, 'debug');
+    for (const level of ['info', 'LOG', '']) {
+      assert.throws(
+        () => loadAppConfig({ LOG_LEVEL: level, DATABASE_URL }),
+        /LOG_LEVEL không hợp lệ/,
+        level,
+      );
+    }
   });
 });

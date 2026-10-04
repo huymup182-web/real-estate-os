@@ -8,6 +8,7 @@ import {
 import { HttpAdapterHost } from '@nestjs/core';
 import { QueryFailedError } from 'typeorm';
 
+import { requestPath } from '../logging/request-logger.middleware.js';
 import {
   getRequestId,
   REQUEST_ID_HEADER,
@@ -121,10 +122,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const { status, code, message, details } = resolve(exception);
 
     if (status >= 500) {
-      this.logger.error(
-        `[${requestId}] ${req.method ?? ''} ${req.url ?? ''}`,
-        exception instanceof Error ? exception.stack : String(exception),
-      );
+      // Lỗi trước middleware (vd body parser) chưa có request context nên ghi kèm requestId ở đây.
+      this.logger.error(exception instanceof Error ? exception : String(exception), {
+        requestId,
+        method: req.method,
+        path: requestPath(req),
+      });
     }
 
     const body: ErrorResponseBody = {
