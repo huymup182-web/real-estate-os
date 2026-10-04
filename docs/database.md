@@ -460,19 +460,21 @@ Giao dịch và hoa hồng là dữ liệu tài chính: khách, BĐS, môi giớ
 
 **audit_logs** (chỉ thêm; ứng dụng không được sửa/xoá)
 
-| Cột         | Kiểu         | Ràng buộc                                                    |
-| ----------- | ------------ | ------------------------------------------------------------ |
-| id          | uuid         | PK                                                           |
-| tenant_id   | uuid         | NULL, FK companies                                           |
-| user_id     | uuid         | NULL, FK users                                               |
-| action      | varchar(100) | NOT NULL. vd `property.update`, `auth.login`                 |
-| entity_type | varchar(50)  | NULL                                                         |
-| entity_id   | uuid         | NULL                                                         |
-| changes     | jsonb        | NULL. `{field: [cũ, mới]}`, không bao giờ ghi mật khẩu/token |
-| ip_address  | inet         | NULL                                                         |
-| user_agent  | text         | NULL                                                         |
-| request_id  | varchar(100) | NULL                                                         |
-| created_at  | timestamptz  | NOT NULL DEFAULT now()                                       |
+| Cột         | Kiểu         | Ràng buộc                                                             |
+| ----------- | ------------ | --------------------------------------------------------------------- |
+| id          | uuid         | PK                                                                    |
+| tenant_id   | uuid         | NULL, FK companies (RESTRICT)                                         |
+| user_id     | uuid         | NULL, FK users (RESTRICT); user công ty chỉ ghi cho công ty mình      |
+| action      | varchar(100) | NOT NULL, dạng `module.hành_động`. vd `property.update`, `auth.login` |
+| entity_type | varchar(50)  | NULL                                                                  |
+| entity_id   | uuid         | NULL, cần entity_type                                                 |
+| changes     | jsonb        | NULL, object. `{field: [cũ, mới]}`, không bao giờ ghi mật khẩu/token  |
+| ip_address  | inet         | NULL                                                                  |
+| user_agent  | text         | NULL                                                                  |
+| request_id  | varchar(100) | NULL                                                                  |
+| created_at  | timestamptz  | NOT NULL DEFAULT now()                                                |
+
+Trigger chặn `UPDATE`, `DELETE`, `TRUNCATE` trên `audit_logs`, nên công ty hoặc user đã có nhật ký thì không xoá cứng được.
 
 ### 4.10 Xác thực và thiết bị (tạo ở Phase 3 và Phase 8)
 
