@@ -214,16 +214,18 @@ Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện (còn tỉnh → xã/phư�
 
 **owners** (chủ nhà; SĐT là dữ liệu nhạy cảm, chỉ người có quyền mới xem)
 
-| Cột                                | Kiểu         | Ràng buộc                         |
-| ---------------------------------- | ------------ | --------------------------------- |
-| id                                 | uuid         | PK, UQ (tenant_id, id)            |
-| tenant_id                          | uuid         | NOT NULL, FK companies            |
-| full_name                          | varchar(255) | NOT NULL                          |
-| phone                              | varchar(20)  | NOT NULL, dạng chuẩn hoá `+84...` |
-| email                              | citext       | NULL                              |
-| notes                              | text         | NULL                              |
-| created_by, updated_by             | uuid         | FK users                          |
-| created_at, updated_at, deleted_at | timestamptz  |                                   |
+| Cột                                | Kiểu         | Ràng buộc                                                   |
+| ---------------------------------- | ------------ | ----------------------------------------------------------- |
+| id                                 | uuid         | PK, UQ (tenant_id, id)                                      |
+| tenant_id                          | uuid         | NOT NULL, FK companies                                      |
+| full_name                          | varchar(255) | NOT NULL                                                    |
+| phone                              | varchar(20)  | NOT NULL, dạng chuẩn `+` và 8–15 chữ số (vd `+84901234567`) |
+| email                              | citext       | NULL, dạng `x@y.z`                                          |
+| notes                              | text         | NULL                                                        |
+| created_by, updated_by             | uuid         | NULL, T-FK users                                            |
+| created_at, updated_at, deleted_at | timestamptz  |                                                             |
+
+Một chủ nhà có thể có nhiều BĐS; SĐT không bắt buộc duy nhất (chưa có luật gộp chủ nhà trùng), có index `(tenant_id, phone)` để tra cứu. Xoá cứng chủ nhà còn gắn với BĐS bị chặn (`ON DELETE RESTRICT`).
 
 **properties**
 
@@ -251,7 +253,7 @@ Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện (còn tỉnh → xã/phư�
 | latitude, longitude                | numeric(9,6)          | NULL, cùng có hoặc cùng `NULL`                                                                                                                           |
 | location                           | geography(Point,4326) | GENERATED `ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography` (NULL nếu thiếu toạ độ), dùng cho bản đồ                                      |
 | status                             | varchar(20)           | NOT NULL DEFAULT `AVAILABLE`: `AVAILABLE` `PENDING` `SOLD` `HIDDEN` `EXPIRED` `VERIFY_REQUIRED`                                                          |
-| owner_id                           | uuid                  | NULL, T-FK owners. Thêm ở TASK-017 khi có bảng `owners`                                                                                                  |
+| owner_id                           | uuid                  | NULL, T-FK owners (thêm ở TASK-017)                                                                                                                      |
 | agent_id                           | uuid                  | NOT NULL, T-FK users. Môi giới phụ trách                                                                                                                 |
 | source                             | varchar(30)           | NULL. Nguồn hàng, xem danh sách bên dưới                                                                                                                 |
 | commission_type                    | varchar(10)           | NULL, `PERCENT` \| `FIXED`                                                                                                                               |

@@ -55,3 +55,4 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791096044509-create-properties`          | TASK-014 | Bảng `properties` (`owner_id` thêm ở TASK-017)                    |
 | `1791096412946-create-property-images`     | TASK-015 | Bảng `property_images`                                            |
 | `1791096871613-create-property-documents`  | TASK-016 | Bảng `property_documents`                                         |
+| `1791097085181-create-owners`              | TASK-017 | Bảng `owners` và cột `properties.owner_id`                        |
