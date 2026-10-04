@@ -44,19 +44,19 @@ Ký hiệu trong tài liệu: `PK` khoá chính, `FK` khoá ngoại, `UQ` unique
 
 ## 3. Nhóm bảng
 
-| Nhóm                    | Bảng                                                                                                    | Task tạo       |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- | -------------- |
-| Tổ chức                 | `companies`, `departments`, `teams`, `team_members`                                                     | 007, 011, 012  |
-| Người dùng & phân quyền | `users`, `roles`, `user_roles`, `permissions`, `role_permissions`                                       | 008, 009, 010  |
-| Địa giới hành chính     | `provinces`, `districts`, `wards`                                                                       | 013            |
-| BĐS                     | `owners`, `properties`, `property_images`, `property_documents`, `property_favorites`, `property_views` | 014 → 017, 020 |
-| Khách hàng (CRM)        | `customers`, `customer_preferences`, `customer_activities`                                              | 018, 019       |
-| Tìm kiếm                | `saved_searches`                                                                                        | 021            |
-| Lịch hẹn & giao dịch    | `appointments`, `deals`, `commissions`                                                                  | 022, 023       |
-| Thông báo               | `notifications`                                                                                         | 024            |
-| Audit                   | `audit_logs`                                                                                            | 025            |
-| Xác thực (Phase 3)      | `refresh_tokens`, `password_reset_tokens`                                                               | 040, 042       |
-| Thiết bị (Phase 8)      | `device_tokens`                                                                                         | 094            |
+| Nhóm                    | Bảng                                                                                                                            | Task tạo            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Tổ chức                 | `companies`, `departments`, `teams`, `team_members`                                                                             | 007, 011, 012       |
+| Người dùng & phân quyền | `users`, `roles`, `user_roles`, `permissions`, `role_permissions`                                                               | 008, 009, 010       |
+| Địa giới hành chính     | `provinces`, `districts`, `wards`                                                                                               | 013                 |
+| BĐS                     | `owners`, `properties`, `property_images`, `property_documents`, `property_favorites`, `property_views`, `property_share_links` | 014 → 017, 020, 061 |
+| Khách hàng (CRM)        | `customers`, `customer_preferences`, `customer_activities`                                                                      | 018, 019            |
+| Tìm kiếm                | `saved_searches`                                                                                                                | 021                 |
+| Lịch hẹn & giao dịch    | `appointments`, `deals`, `commissions`                                                                                          | 022, 023            |
+| Thông báo               | `notifications`                                                                                                                 | 024                 |
+| Audit                   | `audit_logs`                                                                                                                    | 025                 |
+| Xác thực (Phase 3)      | `refresh_tokens`, `password_reset_tokens`                                                                                       | 040, 042            |
+| Thiết bị (Phase 8)      | `device_tokens`                                                                                                                 | 094                 |
 
 `user_roles` không có tên riêng trong roadmap nhưng bắt buộc để gán role cho user (một user có thể nhiều role); tạo cùng TASK-009. Ba bảng xác thực/thiết bị được thiết kế ở đây để ERD đầy đủ, nhưng chỉ tạo ở task tương ứng.
 
@@ -319,6 +319,8 @@ Chỉ người có quyền `property.view_documents` mới xem được giấy t
 
 **property_views** (lượt xem chi tiết, chỉ thêm, không sửa): `id` PK · `tenant_id` NOT NULL · `property_id` T-FK properties · `user_id` T-FK users · `viewed_at` timestamptz NOT NULL DEFAULT now(). Trigger `trg_property_views_append_only` chặn UPDATE; xoá cứng user hoặc BĐS thì xoá theo.
 
+**property_share_links** (link chia sẻ BĐS cho khách, TASK-061): `id` PK · `tenant_id` NOT NULL · `property_id` T-FK properties (xoá cứng BĐS thì xoá theo) · `token_hash` char(64) UNIQUE, SHA-256 hex của token · `created_by` T-FK users NULL · `expires_at` NOT NULL, sau `created_at` · `revoked_at` NULL · `view_count` int ≥ 0 DEFAULT 0 · `created_at`. Index (tenant_id, property_id, created_at DESC).
+
 ### 4.5 Khách hàng (CRM)
 
 **customers**
@@ -494,7 +496,8 @@ companies 1──* users *──* roles (qua user_roles) *──* permissions (q
 provinces 1──* districts, provinces 1──* wards, districts 1──* wards (tuỳ chọn)
 users (agent) 1──* properties *──1 owners
 properties *──1 provinces / districts / wards
-properties 1──* property_images, property_documents, property_views, property_favorites
+properties 1──* property_images, property_documents, property_views, property_favorites,
+               property_share_links
 users (agent) 1──* customers 1──* customer_preferences, customer_activities
 customers *──* properties qua appointments và deals
 deals 1──* commissions *──1 users

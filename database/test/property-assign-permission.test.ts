@@ -12,8 +12,8 @@ describe('TASK-056: quyền property.assign', () => {
   before(async () => {
     db = await createCleanTestDataSource();
     await db.runMigrations();
-    // Công ty đã có trước migration: hoàn tác migration TASK-056, tạo role, rồi chạy lại.
-    await db.undoLastMigration();
+    // Công ty đã có trước migration: hoàn tác tới migration TASK-056, tạo role, rồi chạy lại.
+    await revertAssignMigration();
     company = String((await insertRow(db, 'companies', { name: 'A', slug: 'cong-ty-a' }))['id']);
     for (const code of ['COMPANY_ADMIN', 'DIRECTOR', 'MANAGER', 'TEAM_LEADER', 'AGENT']) {
       await insertRow(db, 'roles', { tenant_id: company, code, name: code, is_system: true });
@@ -25,6 +25,19 @@ describe('TASK-056: quyền property.assign', () => {
   after(async () => {
     await db.destroy();
   });
+
+  /** Hoàn tác các migration từ migration TASK-056 trở về sau (kể cả nó). */
+  async function revertAssignMigration(): Promise<void> {
+    for (;;) {
+      const rows: unknown[] = await db.query(
+        `SELECT 1 FROM migrations WHERE name = 'AddPropertyAssignPermission1791128000000'`,
+      );
+      if (rows.length === 0) {
+        return;
+      }
+      await db.undoLastMigration();
+    }
+  }
 
   async function grants(): Promise<string[]> {
     const rows: { code: string; scope: string }[] = await db.query(
@@ -53,7 +66,7 @@ describe('TASK-056: quyền property.assign', () => {
   });
 
   it('hoàn tác xoá quyền và các dòng gán; chạy lại toàn bộ migration sạch', async () => {
-    await db.undoLastMigration();
+    await revertAssignMigration();
     assert.equal(
       (await db.query(`SELECT 1 FROM permissions WHERE code = 'property.assign'`)).length,
       0,

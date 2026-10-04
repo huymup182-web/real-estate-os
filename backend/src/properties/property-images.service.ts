@@ -40,6 +40,15 @@ export interface PropertyImageResponse {
   createdAt: Date;
 }
 
+/** Ảnh trên trang chia sẻ công khai: chỉ thông tin để hiển thị. */
+export interface SharedImageResponse {
+  url: string;
+  thumbnailUrl: string | null;
+  width: number | null;
+  height: number | null;
+  isCover: boolean;
+}
+
 /** Link upload trả cho client: PUT file lên `uploadUrl` kèm `headers`, rồi xác nhận bằng `imageId`. */
 export interface ImageUploadResponse {
   imageId: string;
@@ -204,6 +213,23 @@ export class PropertyImagesService implements OnApplicationShutdown {
   ): Promise<PropertyImageResponse[]> {
     await this.properties.assertVisible(actor, propertyId, scopes);
     return this.list(this.dataSource.manager, actor.tenantId, propertyId);
+  }
+
+  /**
+   * Ảnh cho trang chia sẻ công khai (TASK-061), theo thứ tự hiển thị. Không kiểm quyền: nơi gọi đã xác
+   * thực link chia sẻ của đúng BĐS này.
+   */
+  async findShared(tenantId: string, propertyId: string): Promise<SharedImageResponse[]> {
+    const rows = await this.rows(this.dataSource.manager, tenantId, propertyId);
+    return Promise.all(
+      rows.map(async (row) => ({
+        url: await this.storage.readUrl(row.storage_key),
+        thumbnailUrl: row.thumbnail_key ? await this.storage.readUrl(row.thumbnail_key) : null,
+        width: row.width,
+        height: row.height,
+        isCover: row.is_cover,
+      })),
+    );
   }
 
   /** Đặt lại thứ tự: `imageIds` phải đúng toàn bộ ảnh đang có của BĐS (không thì 400). */
