@@ -53,6 +53,19 @@ describe('StorageService', () => {
     assert.equal(signed.searchParams.get('X-Amz-Expires'), '3600');
   });
 
+  it('link ký cho giấy tờ: luôn qua storage dù có CDN, có hạn theo yêu cầu, tải về với tên file gốc', async () => {
+    const cdn = serviceWith({ ...STORAGE, publicUrl: 'https://cdn.example.com' });
+    const url = new URL(
+      await cdn.signedReadUrl('t/properties/p/documents/d.pdf', 300, 'Sổ hồng.pdf'),
+    );
+    assert.equal(url.origin, 'http://localhost:9000');
+    assert.equal(url.searchParams.get('X-Amz-Expires'), '300');
+    assert.equal(
+      url.searchParams.get('response-content-disposition'),
+      `attachment; filename*=UTF-8''${encodeURIComponent('Sổ hồng.pdf')}`,
+    );
+  });
+
   it('chưa cấu hình storage → lỗi rõ ràng', async () => {
     await assert.rejects(
       serviceWith(null).createUploadUrl('k', 'image/jpeg'),

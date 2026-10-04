@@ -39,6 +39,7 @@ export interface PropertyScopes {
   delete: PermissionScope | undefined;
   contact: PermissionScope | undefined;
   assign: PermissionScope | undefined;
+  documents: PermissionScope | undefined;
 }
 
 /** Địa giới của BĐS cần kiểm. */
@@ -384,8 +385,8 @@ export class PropertiesService {
   }
 
   /**
-   * Khoá BĐS trong transaction của module khác (ảnh BĐS, TASK-057) để thay đổi dữ liệu con của BĐS:
-   * không xem được → 404; xem được nhưng ngoài phạm vi `property.edit` → 403.
+   * Khoá BĐS trong transaction của module khác (ảnh, giấy tờ BĐS) để thay đổi dữ liệu con của BĐS:
+   * không xem được → 404; xem được nhưng ngoài phạm vi `property.edit` (hoặc một phạm vi thêm) → 403.
    */
   lockEditable(
     manager: EntityManager,
@@ -393,15 +394,43 @@ export class PropertiesService {
     id: string,
     scopes: PropertyScopes,
     forbiddenMessage: string,
+    extraScopes: (PermissionScope | undefined)[] = [],
   ): Promise<Property> {
     return this.lockForAction(
       this.properties.withManager(manager),
       actor,
       id,
       scopes,
-      [scopes.edit],
+      [scopes.edit, ...extraScopes],
       forbiddenMessage,
     );
+  }
+
+  /**
+   * BĐS có nằm trong từng phạm vi `checks` không (vd quyền xem giấy tờ). Không xem được BĐS → 404.
+   */
+  async scopeFlags<K extends string>(
+    actor: Actor,
+    id: string,
+    scopes: PropertyScopes,
+    checks: Record<K, PermissionScope | undefined>,
+  ): Promise<Record<K, boolean>> {
+    const keys = Object.keys(checks) as K[];
+    let query = this.properties
+      .createQueryBuilder(actor.tenantId, 'p', (builder) =>
+        builder.where('p.id = :id', { id }).andWhere(this.visibleCondition(scopes)),
+      )
+      .setParameter('scopeUserId', actor.userId);
+    keys.forEach((key, index) => {
+      query = query.addSelect(`(${this.scopeOrFalse(checks[key])})`, `flag_${index}`);
+    });
+    const row = await query.getRawOne<Record<string, boolean>>();
+    if (!row) {
+      throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
+    }
+    return Object.fromEntries(
+      keys.map((key, index) => [key, row[`flag_${index}`] === true]),
+    ) as Record<K, boolean>;
   }
 
   /** BĐS không xem được (không có, đã xoá, công ty khác, ngoài phạm vi, HIDDEN với người không sửa được) → 404. */
