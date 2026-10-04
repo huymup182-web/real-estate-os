@@ -228,8 +228,16 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - `POST /api/v1/auth/forgot-password` `{ email }` (công khai) → 200 `{ expiresIn: 900 }`. Luôn trả **cùng một kết quả** dù email có tài khoản hay không, để không lộ email nào đã đăng ký.
 - Email thuộc tài khoản đang hoạt động (công ty cũng đang hoạt động) → sinh mã OTP 6 số, sống 15 phút, gửi qua SMTP. DB chỉ lưu SHA-256 của `userId:mã` (`password_reset_tokens.code_hash`). Mã mới làm các mã cũ chưa dùng của user hết hiệu lực. Tài khoản bị khoá, đã xoá hoặc công ty tạm ngưng thì không gửi.
 - Email gửi nền, không chờ SMTP; gửi lỗi chỉ ghi log (không ghi mã hay nội dung email).
-- Đặt mật khẩu mới bằng mã (kiểm tra mã, tối đa 5 lần sai) ở TASK-043.
+- Đặt mật khẩu mới bằng mã: xem mục TASK-043.
 - Tài khoản chỉ có số điện thoại chưa quên mật khẩu được (chưa có SMS).
+
+## Đặt lại mật khẩu (TASK-043)
+
+- `POST /api/v1/auth/reset-password` `{ email, code, newPassword }` (công khai) → 204.
+- Chỉ mã mới nhất còn hạn, chưa dùng của user được chấp nhận. Mã sai → tăng `attempts`; sai đủ 5 lần thì mã bị huỷ, phải xin mã mới.
+- Mã đúng → mật khẩu mới (8–128 ký tự, argon2id) được lưu, mã bị đánh dấu đã dùng và **mọi phiên đăng nhập** của user bị thu hồi (refresh token cũ không dùng được nữa).
+- Mọi trường hợp thất bại (email không có tài khoản, tài khoản không hoạt động, không có mã, mã sai/hết hạn/đã huỷ) → cùng một lỗi 400 `VALIDATION_ERROR` với `details[0].field = "code"`.
+- Mật khẩu mới chỉ được băm khi mã đúng, để request đoán mã không tốn CPU.
 
 ### Gửi email (`src/mail`)
 

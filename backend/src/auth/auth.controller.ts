@@ -8,12 +8,13 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { type LoginResult, LoginService } from './login.service.js';
 import { type ForgotPasswordResult, PasswordResetService } from './password-reset.service.js';
 import { Public } from './public.decorator.js';
 import { RefreshTokenService, type TokenPair } from './refresh-token.service.js';
 
-/** register/login/refresh/forgot-password là route công khai; logout cần access token. */
+/** register/login/refresh/forgot-password/reset-password là route công khai; logout cần access token. */
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -65,5 +66,16 @@ export class AuthController {
   @HttpCode(200)
   forgotPassword(@Body() dto: ForgotPasswordDto): Promise<ForgotPasswordResult> {
     return this.passwordReset.requestReset(dto.email);
+  }
+
+  /**
+   * `POST /api/v1/auth/reset-password` → 204 (TASK-043): đặt mật khẩu mới bằng mã OTP,
+   * rồi thu hồi mọi phiên đăng nhập của user. Mã sai/hết hạn → 400 VALIDATION_ERROR.
+   */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(204)
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.passwordReset.resetPassword(dto.email, dto.code, dto.newPassword);
   }
 }
