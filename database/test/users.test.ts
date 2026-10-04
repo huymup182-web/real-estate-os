@@ -46,6 +46,8 @@ describe('TASK-008: bảng users', () => {
       ['created_at', 'timestamp with time zone', 'NO'],
       ['updated_at', 'timestamp with time zone', 'NO'],
       ['deleted_at', 'timestamp with time zone', 'YES'],
+      // thêm ở TASK-011
+      ['department_id', 'uuid', 'YES'],
     ]);
   });
 
