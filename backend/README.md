@@ -330,7 +330,7 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
 `GET /api/v1/properties/:id` → chi tiết BĐS. Cần quyền `property.view`.
 
 - Phạm vi `property.view` áp vào truy vấn: BĐS ngoài phạm vi, đã xoá mềm hoặc thuộc công ty khác → 404 (không lộ có tồn tại). id sai định dạng → 400.
-- Địa chỉ chi tiết (`streetAddress`), `ownerId` và `owner` (`{ id, fullName, phone, email }`) chỉ trả khi BĐS nằm trong phạm vi `property.view_owner_contact` của user; nếu không thì là `null` và `ownerContactVisible = false` (phase0/04-RBAC.md, Q5). Toạ độ luôn trả để cắm điểm bản đồ (Huy Lê chọn ngày 2026-10-04).
+- Địa chỉ chi tiết (`streetAddress`), `ownerId` và `owner` (`{ id, fullName, phone, email, notes }`) chỉ trả khi BĐS nằm trong phạm vi `property.view_owner_contact` của user; nếu không thì là `null` và `ownerContactVisible = false` (phase0/04-RBAC.md, Q5). Toạ độ luôn trả để cắm điểm bản đồ (Huy Lê chọn ngày 2026-10-04).
 - Phạm vi dùng chung ở `src/auth/record-scope.ts` (`scopeCondition`), theo người phụ trách/người tạo của bản ghi:
   - `OWN`: mình phụ trách hoặc mình tạo;
   - `TEAM`: thêm BĐS của thành viên và trưởng nhóm các team mình thuộc hoặc làm trưởng nhóm;
@@ -376,3 +376,10 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
 - Đặt lại trạng thái đang có → 200, không ghi gì. `expectedUpdatedAt` cũ → 409.
 - BĐS `HIDDEN` chỉ người có `property.edit` với BĐS đó thấy (chi tiết, danh sách, sửa, xoá); người khác nhận 404 như BĐS không tồn tại.
 - Luật chuyển ở `src/properties/property-values.ts` (`canUserChangeStatus`). Test: `test/properties-status.spec.ts`.
+
+## Chủ nhà của BĐS (TASK-055)
+
+- `PUT /api/v1/properties/:id/owner` `{ fullName, phone, email?, notes?, expectedUpdatedAt? }` → 200, chi tiết BĐS. Nhập chủ nhà nếu BĐS chưa có, có rồi thì sửa đúng bản ghi đó. `phone` dạng quốc tế (`+84901234567`); `email`, `notes` không gửi, rỗng hoặc `null` thì để trống.
+- `DELETE /api/v1/properties/:id/owner` → 204. Gỡ chủ nhà khỏi BĐS; bản ghi chủ nhà xoá mềm khi không còn BĐS nào dùng. BĐS chưa có chủ nhà thì không đổi gì.
+- Quyền: cần cả `property.edit` lẫn `property.view_owner_contact` với BĐS đó. Không xem được BĐS → 404; thiếu một trong hai → 403. `expectedUpdatedAt` khác `updatedAt` của BĐS → 409.
+- Mỗi BĐS có bản ghi chủ nhà riêng, không gộp theo số điện thoại (phương án mặc định, chờ Huy Lê xác nhận): cùng một người có 2 căn thì nhập 2 lần, sửa căn này không ảnh hưởng căn kia.
