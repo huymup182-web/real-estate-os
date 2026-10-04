@@ -123,10 +123,15 @@ describe('JWT access token', () => {
   it('token hợp lệ → vào được route cần đăng nhập, user và tenant lấy từ token', async () => {
     const result = await callProtected(`Bearer ${accessToken}`);
     assert.equal(result.status, 200);
-    assert.deepEqual(result.body.data, {
-      user: { userId, tenantId: companyId, sessionId },
-      context: { userId, tenantId: companyId },
-    });
+    const data = result.body.data as {
+      user: Record<string, unknown>;
+      context: Record<string, unknown>;
+    };
+    const { roles, permissions, ...fromToken } = data.user;
+    assert.deepEqual(fromToken, { userId, tenantId: companyId, sessionId });
+    assert.deepEqual(roles, ['COMPANY_ADMIN']);
+    assert.equal(typeof permissions, 'object');
+    assert.deepEqual(data.context, { userId, tenantId: companyId });
   });
 
   it('thiếu token hoặc sai dạng header → 401 UNAUTHENTICATED', async () => {
