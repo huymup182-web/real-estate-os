@@ -13,17 +13,20 @@ export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const ALGORITHM = 'HS256';
 
 /**
- * Nội dung access token: `sub` = user id, `tid` = tenant id (null với tài khoản nền tảng).
- * Không chứa permission để đổi quyền có hiệu lực ngay. `sid` (phiên) được thêm cùng refresh token (TASK-040).
+ * Nội dung access token: `sub` = user id, `tid` = tenant id (null với tài khoản nền tảng),
+ * `sid` = phiên đăng nhập (family_id của refresh token, TASK-040).
+ * Không chứa permission để đổi quyền có hiệu lực ngay.
  */
 export interface AccessTokenClaims {
   sub: string;
   tid: string | null;
+  sid: string;
 }
 
 export interface AuthenticatedUser {
   userId: string;
   tenantId: string | null;
+  sessionId: string;
 }
 
 @Injectable()
@@ -35,7 +38,11 @@ export class AccessTokenService {
   }
 
   sign(user: AuthenticatedUser): Promise<string> {
-    const claims: AccessTokenClaims = { sub: user.userId, tid: user.tenantId };
+    const claims: AccessTokenClaims = {
+      sub: user.userId,
+      tid: user.tenantId,
+      sid: user.sessionId,
+    };
     return this.jwt.signAsync(claims, {
       algorithm: ALGORITHM,
       expiresIn: ACCESS_TOKEN_TTL_SECONDS,
@@ -57,10 +64,11 @@ export class AccessTokenService {
     }
     if (
       typeof claims.sub !== 'string' ||
-      !(typeof claims.tid === 'string' || claims.tid === null)
+      !(typeof claims.tid === 'string' || claims.tid === null) ||
+      typeof claims.sid !== 'string'
     ) {
       throw new AppException(ErrorCode.UNAUTHENTICATED, 'Token không hợp lệ');
     }
-    return { userId: claims.sub, tenantId: claims.tid };
+    return { userId: claims.sub, tenantId: claims.tid, sessionId: claims.sid };
   }
 }

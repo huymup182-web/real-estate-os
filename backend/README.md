@@ -188,7 +188,7 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - `identifier` có `@` thì tìm theo email (không phân biệt hoa thường), còn lại tìm theo số điện thoại.
 - Sai email/SĐT/mật khẩu, hoặc tài khoản đã xoá → 401 `UNAUTHENTICATED`, luôn cùng một câu thông báo để không lộ tài khoản nào tồn tại. Khi không có tài khoản vẫn chạy so mật khẩu giả để thời gian phản hồi tương đương.
 - Đúng mật khẩu nhưng tài khoản bị khoá/ngừng hoạt động, hoặc công ty bị tạm ngưng → 403 `FORBIDDEN`.
-- Thành công → 200 `{ accessToken, expiresIn, user: { id, tenantId, fullName, email, phone } }` và ghi `last_login_at`. Refresh token thêm ở TASK-040.
+- Thành công → 200 `{ accessToken, refreshToken, expiresIn, user: { id, tenantId, fullName, email, phone } }` và ghi `last_login_at`. Refresh token xem mục TASK-040.
 
 ## Mật khẩu (TASK-038)
 
@@ -201,8 +201,17 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 
 ## Access token & xác thực (TASK-039)
 
-- Đăng nhập trả `accessToken` (JWT HS256, ký bằng `JWT_SECRET`, sống 15 phút, `expiresIn` = 900 giây). Token chỉ chứa `sub` (user id), `tid` (tenant id, null với tài khoản nền tảng), `iat`, `exp`; không chứa permission (phase0/02-ARCHITECTURE.md).
+- Đăng nhập trả `accessToken` (JWT HS256, ký bằng `JWT_SECRET`, sống 15 phút, `expiresIn` = 900 giây). Token chỉ chứa `sub` (user id), `tid` (tenant id, null với tài khoản nền tảng), `sid` (phiên đăng nhập, TASK-040), `iat`, `exp`; không chứa permission (phase0/02-ARCHITECTURE.md).
 - `JwtAuthGuard` chạy toàn cục: **mọi route cần đăng nhập** (`Authorization: Bearer <accessToken>`), trừ route đánh dấu `@Public()` (đăng ký, đăng nhập, health check). Route mới mặc định được bảo vệ.
-- Token thiếu, sai chữ ký, sai thuật toán (chỉ nhận HS256, từ chối `none`), thiếu `sub`/`tid` → 401 `UNAUTHENTICATED`. Token hết hạn → 401 `TOKEN_EXPIRED` (client gọi refresh, TASK-040).
-- Token hợp lệ → `req.user = { userId, tenantId }` và request context có `userId`/`tenantId`. tenantId chỉ lấy từ token, không bao giờ từ body/query.
+- Token thiếu, sai chữ ký, sai thuật toán (chỉ nhận HS256, từ chối `none`), thiếu `sub`/`tid`/`sid` → 401 `UNAUTHENTICATED`. Token hết hạn → 401 `TOKEN_EXPIRED` (client gọi refresh, TASK-040).
+- Token hợp lệ → `req.user = { userId, tenantId, sessionId }` và request context có `userId`/`tenantId`. tenantId chỉ lấy từ token, không bao giờ từ body/query.
 - Guard chỉ kiểm token; kiểm user/công ty còn hoạt động và quyền làm ở TASK-045–047.
+
+## Refresh token (TASK-040)
+
+- Đăng nhập mở một phiên mới và trả thêm `refreshToken`: chuỗi ngẫu nhiên 256 bit (base64url, 43 ký tự), sống 30 ngày. DB chỉ lưu SHA-256 của token (`refresh_tokens.token_hash`), kèm User-Agent (`device_info`, tối đa 255 ký tự) và IP.
+- Mỗi lần đăng nhập là một phiên (`family_id`); `sid` trong access token chính là `family_id`.
+- `POST /api/v1/auth/refresh` `{ refreshToken }` → 200 `{ accessToken, refreshToken, expiresIn }`. Token cũ bị thu hồi (`revoked_at`) và trỏ `replaced_by` tới token mới; token mới sống thêm 30 ngày kể từ lúc refresh.
+- Token không tồn tại, hết hạn, đã thu hồi, hoặc user đã xoá → 401 `UNAUTHENTICATED`. User bị khoá hoặc công ty tạm ngưng → 403 `FORBIDDEN` (token không bị dùng mất).
+- **Phát hiện dùng lại:** token đã bị thay thế mà còn được gửi lên (có thể bị đánh cắp) → thu hồi mọi token của phiên đó, ghi log cảnh báo (chỉ có userId và familyId), trả 401. Các phiên khác của user không bị ảnh hưởng.
+- Client phải gọi refresh tuần tự: hai request refresh đồng thời với cùng một token thì request sau bị coi là dùng lại và cả phiên bị thu hồi.

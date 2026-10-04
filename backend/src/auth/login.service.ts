@@ -3,9 +3,10 @@ import { DataSource } from 'typeorm';
 
 import { AppException } from '../common/errors/app.exception.js';
 import { ErrorCode } from '../common/errors/error-code.js';
-import { ACCESS_TOKEN_TTL_SECONDS, AccessTokenService } from './access-token.service.js';
+import type { ClientInfo } from './client-info.js';
 import type { LoginDto } from './dto/login.dto.js';
 import { hashPassword, needsRehash, verifyPassword } from './password.js';
+import { RefreshTokenService, type TokenPair } from './refresh-token.service.js';
 
 export interface LoginUser {
   id: string;
@@ -15,10 +16,7 @@ export interface LoginUser {
   phone: string | null;
 }
 
-export interface LoginResult {
-  accessToken: string;
-  /** Số giây access token còn hiệu lực. */
-  expiresIn: number;
+export interface LoginResult extends TokenPair {
   user: LoginUser;
 }
 
@@ -43,15 +41,15 @@ export class LoginService {
 
   constructor(
     private readonly dataSource: DataSource,
-    private readonly accessTokens: AccessTokenService,
+    private readonly refreshTokens: RefreshTokenService,
   ) {}
 
   /**
    * Kiểm tra thông tin đăng nhập. Sai email/SĐT hoặc mật khẩu → 401 cùng một câu thông báo.
    * Đúng mật khẩu nhưng tài khoản hoặc công ty không hoạt động → 403.
-   * Thành công → access token (TASK-039); refresh token thêm ở TASK-040.
+   * Thành công → mở phiên mới: access token (TASK-039) + refresh token (TASK-040).
    */
-  async login(dto: LoginDto): Promise<LoginResult> {
+  async login(dto: LoginDto, client: ClientInfo): Promise<LoginResult> {
     const user = await this.findUser(dto.identifier);
     const passwordOk = await verifyPassword(
       user?.password_hash ?? (await this.dummyHash),
@@ -73,10 +71,12 @@ export class LoginService {
       `UPDATE users SET last_login_at = now(), password_hash = COALESCE($2, password_hash) WHERE id = $1`,
       [user.id, newHash],
     );
-    const accessToken = await this.accessTokens.sign({ userId: user.id, tenantId: user.tenant_id });
+    const tokens = await this.refreshTokens.startSession(
+      { userId: user.id, tenantId: user.tenant_id },
+      client,
+    );
     return {
-      accessToken,
-      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+      ...tokens,
       user: {
         id: user.id,
         tenantId: user.tenant_id,

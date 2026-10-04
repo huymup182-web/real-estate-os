@@ -478,7 +478,7 @@ Trigger chặn `UPDATE`, `DELETE`, `TRUNCATE` trên `audit_logs`, nên công ty 
 
 ### 4.10 Xác thực và thiết bị (tạo ở Phase 3 và Phase 8)
 
-**refresh_tokens** (mỗi dòng là một phiên đăng nhập): `id` PK · `user_id` FK users · `tenant_id` NULL · `token_hash` varchar(255) NOT NULL UQ (chỉ lưu hash) · `family_id` uuid NOT NULL (chuỗi xoay vòng token, thu hồi cả chuỗi khi phát hiện dùng lại) · `device_info` text · `ip_address` inet · `expires_at` NOT NULL · `revoked_at` NULL · `created_at`.
+**refresh_tokens** (mỗi dòng là một phiên đăng nhập): `id` PK · `user_id` FK users · `tenant_id` NULL · `token_hash` varchar(255) NOT NULL UQ (chỉ lưu hash) · `family_id` uuid NOT NULL (chuỗi xoay vòng token, thu hồi cả chuỗi khi phát hiện dùng lại) · `device_info` text · `ip_address` inet · `expires_at` NOT NULL (> `created_at`) · `revoked_at` NULL · `replaced_by` NULL FK refresh_tokens (token thay thế khi xoay vòng) · `created_at`. Index `user_id`, `family_id`. Trigger đảm bảo `tenant_id` trùng công ty của user. Xoá cứng user thì xoá các phiên (TASK-040).
 
 **password_reset_tokens**: `id` PK · `user_id` FK users · `token_hash` UQ · `expires_at` NOT NULL · `used_at` NULL · `created_at`.
 
