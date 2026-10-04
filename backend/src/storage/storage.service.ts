@@ -104,13 +104,31 @@ export class StorageService {
 
   /** Địa chỉ đọc ảnh: qua CDN nếu có STORAGE_PUBLIC_URL, không thì link GET có hạn. */
   async readUrl(key: string): Promise<string> {
-    const { client, bucket } = this.require();
     if (this.config?.publicUrl) {
       return `${this.config.publicUrl}/${key.split('/').map(encodeURIComponent).join('/')}`;
     }
-    return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
-      expiresIn: READ_URL_TTL_SECONDS,
-    });
+    return this.signedReadUrl(key, READ_URL_TTL_SECONDS);
+  }
+
+  /**
+   * Link GET có chữ ký, luôn qua storage (không qua CDN), dùng cho file nhạy cảm như giấy tờ.
+   * `downloadName` có thì trình duyệt tải về với tên đó.
+   */
+  async signedReadUrl(key: string, ttlSeconds: number, downloadName?: string): Promise<string> {
+    const { client, bucket } = this.require();
+    return getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ...(downloadName
+          ? {
+              ResponseContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
+            }
+          : {}),
+      }),
+      { expiresIn: ttlSeconds },
+    );
   }
 
   private require(): { client: S3Client; bucket: string } {

@@ -410,3 +410,22 @@ Các API khác:
 Luật: định dạng jpeg/png/webp/heic, tối đa 10MB/ảnh và 30 ảnh/BĐS (phase0/05-API-CONVENTIONS.md mục 9, vượt → 422). Xem ảnh theo quyền xem BĐS; thêm, sắp xếp, đổi ảnh bìa, xoá cần `property.edit` với BĐS (ngoài phạm vi → 403, không xem được → 404). Cấu hình storage: biến `STORAGE_*` trong docs/environment.md.
 
 Thumbnail (thư viện `sharp`, Huy Lê duyệt ngày 2026-10-04): sau khi xác nhận, backend tạo nền ảnh webp cạnh dài tối đa 480px tại `{imageId}_thumb.webp` cùng thư mục. Trong lúc tạo hoặc khi không tạo được (vd HEIC, `sharp` bản dựng sẵn không đọc được) thì `thumbnailUrl = null`, ảnh gốc vẫn dùng bình thường.
+
+## Giấy tờ BĐS (TASK-058)
+
+Upload 3 bước như ảnh (TASK-057), file nằm dưới `{tenant_id}/properties/{property_id}/documents/`:
+
+1. `POST /api/v1/properties/:id/documents/upload-url` `{ documentType, fileName, mimeType, sizeBytes }` → 201 `{ documentId, uploadUrl, headers, expiresAt }`.
+2. Client `PUT` file lên `uploadUrl` kèm `headers`.
+3. `POST /api/v1/properties/:id/documents` `{ documentId, documentType, fileName, mimeType }` → 201 giấy tờ. File phải có trên storage, đúng định dạng, tối đa 10MB (không thì 422); xác nhận lại → 409.
+
+- `GET /api/v1/properties/:id/documents` → giấy tờ, mới trước. `url` là link tải ký riêng có hạn 5 phút, luôn qua storage (không qua CDN), tải về với tên file gốc.
+- `DELETE /api/v1/properties/:id/documents/:documentId` → 204, xoá mềm (file giữ trên storage).
+
+Luật:
+
+- Loại giấy tờ: `LAND_CERTIFICATE`, `CONSTRUCTION_PERMIT`, `SURVEY_MAP`, `SALE_CONTRACT`, `DEPOSIT_CONTRACT`, `BROKERAGE_AGREEMENT`, `OWNER_ID_DOCUMENT` (CCCD chủ nhà), `OTHER`. Định dạng pdf, jpeg, png, webp, heic. Tối đa 10MB/file, 30 giấy tờ/BĐS.
+- `fileName` không rỗng, tối đa 255 ký tự, không chứa `/`, `\`, ký tự điều khiển hay HTML.
+- Xem cần `property.view_documents` với BĐS (thiếu → 403). Thêm, xoá cần thêm `property.edit`.
+- CCCD chủ nhà cần thêm `property.view_owner_contact`: thiếu thì không thấy trong danh sách, xoá → 404, thêm → 403.
+- Không xem được BĐS → 404.

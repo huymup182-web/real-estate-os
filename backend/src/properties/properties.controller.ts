@@ -39,6 +39,7 @@ export function scopesOf(user: RequestUser): PropertyScopes {
     delete: user.permissions['property.delete'],
     contact: user.permissions['property.view_owner_contact'],
     assign: user.permissions['property.assign'],
+    documents: user.permissions['property.view_documents'],
   };
 }
 
