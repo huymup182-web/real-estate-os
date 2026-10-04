@@ -29,6 +29,7 @@ Thứ tự ưu tiên trong Docker (sau ghi đè trước): `.env.development` �
 | `NODE_ENV`                                          | Có                             | backend, admin | `development` / `production` / `test`                                  |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Có (Docker)                    | postgres       | Tài khoản database trong docker-compose                                |
 | `POSTGRES_PORT`, `BACKEND_PORT`, `ADMIN_PORT`       | Không                          | docker-compose | Cổng mở ra máy host                                                    |
+| `SEED_DEMO_PASSWORD`                                | Khi chạy `npm run seed`        | database (dev) | Mật khẩu chung của tài khoản demo, ≥ 8 ký tự. Chỉ dùng ở dev           |
 
 ## Quy tắc
 

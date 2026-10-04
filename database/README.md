@@ -10,7 +10,8 @@ Backend NestJS (TASK-028+) sẽ dùng lại chính các migration trong thư m�
 database/
 ├── src/
 │   ├── data-source.ts   # DataSource TypeORM (đọc DATABASE_URL, không dùng synchronize)
-│   └── cli.ts           # lệnh run / revert / show / create
+│   ├── cli.ts           # lệnh run / revert / show / seed / create
+│   └── seed.ts          # dữ liệu demo (TASK-027)
 ├── migrations/          # mỗi file một migration, tên <timestamp>-<mô-tả-kebab>.ts
 └── test/                # test migration (node:test), chạy trên database *_test
 ```
@@ -27,9 +28,21 @@ Chạy trong thư mục `database/` sau `npm install`. Cần PostgreSQL đang ch
 | `npm run migration:revert`                 | Hoàn tác migration gần nhất                                    |
 | `npm run migration:show`                   | Kiểm tra còn migration chưa chạy không                         |
 | `npm run migration:create -- create-users` | Tạo file migration mới                                         |
+| `npm run seed`                             | Nạp dữ liệu demo (xem mục Dữ liệu demo)                        |
 | `npm test`                                 | Test migration trên database `<tên>_test` (tự tạo nếu chưa có) |
 
 Test xoá sạch schema của database test, nên chỉ chạy trên database có tên kết thúc bằng `_test`. Đặt `TEST_DATABASE_URL` nếu muốn dùng database test khác.
+
+## Dữ liệu demo
+
+`npm run seed` (sau `migration:run`) tạo công ty `demo` gồm:
+
+- 6 role mặc định với ma trận quyền theo `phase0/04-RBAC.md` mục 4.
+- 5 tài khoản: `admin`, `manager`, `agent1`, `agent2`, `agent3`, email `<tên>@demo.realestate-os.test`. Admin có role COMPANY_ADMIN, manager có role MANAGER (trưởng phòng Kinh doanh, leader Team Nha Trang), 3 agent có role AGENT.
+- Tỉnh Khánh Hòa và 4 phường demo ở Nha Trang (mã có tiền tố `DM-`, không phải mã hành chính chính thức).
+- 5 chủ nhà, 20 BĐS có toạ độ, 10 khách có nhu cầu.
+
+Mật khẩu chung của các tài khoản demo lấy từ biến `SEED_DEMO_PASSWORD` (≥ 8 ký tự, đặt trong `../.env`), lưu dạng argon2id. Lệnh không chạy khi `NODE_ENV=production` và không làm gì nếu công ty `demo` đã có.
 
 ## Quy tắc
 
