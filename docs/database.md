@@ -380,7 +380,7 @@ Trigger `trg_customer_activities_append_only` chặn mọi UPDATE. Khách hoặc
 
 ### 4.6 Tìm kiếm
 
-**saved_searches**: `id` PK · `tenant_id` NOT NULL · `user_id` T-FK users · `name` varchar(100) NOT NULL · `filters` jsonb NOT NULL (cùng cấu trúc bộ lọc của API tìm kiếm) · `notify` boolean NOT NULL DEFAULT true · `last_notified_at` timestamptz NULL · `created_at`, `updated_at`, `deleted_at`.
+**saved_searches**: `id` PK · `tenant_id` NOT NULL · `user_id` T-FK users · `name` varchar(100) NOT NULL, không rỗng · `filters` jsonb NOT NULL, phải là object (cùng cấu trúc bộ lọc của API tìm kiếm) · `notify` boolean NOT NULL DEFAULT true · `last_notified_at` timestamptz NULL · `created_at`, `updated_at`, `deleted_at`. Xoá cứng user thì xoá theo.
 
 ### 4.7 Lịch hẹn & giao dịch
 
