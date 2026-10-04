@@ -12,7 +12,23 @@ export interface AppConfig {
   databaseUrl: string;
   logLevel: LogLevel;
   jwtSecret: string;
+  /** null khi chưa cấu hình SMTP (chỉ cho phép ngoài production): email không được gửi. */
+  mail: MailConfig | null;
 }
+
+/** Máy chủ SMTP gửi email (mã đặt lại mật khẩu, TASK-042). */
+export interface MailConfig {
+  host: string;
+  port: number;
+  /** true: TLS ngay từ đầu (thường cổng 465); false: STARTTLS nếu máy chủ hỗ trợ. */
+  secure: boolean;
+  user: string | null;
+  password: string | null;
+  /** Địa chỉ người gửi, vd `"Real Estate OS" <no-reply@example.com>`. */
+  from: string;
+}
+
+const DEFAULT_SMTP_PORT = 587;
 
 const DEFAULT_PORT = 3000;
 
@@ -88,5 +104,47 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
 
-  return { port, nodeEnv, databaseUrl, logLevel: loadLogLevel(env), jwtSecret };
+  return {
+    port,
+    nodeEnv,
+    databaseUrl,
+    logLevel: loadLogLevel(env),
+    jwtSecret,
+    mail: loadMailConfig(env, nodeEnv),
+  };
+}
+
+/** SMTP bắt buộc ở production; môi trường khác thiếu SMTP_HOST thì không gửi email. */
+function loadMailConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): MailConfig | null {
+  const host = env['SMTP_HOST'];
+  if (!host) {
+    if (nodeEnv === 'production') {
+      throw new Error('Thiếu SMTP_HOST (xem docs/environment.md)');
+    }
+    return null;
+  }
+
+  const rawPort = env['SMTP_PORT'] ?? String(DEFAULT_SMTP_PORT);
+  const port = Number(rawPort);
+  if (!/^\d+$/.test(rawPort) || port < 1 || port > 65535) {
+    throw new Error(`SMTP_PORT không hợp lệ: "${rawPort}" (cần số nguyên 1–65535)`);
+  }
+
+  const rawSecure = env['SMTP_SECURE'] ?? 'false';
+  if (rawSecure !== 'true' && rawSecure !== 'false') {
+    throw new Error(`SMTP_SECURE không hợp lệ: "${rawSecure}" (cần true | false)`);
+  }
+
+  const user = env['SMTP_USER'] || null;
+  const password = env['SMTP_PASSWORD'] || null;
+  if ((user === null) !== (password === null)) {
+    throw new Error('SMTP_USER và SMTP_PASSWORD phải cùng có hoặc cùng để trống');
+  }
+
+  const from = env['MAIL_FROM'];
+  if (!from) {
+    throw new Error('Thiếu MAIL_FROM (xem docs/environment.md)');
+  }
+
+  return { host, port, secure: rawSecure === 'true', user, password, from };
 }
