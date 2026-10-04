@@ -1,9 +1,10 @@
-import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 
 import type { AuthenticatedUser } from './access-token.service.js';
 
 import { AuthService, type RegisterResult } from './auth.service.js';
 import { type ClientRequest, clientInfoFrom } from './client-info.js';
+import { type CurrentUser, CurrentUserService } from './current-user.service.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
@@ -14,7 +15,7 @@ import { type ForgotPasswordResult, PasswordResetService } from './password-rese
 import { Public } from './public.decorator.js';
 import { RefreshTokenService, type TokenPair } from './refresh-token.service.js';
 
-/** register/login/refresh/forgot-password/reset-password là route công khai; logout cần access token. */
+/** register/login/refresh/forgot-password/reset-password là route công khai; logout và me cần access token. */
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -22,6 +23,7 @@ export class AuthController {
     private readonly loginService: LoginService,
     private readonly refreshTokens: RefreshTokenService,
     private readonly passwordReset: PasswordResetService,
+    private readonly currentUser: CurrentUserService,
   ) {}
 
   /** `POST /api/v1/auth/register` → 201. Không trả token: đăng nhập ở `POST /auth/login` (TASK-037). */
@@ -77,5 +79,11 @@ export class AuthController {
   @HttpCode(204)
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.passwordReset.resetPassword(dto.email, dto.code, dto.newPassword);
+  }
+
+  /** `GET /api/v1/auth/me` → user, công ty, role và permission + scope hiệu lực (TASK-044). */
+  @Get('me')
+  me(@Req() req: { user: AuthenticatedUser }): Promise<CurrentUser> {
+    return this.currentUser.get(req.user);
   }
 }
