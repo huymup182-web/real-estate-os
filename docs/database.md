@@ -321,41 +321,45 @@ Chỉ người có quyền `property.view_documents` mới xem được giấy t
 
 **customers**
 
-| Cột                                | Kiểu         | Ràng buộc                                                                                            |
-| ---------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| id                                 | uuid         | PK, UQ (tenant_id, id)                                                                               |
-| tenant_id                          | uuid         | NOT NULL, FK companies                                                                               |
-| full_name                          | varchar(255) | NOT NULL                                                                                             |
-| phone                              | varchar(20)  | NOT NULL, dạng chuẩn hoá                                                                             |
-| email                              | citext       | NULL                                                                                                 |
-| purpose                            | varchar(20)  | NULL, `LIVING` \| `INVESTMENT` \| `RENT` \| `OTHER`                                                  |
-| purchase_timeline                  | varchar(20)  | NULL, `IMMEDIATE` `WITHIN_3_MONTHS` `WITHIN_6_MONTHS` `OVER_6_MONTHS` `UNKNOWN`                      |
-| source                             | varchar(30)  | NULL. Nguồn khách                                                                                    |
-| agent_id                           | uuid         | NULL, T-FK users. Người phụ trách                                                                    |
-| status                             | varchar(20)  | NOT NULL DEFAULT `NEW`: `NEW` `CONTACTED` `QUALIFIED` `VIEWING` `NEGOTIATING` `DEPOSIT` `WON` `LOST` |
-| lost_reason                        | text         | NULL                                                                                                 |
-| notes                              | text         | NULL                                                                                                 |
-| created_by, updated_by             | uuid         | FK users                                                                                             |
-| created_at, updated_at, deleted_at | timestamptz  |                                                                                                      |
+| Cột                                | Kiểu         | Ràng buộc                                                                                                            |
+| ---------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| id                                 | uuid         | PK, UQ (tenant_id, id)                                                                                               |
+| tenant_id                          | uuid         | NOT NULL, FK companies                                                                                               |
+| full_name                          | varchar(255) | NOT NULL                                                                                                             |
+| phone                              | varchar(20)  | NOT NULL, dạng chuẩn `+` và 8–15 chữ số                                                                              |
+| email                              | citext       | NULL, dạng `x@y.z`                                                                                                   |
+| purpose                            | varchar(20)  | NULL, `LIVING` \| `INVESTMENT` \| `RENT` \| `OTHER`                                                                  |
+| purchase_timeline                  | varchar(20)  | NULL, `IMMEDIATE` `WITHIN_3_MONTHS` `WITHIN_6_MONTHS` `OVER_6_MONTHS` `UNKNOWN`                                      |
+| source                             | varchar(30)  | NULL. Nguồn khách: `REFERRAL` `WALK_IN` `FACEBOOK` `ZALO` `TIKTOK` `WEBSITE` `BROKER_PARTNER` `OLD_CUSTOMER` `OTHER` |
+| agent_id                           | uuid         | NULL, T-FK users. Người phụ trách                                                                                    |
+| status                             | varchar(20)  | NOT NULL DEFAULT `NEW`: `NEW` `CONTACTED` `QUALIFIED` `VIEWING` `NEGOTIATING` `DEPOSIT` `WON` `LOST`                 |
+| lost_reason                        | text         | NULL                                                                                                                 |
+| notes                              | text         | NULL                                                                                                                 |
+| created_by, updated_by             | uuid         | NULL, T-FK users                                                                                                     |
+| created_at, updated_at, deleted_at | timestamptz  |                                                                                                                      |
+
+Danh sách nguồn khách được Huy Lê duyệt ngày 2026-10-04. SĐT không bắt buộc duy nhất, có index `(tenant_id, phone)` để tra cứu. Không xoá cứng được môi giới đang phụ trách khách.
 
 **customer_preferences** (nhu cầu; một khách có thể nhiều nhu cầu, là đầu vào của matching)
 
-| Cột                                  | Kiểu          | Ràng buộc                           |
-| ------------------------------------ | ------------- | ----------------------------------- |
-| id                                   | uuid          | PK                                  |
-| tenant_id                            | uuid          | NOT NULL, FK companies              |
-| customer_id                          | uuid          | NOT NULL, T-FK customers            |
-| transaction_type                     | varchar(10)   | NOT NULL DEFAULT `SALE`             |
-| property_types                       | varchar(30)[] | NULL                                |
-| budget_min, budget_max               | bigint        | NULL, CHECK budget_min ≤ budget_max |
-| area_min, area_max                   | numeric(12,2) | NULL                                |
-| bedrooms_min                         | smallint      | NULL                                |
-| province_ids, district_ids, ward_ids | uuid[]        | NULL. Khu vực mong muốn             |
-| directions                           | varchar(2)[]  | NULL                                |
-| legal_statuses                       | varchar(30)[] | NULL                                |
-| min_road_access                      | varchar(10)   | NULL. vd `CAR` = cần ô tô vào được  |
-| is_active                            | boolean       | NOT NULL DEFAULT true               |
-| created_at, updated_at, deleted_at   | timestamptz   |                                     |
+| Cột                                  | Kiểu          | Ràng buộc                                                                   |
+| ------------------------------------ | ------------- | --------------------------------------------------------------------------- |
+| id                                   | uuid          | PK                                                                          |
+| tenant_id                            | uuid          | NOT NULL, FK companies                                                      |
+| customer_id                          | uuid          | NOT NULL, T-FK customers                                                    |
+| transaction_type                     | varchar(10)   | NOT NULL DEFAULT `SALE`                                                     |
+| property_types                       | varchar(30)[] | NULL. Mỗi phần tử thuộc danh sách `property_type` của BĐS                   |
+| budget_min, budget_max               | bigint        | NULL, ≥ 0, budget_min ≤ budget_max                                          |
+| area_min, area_max                   | numeric(12,2) | NULL, ≥ 0, area_min ≤ area_max                                              |
+| bedrooms_min                         | smallint      | NULL, ≥ 0                                                                   |
+| province_ids, district_ids, ward_ids | uuid[]        | NULL. Khu vực mong muốn (mảng không có khoá ngoại; backend kiểm id tồn tại) |
+| directions                           | varchar(2)[]  | NULL. Mỗi phần tử thuộc danh sách hướng của BĐS                             |
+| legal_statuses                       | varchar(30)[] | NULL. Mỗi phần tử thuộc danh sách `legal_status` của BĐS                    |
+| min_road_access                      | varchar(10)   | NULL, `CAR` \| `MOTORBIKE` \| `WALK`                                        |
+| is_active                            | boolean       | NOT NULL DEFAULT true                                                       |
+| created_at, updated_at, deleted_at   | timestamptz   |                                                                             |
+
+Xoá cứng khách thì xoá luôn nhu cầu (`ON DELETE CASCADE`); khách dùng soft delete.
 
 **customer_activities** (timeline; chỉ thêm, không sửa)
 
