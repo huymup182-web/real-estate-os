@@ -415,11 +415,11 @@ Khách, BĐS hoặc môi giới còn lịch hẹn thì không xoá cứng đư�
 | property_id                        | uuid        | NOT NULL, T-FK properties                                                       |
 | agent_id                           | uuid        | NOT NULL, T-FK users                                                            |
 | stage                              | varchar(20) | NOT NULL DEFAULT `NEGOTIATING`: `NEGOTIATING` `DEPOSIT` `CONTRACT` `WON` `LOST` |
-| deal_price                         | bigint      | NULL                                                                            |
-| deposit_amount                     | bigint      | NULL                                                                            |
+| deal_price                         | bigint      | NULL, CHECK ≥ 0                                                                 |
+| deposit_amount                     | bigint      | NULL, CHECK ≥ 0                                                                 |
 | deposit_at, closed_at              | timestamptz | NULL                                                                            |
 | notes                              | text        | NULL                                                                            |
-| created_by, updated_by             | uuid        | FK users                                                                        |
+| created_by, updated_by             | uuid        | NULL, T-FK users                                                                |
 | created_at, updated_at, deleted_at | timestamptz |                                                                                 |
 
 **commissions** (hoa hồng; một deal chia cho nhiều người)
@@ -432,10 +432,12 @@ Khách, BĐS hoặc môi giới còn lịch hẹn thì không xoá cứng đư�
 | user_id                            | uuid         | NOT NULL, T-FK users. Người nhận                                    |
 | role_in_deal                       | varchar(20)  | NOT NULL: `LISTING_AGENT` `SELLING_AGENT` `COLLABORATOR` `LEADER`   |
 | amount                             | bigint       | NOT NULL, CHECK ≥ 0                                                 |
-| percent                            | numeric(5,2) | NULL                                                                |
+| percent                            | numeric(5,2) | NULL, CHECK 0–100                                                   |
 | status                             | varchar(20)  | NOT NULL DEFAULT `PENDING`: `PENDING` `APPROVED` `PAID` `CANCELLED` |
 | paid_at                            | timestamptz  | NULL                                                                |
 | created_at, updated_at, deleted_at | timestamptz  |                                                                     |
+
+Giao dịch và hoa hồng là dữ liệu tài chính: khách, BĐS, môi giới còn deal, deal còn hoa hồng, người còn hoa hồng thì không xoá cứng được (`ON DELETE RESTRICT`); hai bảng dùng soft delete.
 
 ### 4.8 Thông báo
 
