@@ -8,7 +8,8 @@
 
 - PostgreSQL 16 + PostGIS 3.4 (image `postgis/postgis:16-3.4` trong `docker-compose.yml`).
 - Extension: `postgis` (toạ độ, tìm theo bán kính/khung bản đồ), `pg_trgm` (tìm gần đúng, phát hiện trùng), `unaccent` (tìm tiếng Việt không dấu), `citext` (email không phân biệt hoa thường).
-- ORM và migration: TypeORM (đã chốt ở Phase 0). Mọi thay đổi schema đi qua migration, không dùng `synchronize`.
+- ORM và migration: TypeORM. Migration nằm trong `database/migrations/` (xem `database/README.md`), backend dùng lại cùng bộ migration. Mọi thay đổi schema đi qua migration, không dùng `synchronize`.
+- Cột `updated_at` được trigger `set_updated_at()` tự cập nhật ở mọi bảng có cột này.
 
 ### Hàm hỗ trợ
 
