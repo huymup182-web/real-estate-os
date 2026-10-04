@@ -235,7 +235,7 @@ Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện (còn tỉnh → xã/phư�
 | title                              | varchar(255)          | NOT NULL                                                                                                                                                 |
 | description                        | text                  | NULL                                                                                                                                                     |
 | transaction_type                   | varchar(10)           | NOT NULL DEFAULT `SALE`, `SALE` \| `RENT` (MVP chỉ dùng `SALE`)                                                                                          |
-| property_type                      | varchar(30)           | NOT NULL. Danh sách giá trị chốt ở TASK-014                                                                                                              |
+| property_type                      | varchar(30)           | NOT NULL. Xem danh sách bên dưới                                                                                                                         |
 | price                              | bigint                | NOT NULL, CHECK ≥ 0 (đồng)                                                                                                                               |
 | area                               | numeric(12,2)         | NOT NULL, CHECK > 0 (m²)                                                                                                                                 |
 | price_per_m2                       | bigint                | GENERATED `(price / NULLIF(area, 0))::bigint`, phục vụ thống kê                                                                                          |
@@ -243,7 +243,7 @@ Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện (còn tỉnh → xã/phư�
 | direction                          | varchar(2)            | NULL, `N` `S` `E` `W` `NE` `NW` `SE` `SW`                                                                                                                |
 | road_width                         | numeric(6,2)          | NULL, mét                                                                                                                                                |
 | road_access                        | varchar(10)           | NULL, `CAR` \| `MOTORBIKE` \| `WALK` (phục vụ “ô tô vào được”)                                                                                           |
-| legal_status                       | varchar(30)           | NULL. Danh sách giá trị chốt ở TASK-014                                                                                                                  |
+| legal_status                       | varchar(30)           | NULL. Xem danh sách bên dưới                                                                                                                             |
 | province_id                        | uuid                  | NOT NULL, FK provinces                                                                                                                                   |
 | district_id                        | uuid                  | NULL, FK districts                                                                                                                                       |
 | ward_id                            | uuid                  | NOT NULL, FK wards                                                                                                                                       |
@@ -251,17 +251,27 @@ Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện (còn tỉnh → xã/phư�
 | latitude, longitude                | numeric(9,6)          | NULL, cùng có hoặc cùng `NULL`                                                                                                                           |
 | location                           | geography(Point,4326) | GENERATED `ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography` (NULL nếu thiếu toạ độ), dùng cho bản đồ                                      |
 | status                             | varchar(20)           | NOT NULL DEFAULT `AVAILABLE`: `AVAILABLE` `PENDING` `SOLD` `HIDDEN` `EXPIRED` `VERIFY_REQUIRED`                                                          |
-| owner_id                           | uuid                  | NULL, T-FK owners                                                                                                                                        |
+| owner_id                           | uuid                  | NULL, T-FK owners. Thêm ở TASK-017 khi có bảng `owners`                                                                                                  |
 | agent_id                           | uuid                  | NOT NULL, T-FK users. Môi giới phụ trách                                                                                                                 |
-| source                             | varchar(30)           | NULL. Nguồn hàng                                                                                                                                         |
+| source                             | varchar(30)           | NULL. Nguồn hàng, xem danh sách bên dưới                                                                                                                 |
 | commission_type                    | varchar(10)           | NULL, `PERCENT` \| `FIXED`                                                                                                                               |
-| commission_value                   | numeric(14,2)         | NULL, CHECK ≥ 0                                                                                                                                          |
+| commission_value                   | numeric(14,2)         | NULL, CHECK ≥ 0; `PERCENT` thì ≤ 100. Có loại thì phải có giá trị và ngược lại                                                                           |
 | verification_status                | varchar(20)           | NOT NULL DEFAULT `UNVERIFIED`: `UNVERIFIED` `VERIFIED` `EXPIRED`                                                                                         |
 | last_verified_at                   | timestamptz           | NULL                                                                                                                                                     |
 | verified_by                        | uuid                  | NULL, T-FK users                                                                                                                                         |
 | search_vector                      | tsvector              | GENERATED `to_tsvector('simple', immutable_unaccent(title \|\| ' ' \|\| description \|\| ' ' \|\| street_address))`, dùng cho Full Text Search không dấu |
-| created_by, updated_by             | uuid                  | FK users                                                                                                                                                 |
+| created_by, updated_by             | uuid                  | NULL, T-FK users                                                                                                                                         |
 | created_at, updated_at, deleted_at | timestamptz           |                                                                                                                                                          |
+
+Danh sách giá trị (Huy Lê duyệt ngày 2026-10-04):
+
+| Cột             | Giá trị                                                                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `property_type` | `HOUSE` nhà phố/nhà riêng · `APARTMENT` căn hộ · `VILLA` biệt thự · `SHOPHOUSE` · `LAND` đất thổ cư · `LAND_PLOT` đất nền · `AGRICULTURAL_LAND` đất nông nghiệp/vườn · `WAREHOUSE` kho, xưởng · `OTHER` |
+| `legal_status`  | `PRIVATE_BOOK` sổ hồng/sổ đỏ riêng · `SHARED_BOOK` sổ chung · `PENDING_BOOK` chờ cấp sổ · `SALE_CONTRACT` HĐ mua bán/góp vốn · `HANDWRITTEN` giấy tay/vi bằng · `OTHER`                                 |
+| `source`        | `OWNER_DIRECT` chủ nhà gửi · `SELF_SOURCED` tự khai thác · `BROKER_PARTNER` môi giới/đối tác · `REFERRAL` người quen giới thiệu · `ONLINE_LISTING` tin đăng online · `OTHER`                            |
+
+Phường/xã và quận/huyện phải thuộc đúng tỉnh của BĐS (khoá ngoại kép theo `province_id`). Môi giới, người xác minh, người tạo/sửa là user cùng công ty. Index lọc/tìm kiếm (GIN, GIST, B-tree) làm ở TASK-026.
 
 **property_images** (file nằm trên S3/R2, bảng chỉ lưu đường dẫn)
 
@@ -505,5 +515,5 @@ Các phần dễ sai đã được chạy thử trên PostgreSQL 16 + PostGIS 3.
 ## 8. Ghi chú cho các task sau
 
 - Thứ tự tạo bảng theo roadmap (TASK-007 → TASK-025) khớp với thứ tự phụ thuộc khoá ngoại; riêng các T-FK tới `users` trong `departments.manager_id`, `teams.leader_id` được thêm khi bảng `users` đã có.
-- Danh sách giá trị cho `property_type`, `legal_status`, `source` sẽ chốt ở TASK-014/TASK-018 (cần anh xác nhận danh sách thực tế).
+- Danh sách `property_type`, `legal_status`, `source` của BĐS đã chốt ở TASK-014; `source` của khách hàng chốt ở TASK-018 (cần anh xác nhận danh sách thực tế).
 - Dữ liệu tỉnh/xã chuẩn được nạp ở TASK-013 từ danh mục hành chính chính thức.
