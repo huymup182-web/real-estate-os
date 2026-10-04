@@ -62,7 +62,8 @@ function fromCode(code: ErrorCode, details?: ErrorDetail[]): ResolvedError {
 
 function fromStatus(status: number): ResolvedError {
   if (status >= 500) {
-    return fromCode(ErrorCode.INTERNAL_ERROR);
+    // Giữ status 5xx cụ thể (vd 503 khi database tắt) nhưng vẫn dùng câu thông báo chung.
+    return { ...fromCode(ErrorCode.INTERNAL_ERROR), status };
   }
   const code = CODE_BY_STATUS[status] ?? ErrorCode.VALIDATION_ERROR;
   return { ...fromCode(code), status };
