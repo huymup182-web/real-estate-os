@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
 import { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
+import { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import { type Actor, PropertiesService, type PropertyScopes } from './properties.service.js';
 import type {
@@ -114,6 +116,35 @@ export class PropertiesController {
     @Body() dto: ChangePropertyStatusDto,
   ): Promise<PropertyDetailResponse> {
     return this.properties.changeStatus(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
+  }
+
+  /**
+   * `PUT /api/v1/properties/:id/owner` → chi tiết BĐS sau khi nhập/thay chủ nhà (TASK-055).
+   * Cần quyền `property.edit` và `property.view_owner_contact` với BĐS đó.
+   */
+  @Put(':id/owner')
+  @RequirePermission('property.edit')
+  setOwner(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: SetPropertyOwnerDto,
+  ): Promise<PropertyDetailResponse> {
+    return this.properties.setOwner(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
+  }
+
+  /**
+   * `DELETE /api/v1/properties/:id/owner` → 204, gỡ chủ nhà khỏi BĐS (TASK-055). Quyền như khi nhập.
+   */
+  @Delete(':id/owner')
+  @HttpCode(204)
+  @RequirePermission('property.edit')
+  async removeOwner(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+  ): Promise<void> {
+    await this.properties.removeOwner(actorOf(tenantId, req.user), id, scopesOf(req.user));
   }
 
   /**

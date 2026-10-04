@@ -22,7 +22,13 @@ interface PropertyDetail {
   longitude: number | null;
   ownerId: string | null;
   ownerContactVisible: boolean;
-  owner: { id: string; fullName: string; phone: string; email: string | null } | null;
+  owner: {
+    id: string;
+    fullName: string;
+    phone: string;
+    email: string | null;
+    notes: string | null;
+  } | null;
   [key: string]: unknown;
 }
 
@@ -243,6 +249,7 @@ describe('GET /api/v1/properties/:id', () => {
       fullName: 'Chủ nhà A',
       phone: '+84901234567',
       email: 'chu@a.vn',
+      notes: null,
     });
     assert.equal('tenantId' in data, false);
   });

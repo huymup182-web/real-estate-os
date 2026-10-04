@@ -85,6 +85,7 @@ export interface PropertyOwnerContact {
   fullName: string;
   phone: string;
   email: string | null;
+  notes: string | null;
 }
 
 /**

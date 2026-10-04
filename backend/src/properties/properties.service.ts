@@ -11,6 +11,7 @@ import type { PaginationQueryDto } from '../common/response/pagination-query.dto
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import type { CreatePropertyDto } from './dto/create-property.dto.js';
+import type { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
 import { EDITABLE_PROPERTY_FIELDS, type UpdatePropertyDto } from './dto/update-property.dto.js';
 import { Property } from './property.entity.js';
 import {
@@ -190,7 +191,7 @@ export class PropertiesService {
         actor,
         id,
         scopes,
-        scopes.edit,
+        [scopes.edit],
         'Không có quyền sửa BĐS này',
       );
       assertNotModified(current, dto.expectedUpdatedAt);
@@ -227,7 +228,7 @@ export class PropertiesService {
         actor,
         id,
         scopes,
-        scopes.edit,
+        [scopes.edit],
         'Không có quyền đổi trạng thái BĐS này',
       );
       assertNotModified(current, dto.expectedUpdatedAt);
@@ -261,7 +262,7 @@ export class PropertiesService {
         actor,
         id,
         scopes,
-        scopes.delete,
+        [scopes.delete],
         'Không có quyền xoá BĐS này',
       );
       await properties.update(actor.tenantId, id, { updatedBy: actor.userId });
@@ -270,21 +271,113 @@ export class PropertiesService {
   }
 
   /**
+   * Nhập hoặc thay chủ nhà của BĐS (TASK-055). Cần cả `property.edit` và `property.view_owner_contact`
+   * với BĐS đó (không xem được → 404, thiếu một trong hai → 403).
+   * Mỗi BĐS có bản ghi chủ nhà riêng (phương án mặc định, chờ Huy Lê xác nhận): đã có thì sửa bản ghi đó, chưa có
+   * thì tạo mới và gắn vào BĐS. Ghi người sửa vào BĐS. Trả về chi tiết BĐS như `GET /properties/:id`.
+   */
+  async setOwner(
+    actor: Actor,
+    id: string,
+    dto: SetPropertyOwnerDto,
+    scopes: PropertyScopes,
+  ): Promise<PropertyDetailResponse> {
+    const values = [dto.fullName, dto.phone, dto.email ?? null, dto.notes ?? null, actor.userId];
+    await this.dataSource.transaction(async (manager) => {
+      const properties = this.properties.withManager(manager);
+      const current = await this.lockForOwnerChange(properties, actor, id, scopes);
+      assertNotModified(current, dto.expectedUpdatedAt);
+
+      const updated = current.ownerId
+        ? (
+            (await manager.query(
+              `UPDATE owners
+                SET full_name = $3, phone = $4, email = $5, notes = $6, updated_by = $7
+              WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+          RETURNING id`,
+              [actor.tenantId, current.ownerId, ...values],
+            )) as [{ id: string }[], number]
+          )[0]
+        : [];
+      let ownerId = updated[0]?.id;
+      if (!ownerId) {
+        const [created] = (await manager.query(
+          `INSERT INTO owners (tenant_id, full_name, phone, email, notes, created_by, updated_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $6)
+           RETURNING id`,
+          [actor.tenantId, ...values],
+        )) as { id: string }[];
+        ownerId = created?.id;
+      }
+      await properties.update(actor.tenantId, id, {
+        ownerId: ownerId ?? null,
+        updatedBy: actor.userId,
+      });
+    });
+    return this.findOne(actor, id, scopes);
+  }
+
+  /**
+   * Gỡ chủ nhà khỏi BĐS (TASK-055) → 204. Quyền như khi nhập chủ nhà. BĐS chưa có chủ nhà thì không
+   * đổi gì. Bản ghi chủ nhà được xoá mềm khi không còn BĐS nào (chưa xoá) dùng nó.
+   */
+  async removeOwner(actor: Actor, id: string, scopes: PropertyScopes): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const properties = this.properties.withManager(manager);
+      const current = await this.lockForOwnerChange(properties, actor, id, scopes);
+      if (!current.ownerId) {
+        return;
+      }
+      await properties.update(actor.tenantId, id, { ownerId: null, updatedBy: actor.userId });
+      await manager.query(
+        `UPDATE owners o
+            SET deleted_at = now(), updated_by = $3
+          WHERE o.tenant_id = $1 AND o.id = $2 AND o.deleted_at IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM properties p
+               WHERE p.tenant_id = o.tenant_id AND p.owner_id = o.id AND p.deleted_at IS NULL)`,
+        [actor.tenantId, current.ownerId, actor.userId],
+      );
+    });
+  }
+
+  /** Khoá BĐS để đổi chủ nhà: cần cả quyền sửa lẫn quyền xem liên hệ chủ nhà với BĐS đó. */
+  private lockForOwnerChange(
+    properties: TenantRepository<Property>,
+    actor: Actor,
+    id: string,
+    scopes: PropertyScopes,
+  ): Promise<Property> {
+    return this.lockForAction(
+      properties,
+      actor,
+      id,
+      scopes,
+      [scopes.edit, scopes.contact],
+      'Không có quyền sửa chủ nhà của BĐS này',
+    );
+  }
+
+  /**
    * Khoá dòng BĐS (FOR UPDATE) trước khi sửa/xoá và kiểm quyền theo bản ghi:
-   * không có, ngoài phạm vi xem → 404; xem được nhưng ngoài phạm vi thao tác → 403.
+   * không có, ngoài phạm vi xem → 404; xem được nhưng ngoài một trong các phạm vi thao tác
+   * → 403.
    */
   private async lockForAction(
     properties: TenantRepository<Property>,
     actor: Actor,
     id: string,
     scopes: PropertyScopes,
-    actionScope: PermissionScope | undefined,
+    actionScopes: (PermissionScope | undefined)[],
     forbiddenMessage: string,
   ): Promise<Property> {
+    const actionCondition = actionScopes
+      .map((scope) => `(${this.scopeOrFalse(scope)})`)
+      .join(' AND ');
     const { entities, raw } = await properties
       .createQueryBuilder(actor.tenantId, 'p', (query) => query.where('p.id = :id', { id }))
       .addSelect(`(${this.visibleCondition(scopes)})`, 'in_view')
-      .addSelect(`(${this.scopeOrFalse(actionScope)})`, 'in_action')
+      .addSelect(`(${actionCondition})`, 'in_action')
       .setParameter('scopeUserId', actor.userId)
       .setLock('pessimistic_write')
       .getRawAndEntities<{ in_view: boolean; in_action: boolean }>();
@@ -315,7 +408,7 @@ export class PropertiesService {
 
   private async findOwner(tenantId: string, ownerId: string): Promise<PropertyOwnerContact | null> {
     const [owner] = (await this.dataSource.query(
-      `SELECT id, full_name AS "fullName", phone, email
+      `SELECT id, full_name AS "fullName", phone, email, notes
          FROM owners
         WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
       [tenantId, ownerId],
