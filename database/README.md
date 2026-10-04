@@ -64,3 +64,4 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791099481730-create-deals-commissions`        | TASK-023 | Bảng `deals`, `commissions`                                       |
 | `1791099821233-create-notifications`            | TASK-024 | Bảng `notifications`                                              |
 | `1791100233724-create-audit-logs`               | TASK-025 | Bảng `audit_logs`                                                 |
+| `1791100552216-add-query-indexes`               | TASK-026 | Index truy vấn chính                                              |

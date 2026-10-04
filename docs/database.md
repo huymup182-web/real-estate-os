@@ -499,7 +499,7 @@ deals 1──* commissions *──1 users
 users 1──* notifications, saved_searches, refresh_tokens, device_tokens
 ```
 
-## 6. Chiến lược index (làm ở TASK-026)
+## 6. Chiến lược index (TASK-026)
 
 Mọi index trên bảng nghiệp vụ bắt đầu bằng `tenant_id`, vì mọi truy vấn đều lọc theo công ty.
 
@@ -521,7 +521,11 @@ Mọi index trên bảng nghiệp vụ bắt đầu bằng `tenant_id`, vì mọ
 | audit_logs          | `(tenant_id, created_at DESC)`, `(tenant_id, entity_type, entity_id)` | Tra cứu audit                      |
 | owners              | `(tenant_id, phone)`                                                  | Phát hiện trùng nguồn hàng         |
 
-Index cụ thể sẽ được kiểm bằng `EXPLAIN ANALYZE` với dữ liệu demo trước khi chốt.
+Đã tạo ở migration `1791100552216-add-query-indexes`. Ghi chú:
+
+- `customer_activities` dùng index `(customer_id, occurred_at DESC)` có từ TASK-019; `customer_id` là uuid nên thêm `tenant_id` ở đầu không giúp lọc thêm.
+- Index hộp thư `notifications (user_id, read_at, created_at DESC)` thay index `(user_id)` cũ.
+- Test `database/test/indexes.test.ts` kiểm bằng `EXPLAIN` rằng các truy vấn chính dùng được index. Khi có dữ liệu demo (TASK-027) sẽ kiểm lại bằng `EXPLAIN ANALYZE` trước khi chốt.
 
 ## 7. Kiểm chứng thiết kế
 
