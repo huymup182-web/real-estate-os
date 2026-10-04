@@ -18,6 +18,7 @@ import { RequirePermission } from '../auth/permission.guard.js';
 import { TenantId } from '../auth/tenant.guard.js';
 import type { Paginated } from '../common/response/paginated.js';
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
+import { PropertySearchQueryDto } from '../search/property-search-query.dto.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
 import { AssignPropertyDto } from './dto/assign-property.dto.js';
 import { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
@@ -71,15 +72,16 @@ export class PropertiesController {
   }
 
   /**
-   * `GET /api/v1/properties?page=1&pageSize=20` → danh sách BĐS xem được, mới tạo trước, kèm `meta`
-   * phân trang (TASK-051). BĐS HIDDEN chỉ hiện với người sửa được BĐS đó (TASK-054).
+   * `GET /api/v1/properties?page=1&pageSize=20&q=…` → danh sách BĐS xem được, mới tạo trước, kèm `meta`
+   * phân trang (TASK-051). BĐS HIDDEN chỉ hiện với người sửa được BĐS đó (TASK-054). `q` tìm theo từ khoá
+   * (TASK-064).
    */
   @Get()
   @RequirePermission('property.view')
   findAll(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
-    @Query() query: PaginationQueryDto,
+    @Query() query: PropertySearchQueryDto,
   ): Promise<Paginated<PropertyListItem>> {
     return this.properties.findAll(actorOf(tenantId, req.user), query, scopesOf(req.user));
   }
