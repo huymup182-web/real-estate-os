@@ -299,3 +299,18 @@ async get(@TenantId() tenantId: string, @Param('id', ParseUuidPipe) id: string) 
 
 - `test/tenant-isolation.spec.ts` là mẫu test cô lập: 2 công ty, chứng minh công ty A không đọc/sửa/xoá được dữ liệu công ty B. Mỗi module nghiệp vụ sau này phải có test tương tự.
 - Chi phí: thêm 1 truy vấn theo khoá chính mỗi request đã đăng nhập.
+
+## Test auth (TASK-048)
+
+`npm test` chạy toàn bộ test auth trên DB thật (`_backend_test`), gọi HTTP thật vào app:
+
+| Phần                                                                                                                                                                  | File test                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Hành trình đầy đủ: đăng ký → đăng nhập → `/me` → refresh → quên/đặt lại mật khẩu (thu hồi mọi phiên) → đăng nhập mật khẩu mới → đăng xuất → công ty tạm ngưng bị chặn | `test/auth-flow.spec.ts`                              |
+| Đăng ký, đăng nhập, mật khẩu (argon2)                                                                                                                                 | `auth-register`, `auth-login`, `password`             |
+| Access token, refresh token (xoay vòng, phát hiện dùng lại), đăng xuất                                                                                                | `auth-token`, `auth-refresh`, `auth-logout`           |
+| Quên/đặt lại mật khẩu, gửi email                                                                                                                                      | `auth-forgot-password`, `auth-reset-password`, `mail` |
+| User hiện tại, quyền hiệu lực (nhiều role → scope rộng nhất), quyền trong request                                                                                     | `auth-me`, `auth-role-context`                        |
+| Kiểm quyền, tách dữ liệu theo công ty                                                                                                                                 | `permission-guard`, `tenant-isolation`                |
+
+Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS của người khác, TEAM_LEADER sửa được trong nhóm, COLLABORATOR không thấy khách của người khác — phase0/04-RBAC.md mục 7) sẽ viết cùng module BĐS/khách hàng.
