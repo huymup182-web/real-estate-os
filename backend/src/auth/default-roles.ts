@@ -32,6 +32,7 @@ export const DEFAULT_ROLE_MATRIX: Readonly<Record<string, readonly (RoleScope | 
   'property.view_owner_contact': [C, C, D, T, O, O],
   'property.verify': [C, C, D, T, O, NO],
   'property.view_documents': [C, C, D, T, O, O],
+  'property.assign': [C, C, D, T, NO, NO],
   'customer.view': [C, C, D, T, O, O],
   'customer.create': [C, C, C, C, C, C],
   'customer.edit': [C, C, D, T, O, O],

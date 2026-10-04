@@ -9,6 +9,7 @@ import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
 import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
+import type { AssignPropertyDto } from './dto/assign-property.dto.js';
 import type { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import type { CreatePropertyDto } from './dto/create-property.dto.js';
 import type { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
@@ -37,6 +38,7 @@ export interface PropertyScopes {
   edit: PermissionScope | undefined;
   delete: PermissionScope | undefined;
   contact: PermissionScope | undefined;
+  assign: PermissionScope | undefined;
 }
 
 /** Địa giới của BĐS cần kiểm. */
@@ -48,6 +50,9 @@ interface LocationInput {
 
 /** Cột xét phạm vi của BĐS: môi giới phụ trách và người tạo. */
 const PROPERTY_SCOPE_COLUMNS = { agent: 'p.agent_id', creator: 'p.created_by' };
+
+/** Xét người nhận BĐS `u` như người phụ trách của bản ghi (OWN = chính mình). */
+const AGENT_SCOPE_COLUMNS = { agent: 'u.id', creator: 'u.id' };
 
 @Injectable()
 export class PropertiesService {
@@ -271,6 +276,43 @@ export class PropertiesService {
   }
 
   /**
+   * Đổi môi giới phụ trách BĐS (TASK-056), cần quyền riêng `property.assign` (Huy Lê chọn ngày
+   * 2026-10-04, ma trận như `customer.assign`).
+   * - BĐS ngoài phạm vi xem → 404; xem được nhưng ngoài phạm vi `property.assign` → 403.
+   * - Người nhận phải là user đang hoạt động của cùng công ty (không có → 400 `agentId`) và nằm trong
+   *   cùng phạm vi đó (TEAM: cùng nhóm, DEPARTMENT: cùng phòng, COMPANY: cả công ty), ngoài phạm vi → 403.
+   * - Giao lại đúng người đang phụ trách thì không đổi gì. Trả về chi tiết BĐS.
+   */
+  async assign(
+    actor: Actor,
+    id: string,
+    dto: AssignPropertyDto,
+    scopes: PropertyScopes,
+  ): Promise<PropertyDetailResponse> {
+    await this.dataSource.transaction(async (manager) => {
+      const properties = this.properties.withManager(manager);
+      const current = await this.lockForAction(
+        properties,
+        actor,
+        id,
+        scopes,
+        [scopes.assign],
+        'Không có quyền phân BĐS này',
+      );
+      assertNotModified(current, dto.expectedUpdatedAt);
+      if (current.agentId === dto.agentId) {
+        return;
+      }
+      await this.assertAssignableAgent(manager, actor, dto.agentId, scopes.assign);
+      await properties.update(actor.tenantId, id, {
+        agentId: dto.agentId,
+        updatedBy: actor.userId,
+      });
+    });
+    return this.findOne(actor, id, scopes);
+  }
+
+  /**
    * Nhập hoặc thay chủ nhà của BĐS (TASK-055). Cần cả `property.edit` và `property.view_owner_contact`
    * với BĐS đó (không xem được → 404, thiếu một trong hai → 403).
    * Mỗi BĐS có bản ghi chủ nhà riêng (phương án mặc định, chờ Huy Lê xác nhận): đã có thì sửa bản ghi đó, chưa có
@@ -391,6 +433,34 @@ export class PropertiesService {
     return current;
   }
 
+  /** Người nhận BĐS: user đang hoạt động của công ty và trong phạm vi phân BĐS của người giao. */
+  private async assertAssignableAgent(
+    manager: EntityManager,
+    actor: Actor,
+    agentId: string,
+    scope: PermissionScope | undefined,
+  ): Promise<void> {
+    const [row] = (await manager
+      .createQueryBuilder()
+      .select(`(${this.scopeOrFalse(scope, AGENT_SCOPE_COLUMNS)})`, 'in_scope')
+      .from('users', 'u')
+      .where('u.tenant_id = :tenantId', { tenantId: actor.tenantId })
+      .andWhere('u.id = :agentId', { agentId })
+      .andWhere(`u.status = 'ACTIVE'`)
+      .andWhere('u.deleted_at IS NULL')
+      .setParameter('scopeUserId', actor.userId)
+      .getRawMany()) as { in_scope: boolean }[];
+    if (!row) {
+      throw invalid([{ field: 'agentId', message: 'Môi giới không tồn tại hoặc không hoạt động' }]);
+    }
+    if (row.in_scope !== true) {
+      throw new AppException(
+        ErrorCode.FORBIDDEN,
+        'Không được giao BĐS cho người ngoài phạm vi quản lý của mình',
+      );
+    }
+  }
+
   /**
    * Điều kiện "user xem được BĐS `p`": trong phạm vi `property.view`; BĐS đang HIDDEN thì phải trong
    * phạm vi `property.edit` (Huy Lê chọn ngày 2026-10-04: chỉ người sửa được mới thấy BĐS ẩn).
@@ -402,8 +472,11 @@ export class PropertiesService {
   }
 
   /** Điều kiện phạm vi, hoặc FALSE khi user không có quyền đó. */
-  private scopeOrFalse(scope: PermissionScope | undefined): string {
-    return scope ? scopeCondition(scope, PROPERTY_SCOPE_COLUMNS) : 'FALSE';
+  private scopeOrFalse(
+    scope: PermissionScope | undefined,
+    columns = PROPERTY_SCOPE_COLUMNS,
+  ): string {
+    return scope ? scopeCondition(scope, columns) : 'FALSE';
   }
 
   private async findOwner(tenantId: string, ownerId: string): Promise<PropertyOwnerContact | null> {

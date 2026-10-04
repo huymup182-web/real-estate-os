@@ -383,3 +383,11 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
 - `DELETE /api/v1/properties/:id/owner` → 204. Gỡ chủ nhà khỏi BĐS; bản ghi chủ nhà xoá mềm khi không còn BĐS nào dùng. BĐS chưa có chủ nhà thì không đổi gì.
 - Quyền: cần cả `property.edit` lẫn `property.view_owner_contact` với BĐS đó. Không xem được BĐS → 404; thiếu một trong hai → 403. `expectedUpdatedAt` khác `updatedAt` của BĐS → 409.
 - Mỗi BĐS có bản ghi chủ nhà riêng, không gộp theo số điện thoại (phương án mặc định, chờ Huy Lê xác nhận): cùng một người có 2 căn thì nhập 2 lần, sửa căn này không ảnh hưởng căn kia.
+
+## Phân môi giới phụ trách BĐS (TASK-056)
+
+- `POST /api/v1/properties/:id/assign` `{ agentId, expectedUpdatedAt? }` → 200, chi tiết BĐS với `agentId` mới; ghi người giao vào `updatedBy`. Giao lại đúng người đang phụ trách thì không đổi gì.
+- Cần quyền riêng `property.assign` (Huy Lê chọn ngày 2026-10-04), thêm bằng migration `1791128000000-add-property-assign-permission`, ma trận như `customer.assign`: COMPANY_ADMIN, DIRECTOR cả công ty; MANAGER trong phòng; TEAM_LEADER trong nhóm; AGENT, COLLABORATOR không có. Migration gán luôn cho role mặc định của các công ty đã có.
+- BĐS phải trong phạm vi xem (không thì 404) và trong phạm vi `property.assign` (không thì 403). Người nhận phải trong cùng phạm vi đó, ngoài phạm vi → 403.
+- Người nhận không tồn tại, đã khoá, đã xoá hoặc thuộc công ty khác → 400 `agentId`. `expectedUpdatedAt` cũ → 409.
+- Người tạo BĐS vẫn trong phạm vi OWN của BĐS đó sau khi giao (phase0/04-RBAC.md: OWN là mình phụ trách hoặc mình tạo).

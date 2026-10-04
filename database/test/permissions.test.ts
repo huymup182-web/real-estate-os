@@ -70,7 +70,7 @@ describe('TASK-010: bảng permissions và role_permissions', () => {
     const rows: { code: string; module: string; is_platform: boolean }[] = await db.query(
       'SELECT code, module, is_platform FROM permissions ORDER BY code',
     );
-    assert.equal(rows.length, 27);
+    assert.equal(rows.length, 28);
     assert.ok(
       rows.some((r) => r.code === 'property.view_owner_contact' && r.module === 'property'),
     );
