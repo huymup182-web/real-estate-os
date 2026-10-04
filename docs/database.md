@@ -294,18 +294,22 @@ Xoá cứng BĐS còn ảnh bị chặn (`ON DELETE RESTRICT`) để không bỏ
 
 **property_documents** (giấy tờ pháp lý, quyền xem chặt hơn ảnh)
 
-| Cột                    | Kiểu         | Ràng buộc                 |
-| ---------------------- | ------------ | ------------------------- |
-| id                     | uuid         | PK                        |
-| tenant_id              | uuid         | NOT NULL, FK companies    |
-| property_id            | uuid         | NOT NULL, T-FK properties |
-| document_type          | varchar(30)  | NOT NULL                  |
-| file_name              | varchar(255) | NOT NULL                  |
-| storage_key            | varchar(500) | NOT NULL                  |
-| mime_type              | varchar(50)  | NOT NULL                  |
-| size_bytes             | integer      | NOT NULL, CHECK > 0       |
-| created_by             | uuid         | FK users                  |
-| created_at, deleted_at | timestamptz  |                           |
+| Cột                    | Kiểu         | Ràng buộc                                                                         |
+| ---------------------- | ------------ | --------------------------------------------------------------------------------- |
+| id                     | uuid         | PK                                                                                |
+| tenant_id              | uuid         | NOT NULL, FK companies                                                            |
+| property_id            | uuid         | NOT NULL, T-FK properties                                                         |
+| document_type          | varchar(30)  | NOT NULL, xem danh sách bên dưới                                                  |
+| file_name              | varchar(255) | NOT NULL, không rỗng. Tên file gốc                                                |
+| storage_key            | varchar(500) | NOT NULL, UQ. Phải bắt đầu bằng `{tenant_id}/properties/{property_id}/documents/` |
+| mime_type              | varchar(50)  | NOT NULL. `application/pdf` hoặc ảnh jpeg/png/webp/heic                           |
+| size_bytes             | integer      | NOT NULL, CHECK > 0                                                               |
+| created_by             | uuid         | NULL, T-FK users                                                                  |
+| created_at, deleted_at | timestamptz  |                                                                                   |
+
+`document_type` (Huy Lê duyệt ngày 2026-10-04): `LAND_CERTIFICATE` sổ hồng/sổ đỏ · `CONSTRUCTION_PERMIT` giấy phép xây dựng · `SURVEY_MAP` bản vẽ/trích lục địa chính · `SALE_CONTRACT` HĐ mua bán/góp vốn · `DEPOSIT_CONTRACT` HĐ đặt cọc · `BROKERAGE_AGREEMENT` HĐ/phiếu ký gửi môi giới · `OWNER_ID_DOCUMENT` CCCD chủ nhà (dữ liệu nhạy cảm, dành sẵn khi cần) · `OTHER`.
+
+Chỉ người có quyền `property.view_documents` mới xem được giấy tờ (kiểm ở backend). Xoá cứng BĐS còn giấy tờ bị chặn (`ON DELETE RESTRICT`); giấy tờ dùng soft delete.
 
 **property_favorites**: `tenant_id` NOT NULL · `user_id` T-FK users · `property_id` T-FK properties · `created_at` · PK (user_id, property_id).
 
