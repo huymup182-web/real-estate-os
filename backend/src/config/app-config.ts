@@ -5,12 +5,26 @@ export type NodeEnv = (typeof NODE_ENVS)[number];
 export interface AppConfig {
   port: number;
   nodeEnv: NodeEnv;
+  databaseUrl: string;
 }
 
 const DEFAULT_PORT = 3000;
 
 function isNodeEnv(value: string): value is NodeEnv {
   return (NODE_ENVS as readonly string[]).includes(value);
+}
+
+function isPostgresUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'postgresql:' || url.protocol === 'postgres:') &&
+      url.hostname !== '' &&
+      url.pathname.length > 1
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** Ném lỗi ngay khi khởi động nếu biến môi trường sai, thay vì chạy với cấu hình hỏng. */
@@ -26,5 +40,13 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error(`NODE_ENV không hợp lệ: "${nodeEnv}" (cần ${NODE_ENVS.join(' | ')})`);
   }
 
-  return { port, nodeEnv };
+  const databaseUrl = env['DATABASE_URL'];
+  if (!databaseUrl) {
+    throw new Error('Thiếu DATABASE_URL (xem docs/environment.md)');
+  }
+  if (!isPostgresUrl(databaseUrl)) {
+    throw new Error('DATABASE_URL không hợp lệ: cần dạng postgresql://USER:PASSWORD@HOST:PORT/DB');
+  }
+
+  return { port, nodeEnv, databaseUrl };
 }

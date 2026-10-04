@@ -10,15 +10,18 @@
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
-    "start:dev": "nest start --watch",
-    "test": "tsc -p tsconfig.json --outDir .test-dist && node --test --test-concurrency=1 '.test-dist/test/**/*.spec.js'"
+    "start:dev": "nest start --watch --exec \"node --env-file-if-exists=../.env.development --env-file-if-exists=../.env\"",
+    "test": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env --test --test-concurrency=1 '.test-dist/test/**/*.spec.js'"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",
     "@nestjs/core": "12.1.2",
     "@nestjs/platform-express": "12.1.2",
+    "@nestjs/typeorm": "12.0.2",
+    "pg": "8.23.1",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2"
+    "rxjs": "7.8.2",
+    "typeorm": "1.1.1"
   },
   "devDependencies": {
     "@nestjs/cli": "12.0.8",
