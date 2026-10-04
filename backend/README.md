@@ -222,3 +222,16 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Gọi lại khi phiên đã thu hồi vẫn trả 204. Thiếu hoặc sai access token → 401.
 - Access token đã cấp vẫn dùng được tới khi hết hạn (tối đa 15 phút) vì guard chỉ kiểm chữ ký; client phải xoá cả hai token khi đăng xuất.
 - `register`, `login`, `refresh` đánh dấu `@Public()` từng route; route mới thêm vào `AuthController` mặc định cần đăng nhập.
+
+## Quên mật khẩu (TASK-042)
+
+- `POST /api/v1/auth/forgot-password` `{ email }` (công khai) → 200 `{ expiresIn: 900 }`. Luôn trả **cùng một kết quả** dù email có tài khoản hay không, để không lộ email nào đã đăng ký.
+- Email thuộc tài khoản đang hoạt động (công ty cũng đang hoạt động) → sinh mã OTP 6 số, sống 15 phút, gửi qua SMTP. DB chỉ lưu SHA-256 của `userId:mã` (`password_reset_tokens.code_hash`). Mã mới làm các mã cũ chưa dùng của user hết hiệu lực. Tài khoản bị khoá, đã xoá hoặc công ty tạm ngưng thì không gửi.
+- Email gửi nền, không chờ SMTP; gửi lỗi chỉ ghi log (không ghi mã hay nội dung email).
+- Đặt mật khẩu mới bằng mã (kiểm tra mã, tối đa 5 lần sai) ở TASK-043.
+- Tài khoản chỉ có số điện thoại chưa quên mật khẩu được (chưa có SMS).
+
+### Gửi email (`src/mail`)
+
+- `MailService.send({ to, subject, text })` dùng nodemailer qua SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, xem docs/environment.md). Production bắt buộc `SMTP_HOST`; môi trường khác để trống thì bỏ qua gửi và ghi cảnh báo.
+- Dev: `docker compose up mailpit` rồi xem thư tại http://localhost:8025 (`.env.development` đã trỏ SMTP tới `localhost:1025`).

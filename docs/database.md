@@ -480,7 +480,7 @@ Trigger chặn `UPDATE`, `DELETE`, `TRUNCATE` trên `audit_logs`, nên công ty 
 
 **refresh_tokens** (mỗi dòng là một phiên đăng nhập): `id` PK · `user_id` FK users · `tenant_id` NULL · `token_hash` varchar(255) NOT NULL UQ (chỉ lưu hash) · `family_id` uuid NOT NULL (chuỗi xoay vòng token, thu hồi cả chuỗi khi phát hiện dùng lại) · `device_info` text · `ip_address` inet · `expires_at` NOT NULL (> `created_at`) · `revoked_at` NULL · `replaced_by` NULL FK refresh_tokens (token thay thế khi xoay vòng) · `created_at`. Index `user_id`, `family_id`. Trigger đảm bảo `tenant_id` trùng công ty của user. Xoá cứng user thì xoá các phiên (TASK-040).
 
-**password_reset_tokens**: `id` PK · `user_id` FK users · `token_hash` UQ · `expires_at` NOT NULL · `used_at` NULL · `created_at`.
+**password_reset_tokens** (mã OTP 6 số gửi email, TASK-042): `id` PK · `user_id` FK users (xoá user thì xoá mã) · `code_hash` varchar(64) NOT NULL (SHA-256, **không** UQ vì mã 6 số có thể trùng giữa các user) · `attempts` smallint NOT NULL DEFAULT 0 (số lần nhập sai) · `expires_at` NOT NULL (> `created_at`) · `used_at` NULL (đã dùng hoặc đã huỷ) · `created_at`. Index (`user_id`, `created_at` DESC).
 
 **device_tokens** (FCM): `id` PK · `user_id` FK users · `tenant_id` NULL · `fcm_token` text NOT NULL UQ · `platform` `ANDROID` \| `IOS` \| `WEB` · `last_seen_at` · `created_at`.
 

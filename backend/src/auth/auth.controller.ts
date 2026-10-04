@@ -4,20 +4,23 @@ import type { AuthenticatedUser } from './access-token.service.js';
 
 import { AuthService, type RegisterResult } from './auth.service.js';
 import { type ClientRequest, clientInfoFrom } from './client-info.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { type LoginResult, LoginService } from './login.service.js';
+import { type ForgotPasswordResult, PasswordResetService } from './password-reset.service.js';
 import { Public } from './public.decorator.js';
 import { RefreshTokenService, type TokenPair } from './refresh-token.service.js';
 
-/** register/login/refresh là route công khai; logout cần access token. */
+/** register/login/refresh/forgot-password là route công khai; logout cần access token. */
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly loginService: LoginService,
     private readonly refreshTokens: RefreshTokenService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   /** `POST /api/v1/auth/register` → 201. Không trả token: đăng nhập ở `POST /auth/login` (TASK-037). */
@@ -51,5 +54,16 @@ export class AuthController {
   @HttpCode(204)
   async logout(@Req() req: { user: AuthenticatedUser }): Promise<void> {
     await this.refreshTokens.revokeSession(req.user);
+  }
+
+  /**
+   * `POST /api/v1/auth/forgot-password` → 200 `{ expiresIn }` (TASK-042). Gửi mã OTP 6 số qua email.
+   * Luôn trả cùng kết quả dù email có tài khoản hay không.
+   */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<ForgotPasswordResult> {
+    return this.passwordReset.requestReset(dto.email);
   }
 }

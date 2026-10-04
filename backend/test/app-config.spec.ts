@@ -14,6 +14,7 @@ describe('loadAppConfig', () => {
       databaseUrl: DATABASE_URL,
       logLevel: 'log',
       jwtSecret: JWT_SECRET,
+      mail: null,
     });
   });
 
@@ -23,6 +24,8 @@ describe('loadAppConfig', () => {
       NODE_ENV: 'production',
       DATABASE_URL,
       JWT_SECRET,
+      SMTP_HOST: 'smtp.example.com',
+      MAIL_FROM: 'no-reply@example.com',
     });
     assert.equal(config.port, 8080);
     assert.equal(config.nodeEnv, 'production');
@@ -86,6 +89,50 @@ describe('loadAppConfig', () => {
     assert.throws(
       () => loadAppConfig({ DATABASE_URL, JWT_SECRET: devSecret, NODE_ENV: 'production' }),
       /khoá dev/,
+    );
+  });
+
+  it('đọc cấu hình SMTP; mặc định cổng 587, không TLS ngay từ đầu, không đăng nhập', () => {
+    const base = { DATABASE_URL, JWT_SECRET, SMTP_HOST: 'smtp.example.com', MAIL_FROM: 'a@b.vn' };
+    assert.deepEqual(loadAppConfig(base).mail, {
+      host: 'smtp.example.com',
+      port: 587,
+      secure: false,
+      user: null,
+      password: null,
+      from: 'a@b.vn',
+    });
+    assert.deepEqual(
+      loadAppConfig({
+        ...base,
+        SMTP_PORT: '465',
+        SMTP_SECURE: 'true',
+        SMTP_USER: 'user',
+        SMTP_PASSWORD: 'secret',
+      }).mail,
+      {
+        host: 'smtp.example.com',
+        port: 465,
+        secure: true,
+        user: 'user',
+        password: 'secret',
+        from: 'a@b.vn',
+      },
+    );
+  });
+
+  it('SMTP: bắt buộc ở production, từ chối cấu hình sai', () => {
+    assert.throws(
+      () => loadAppConfig({ DATABASE_URL, JWT_SECRET, NODE_ENV: 'production' }),
+      /Thiếu SMTP_HOST/,
+    );
+    const base = { DATABASE_URL, JWT_SECRET, SMTP_HOST: 'smtp.example.com', MAIL_FROM: 'a@b.vn' };
+    assert.throws(() => loadAppConfig({ ...base, MAIL_FROM: '' }), /Thiếu MAIL_FROM/);
+    assert.throws(() => loadAppConfig({ ...base, SMTP_PORT: 'abc' }), /SMTP_PORT không hợp lệ/);
+    assert.throws(() => loadAppConfig({ ...base, SMTP_SECURE: 'yes' }), /SMTP_SECURE không hợp lệ/);
+    assert.throws(
+      () => loadAppConfig({ ...base, SMTP_USER: 'user' }),
+      /SMTP_USER và SMTP_PASSWORD/,
     );
   });
 });
