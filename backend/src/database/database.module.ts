@@ -24,7 +24,9 @@ import { SnakeNamingStrategy } from './snake-naming.strategy.js';
         migrationsRun: false,
         autoLoadEntities: true,
         namingStrategy: new SnakeNamingStrategy(),
-        logging: ['error', 'warn'],
+        // Không để TypeORM tự log câu lỗi: nó in cả tham số truy vấn (mật khẩu đã băm, email, SĐT).
+        // Lỗi truy vấn đi qua bộ lọc lỗi chung, lỗi 500 được ghi log ở đó.
+        logging: ['warn'],
         retryAttempts: 5,
         retryDelay: 3000,
       }),
