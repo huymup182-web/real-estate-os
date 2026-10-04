@@ -128,6 +128,11 @@ export class PropertyDocumentsService {
           actor.userId,
         ],
       )) as DocumentRow[];
+      // Không ghi tên file vào nhật ký (có thể chứa thông tin cá nhân chủ nhà).
+      await this.properties.recordActivity(manager, actor, propertyId, 'property.add_document', {
+        documentId: [null, dto.documentId],
+        documentType: [null, dto.documentType],
+      });
       return inserted;
     });
     if (!row) {
@@ -175,14 +180,18 @@ export class PropertyDocumentsService {
         contact: scopes.contact,
       });
       const [document] = (await manager.query(
-        `SELECT id FROM property_documents
+        `SELECT id, document_type FROM property_documents
           WHERE tenant_id = $1 AND property_id = $2 AND id = $3 AND deleted_at IS NULL
             AND ($4 OR NOT (document_type = ANY($5::text[])))`,
         [actor.tenantId, propertyId, documentId, contact, OWNER_DOCUMENT_TYPES],
-      )) as unknown[];
+      )) as { id: string; document_type: string }[];
       if (!document) {
         throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy giấy tờ');
       }
+      await this.properties.recordActivity(manager, actor, propertyId, 'property.remove_document', {
+        documentId: [documentId, null],
+        documentType: [document.document_type, null],
+      });
       await manager.query(
         `UPDATE property_documents SET deleted_at = now() WHERE tenant_id = $1 AND id = $2`,
         [actor.tenantId, documentId],

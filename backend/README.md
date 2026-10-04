@@ -454,3 +454,9 @@ Luật:
 
 - `POST /api/v1/properties/:id/verify` `{ expectedUpdatedAt? }` → 200 chi tiết BĐS. Cần `property.verify` với BĐS (AGENT: BĐS mình phụ trách, TEAM_LEADER: team, MANAGER: phòng, DIRECTOR/ADMIN: cả công ty); ngoài phạm vi → 403, không xem được → 404. Ghi `verificationStatus = VERIFIED`, `lastVerifiedAt`, `verifiedBy`. BĐS đang `VERIFY_REQUIRED` hoặc `EXPIRED` mở bán lại thành `AVAILABLE`; trạng thái khác giữ nguyên.
 - Job `property-verification` (`@nestjs/schedule`, mỗi giờ): BĐS `AVAILABLE`/`PENDING` của công ty đang hoạt động, quá hạn xác minh (từ `last_verified_at`, chưa xác minh thì từ `created_at`) → `status = VERIFY_REQUIRED`, `verificationStatus = EXPIRED`. Hạn mặc định 30 ngày; công ty đặt riêng bằng `companies.settings.verify_interval_days` (số nguyên 1–365). Thông báo cho môi giới làm ở Phase 8.
+
+## Nhật ký hoạt động BĐS (TASK-063)
+
+- `src/audit`: `AuditService.record(manager, entry)` ghi `audit_logs` trong cùng transaction với thao tác, kèm request id, IP, user agent lấy từ request context. Không bao giờ ghi mật khẩu, token, tên/SĐT/email chủ nhà hay tên file giấy tờ.
+- Hoạt động BĐS (`entity_type = 'property'`): `property.create`, `update` (chỉ trường thật sự đổi), `change_status`, `delete`, `set_owner`, `remove_owner` (chỉ id chủ nhà), `assign`, `verify`, `verification_expired` (job, không có người làm), `add_image`, `remove_image`, `reorder_images`, `set_cover_image`, `add_document`, `remove_document`, `create_share_link`, `revoke_share_link`. `changes` dạng `{ field: [cũ, mới] }`. Lượt xem và yêu thích không ghi.
+- `GET /api/v1/properties/:id/activities?page&pageSize` → `[{ id, action, changes, user: { id, fullName } | null, createdAt }]`, mới trước. Chỉ người sửa được BĐS xem được (403); không xem được BĐS → 404. Địa chỉ chi tiết, toạ độ trong `changes` bị bỏ với người không xem được liên hệ chủ nhà.
