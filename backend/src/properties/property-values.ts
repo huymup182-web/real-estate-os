@@ -41,3 +41,28 @@ export const PROPERTY_CODE_PREFIX = 'BDS-';
 export function formatPropertyCode(value: number): string {
   return `${PROPERTY_CODE_PREFIX}${String(value).padStart(6, '0')}`;
 }
+
+export const PROPERTY_STATUSES = [
+  'AVAILABLE',
+  'PENDING',
+  'SOLD',
+  'HIDDEN',
+  'EXPIRED',
+  'VERIFY_REQUIRED',
+] as const;
+export type PropertyStatus = (typeof PROPERTY_STATUSES)[number];
+
+/**
+ * Trạng thái người dùng tự đặt được (TASK-054, Huy Lê chọn ngày 2026-10-04): chuyển tự do giữa 4 trạng thái
+ * này. EXPIRED, VERIFY_REQUIRED chỉ hệ thống đặt (quá hạn xác minh).
+ */
+export const USER_SETTABLE_STATUSES = ['AVAILABLE', 'PENDING', 'SOLD', 'HIDDEN'] as const;
+
+/** Trạng thái chờ xác minh lại: muốn mở bán lại (AVAILABLE, PENDING) phải xác minh (TASK-062). */
+const NEEDS_VERIFICATION: readonly string[] = ['EXPIRED', 'VERIFY_REQUIRED'];
+const OPEN_FOR_SALE: readonly string[] = ['AVAILABLE', 'PENDING'];
+
+/** Người dùng có được chuyển BĐS từ `from` sang `to` không. Trạng thái `to` đã thuộc USER_SETTABLE_STATUSES. */
+export function canUserChangeStatus(from: string, to: string): boolean {
+  return !(NEEDS_VERIFICATION.includes(from) && OPEN_FOR_SALE.includes(to));
+}

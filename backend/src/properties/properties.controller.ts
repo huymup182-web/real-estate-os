@@ -13,20 +13,34 @@ import {
 
 import type { AuthenticatedUser } from '../auth/access-token.service.js';
 import type { RequestUser } from '../auth/jwt-auth.guard.js';
-import type { PermissionScope } from '../auth/permission.service.js';
-import { GrantedScope, RequirePermission } from '../auth/permission.guard.js';
+import { RequirePermission } from '../auth/permission.guard.js';
 import { TenantId } from '../auth/tenant.guard.js';
-import { CreatePropertyDto } from './dto/create-property.dto.js';
-import { UpdatePropertyDto } from './dto/update-property.dto.js';
-import { PropertiesService } from './properties.service.js';
 import type { Paginated } from '../common/response/paginated.js';
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
+import { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
+import { CreatePropertyDto } from './dto/create-property.dto.js';
+import { UpdatePropertyDto } from './dto/update-property.dto.js';
+import { type Actor, PropertiesService, type PropertyScopes } from './properties.service.js';
 import type {
   PropertyDetailResponse,
   PropertyListItem,
   PropertyResponse,
 } from './property.response.js';
+
+/** Phạm vi các quyền BĐS của user (route đã có @RequirePermission nên quyền của route chắc chắn có). */
+function scopesOf(user: RequestUser): PropertyScopes {
+  return {
+    view: user.permissions['property.view'],
+    edit: user.permissions['property.edit'],
+    delete: user.permissions['property.delete'],
+    contact: user.permissions['property.view_owner_contact'],
+  };
+}
+
+function actorOf(tenantId: string, user: AuthenticatedUser): Actor {
+  return { tenantId, userId: user.userId };
+}
 
 @Controller('properties')
 export class PropertiesController {
@@ -40,31 +54,25 @@ export class PropertiesController {
     @Req() req: { user: AuthenticatedUser },
     @Body() dto: CreatePropertyDto,
   ): Promise<PropertyResponse> {
-    return this.properties.create({ tenantId, userId: req.user.userId }, dto);
+    return this.properties.create(actorOf(tenantId, req.user), dto);
   }
 
   /**
-   * `GET /api/v1/properties?page=1&pageSize=20` → danh sách BĐS trong phạm vi `property.view`,
-   * mới tạo trước, kèm `meta` phân trang (TASK-051).
+   * `GET /api/v1/properties?page=1&pageSize=20` → danh sách BĐS xem được, mới tạo trước, kèm `meta`
+   * phân trang (TASK-051). BĐS HIDDEN chỉ hiện với người sửa được BĐS đó (TASK-054).
    */
   @Get()
   @RequirePermission('property.view')
   findAll(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
-    @GrantedScope() viewScope: PermissionScope,
     @Query() query: PaginationQueryDto,
   ): Promise<Paginated<PropertyListItem>> {
-    return this.properties.findAll(
-      { tenantId, userId: req.user.userId },
-      query,
-      viewScope,
-      req.user.permissions['property.view_owner_contact'],
-    );
+    return this.properties.findAll(actorOf(tenantId, req.user), query, scopesOf(req.user));
   }
 
   /**
-   * `GET /api/v1/properties/:id` → chi tiết BĐS (TASK-050). Cần quyền `property.view`; ngoài phạm vi → 404.
+   * `GET /api/v1/properties/:id` → chi tiết BĐS (TASK-050). Cần quyền `property.view`; không xem được → 404.
    * Địa chỉ chi tiết, chủ nhà chỉ có khi được xem liên hệ chủ nhà (`property.view_owner_contact`).
    */
   @Get(':id')
@@ -72,15 +80,9 @@ export class PropertiesController {
   findOne(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
-    @GrantedScope() viewScope: PermissionScope,
     @Param('id', ParseUuidPipe) id: string,
   ): Promise<PropertyDetailResponse> {
-    return this.properties.findOne(
-      { tenantId, userId: req.user.userId },
-      id,
-      viewScope,
-      req.user.permissions['property.view_owner_contact'],
-    );
+    return this.properties.findOne(actorOf(tenantId, req.user), id, scopesOf(req.user));
   }
 
   /**
@@ -92,16 +94,26 @@ export class PropertiesController {
   update(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
-    @GrantedScope() editScope: PermissionScope,
     @Param('id', ParseUuidPipe) id: string,
     @Body() dto: UpdatePropertyDto,
   ): Promise<PropertyDetailResponse> {
-    const { permissions } = req.user;
-    return this.properties.update({ tenantId, userId: req.user.userId }, id, dto, {
-      view: permissions['property.view'],
-      edit: editScope,
-      contact: permissions['property.view_owner_contact'],
-    });
+    return this.properties.update(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
+  }
+
+  /**
+   * `POST /api/v1/properties/:id/status` → chi tiết BĐS sau khi đổi trạng thái (TASK-054).
+   * Cần quyền `property.edit` với BĐS đó.
+   */
+  @Post(':id/status')
+  @HttpCode(200)
+  @RequirePermission('property.edit')
+  changeStatus(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: ChangePropertyStatusDto,
+  ): Promise<PropertyDetailResponse> {
+    return this.properties.changeStatus(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
   }
 
   /**
@@ -114,12 +126,8 @@ export class PropertiesController {
   async remove(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
-    @GrantedScope() deleteScope: PermissionScope,
     @Param('id', ParseUuidPipe) id: string,
   ): Promise<void> {
-    await this.properties.remove({ tenantId, userId: req.user.userId }, id, {
-      view: req.user.permissions['property.view'],
-      delete: deleteScope,
-    });
+    await this.properties.remove(actorOf(tenantId, req.user), id, scopesOf(req.user));
   }
 }

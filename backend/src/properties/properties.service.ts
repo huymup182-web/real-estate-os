@@ -9,6 +9,7 @@ import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
 import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
+import type { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import type { CreatePropertyDto } from './dto/create-property.dto.js';
 import { EDITABLE_PROPERTY_FIELDS, type UpdatePropertyDto } from './dto/update-property.dto.js';
 import { Property } from './property.entity.js';
@@ -21,7 +22,7 @@ import {
   toPropertyListItem,
   toPropertyResponse,
 } from './property.response.js';
-import { formatPropertyCode } from './property-values.js';
+import { canUserChangeStatus, formatPropertyCode } from './property-values.js';
 
 /** Người thực hiện thao tác, lấy từ access token (không bao giờ từ body). */
 export interface Actor {
@@ -33,6 +34,7 @@ export interface Actor {
 export interface PropertyScopes {
   view: PermissionScope | undefined;
   edit: PermissionScope | undefined;
+  delete: PermissionScope | undefined;
   contact: PermissionScope | undefined;
 }
 
@@ -105,19 +107,12 @@ export class PropertiesService {
    * (không lộ BĐS có tồn tại). Địa chỉ chi tiết và chủ nhà chỉ trả khi BĐS nằm trong phạm vi
    * `property.view_owner_contact` của user (phase0/04-RBAC.md, Q5).
    */
-  async findOne(
-    actor: Actor,
-    id: string,
-    viewScope: PermissionScope,
-    contactScope: PermissionScope | undefined,
-  ): Promise<PropertyDetailResponse> {
+  async findOne(actor: Actor, id: string, scopes: PropertyScopes): Promise<PropertyDetailResponse> {
     const { entities, raw } = await this.properties
       .createQueryBuilder(actor.tenantId, 'p', (query) =>
-        query
-          .where('p.id = :id', { id })
-          .andWhere(scopeCondition(viewScope, PROPERTY_SCOPE_COLUMNS)),
+        query.where('p.id = :id', { id }).andWhere(this.visibleCondition(scopes)),
       )
-      .addSelect(`(${this.contactCondition(contactScope)})`, 'owner_contact_visible')
+      .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
       .setParameter('scopeUserId', actor.userId)
       .getRawAndEntities<{ owner_contact_visible: boolean }>();
 
@@ -138,18 +133,17 @@ export class PropertiesService {
   async findAll(
     actor: Actor,
     query: PaginationQueryDto,
-    viewScope: PermissionScope,
-    contactScope: PermissionScope | undefined,
+    scopes: PropertyScopes,
   ): Promise<Paginated<PropertyListItem>> {
     const base = this.properties
       .createQueryBuilder(actor.tenantId, 'p', (builder) =>
-        builder.where(scopeCondition(viewScope, PROPERTY_SCOPE_COLUMNS)),
+        builder.where(this.visibleCondition(scopes)),
       )
       .setParameter('scopeUserId', actor.userId);
 
     const total = await base.clone().getCount();
     const { entities, raw } = await base
-      .addSelect(`(${this.contactCondition(contactScope)})`, 'owner_contact_visible')
+      .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
       .orderBy('p.createdAt', 'DESC')
       .addOrderBy('p.id', 'DESC')
       .offset(query.offset)
@@ -195,19 +189,11 @@ export class PropertiesService {
         properties,
         actor,
         id,
-        scopes.view,
+        scopes,
         scopes.edit,
         'Không có quyền sửa BĐS này',
       );
-      if (
-        dto.expectedUpdatedAt &&
-        dto.expectedUpdatedAt.getTime() !== current.updatedAt.getTime()
-      ) {
-        throw new AppException(
-          ErrorCode.CONFLICT,
-          'BĐS đã được người khác cập nhật, vui lòng tải lại rồi sửa tiếp',
-        );
-      }
+      assertNotModified(current, dto.expectedUpdatedAt);
 
       const merged = { ...current, ...patch } as Property;
       assertPairs(merged);
@@ -220,7 +206,46 @@ export class PropertiesService {
       } as TenantWritable<Property>);
     });
 
-    return this.findOne(actor, id, scopes.view ?? 'OWN', scopes.contact);
+    return this.findOne(actor, id, scopes);
+  }
+
+  /**
+   * Đổi trạng thái BĐS (TASK-054). Cần `property.edit` với BĐS đó (404/403 như khi sửa).
+   * Chỉ đặt được AVAILABLE, PENDING, SOLD, HIDDEN; BĐS đang EXPIRED/VERIFY_REQUIRED không mở bán lại
+   * (AVAILABLE, PENDING) được mà phải xác minh → 422. Đặt lại đúng trạng thái đang có thì không đổi gì.
+   */
+  async changeStatus(
+    actor: Actor,
+    id: string,
+    dto: ChangePropertyStatusDto,
+    scopes: PropertyScopes,
+  ): Promise<PropertyDetailResponse> {
+    await this.dataSource.transaction(async (manager) => {
+      const properties = this.properties.withManager(manager);
+      const current = await this.lockForAction(
+        properties,
+        actor,
+        id,
+        scopes,
+        scopes.edit,
+        'Không có quyền đổi trạng thái BĐS này',
+      );
+      assertNotModified(current, dto.expectedUpdatedAt);
+      if (current.status === dto.status) {
+        return;
+      }
+      if (!canUserChangeStatus(current.status, dto.status)) {
+        throw new AppException(
+          ErrorCode.BUSINESS_RULE_VIOLATION,
+          `BĐS đang ${current.status} cần được xác minh lại trước khi mở bán`,
+        );
+      }
+      await properties.update(actor.tenantId, id, {
+        status: dto.status,
+        updatedBy: actor.userId,
+      });
+    });
+    return this.findOne(actor, id, scopes);
   }
 
   /**
@@ -228,18 +253,14 @@ export class PropertiesService {
    * xem được nhưng ngoài phạm vi `property.delete` → 403. Ghi người xoá vào `updated_by`.
    * Ảnh, giấy tờ, lịch hẹn, giao dịch… của BĐS giữ nguyên trong database.
    */
-  async remove(
-    actor: Actor,
-    id: string,
-    scopes: { view: PermissionScope | undefined; delete: PermissionScope },
-  ): Promise<void> {
+  async remove(actor: Actor, id: string, scopes: PropertyScopes): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
       const properties = this.properties.withManager(manager);
       await this.lockForAction(
         properties,
         actor,
         id,
-        scopes.view,
+        scopes,
         scopes.delete,
         'Không có quyền xoá BĐS này',
       );
@@ -256,13 +277,13 @@ export class PropertiesService {
     properties: TenantRepository<Property>,
     actor: Actor,
     id: string,
-    viewScope: PermissionScope | undefined,
+    scopes: PropertyScopes,
     actionScope: PermissionScope | undefined,
     forbiddenMessage: string,
   ): Promise<Property> {
     const { entities, raw } = await properties
       .createQueryBuilder(actor.tenantId, 'p', (query) => query.where('p.id = :id', { id }))
-      .addSelect(`(${this.scopeOrFalse(viewScope)})`, 'in_view')
+      .addSelect(`(${this.visibleCondition(scopes)})`, 'in_view')
       .addSelect(`(${this.scopeOrFalse(actionScope)})`, 'in_action')
       .setParameter('scopeUserId', actor.userId)
       .setLock('pessimistic_write')
@@ -277,14 +298,19 @@ export class PropertiesService {
     return current;
   }
 
+  /**
+   * Điều kiện "user xem được BĐS `p`": trong phạm vi `property.view`; BĐS đang HIDDEN thì phải trong
+   * phạm vi `property.edit` (Huy Lê chọn ngày 2026-10-04: chỉ người sửa được mới thấy BĐS ẩn).
+   */
+  private visibleCondition(scopes: PropertyScopes): string {
+    return `((${this.scopeOrFalse(scopes.view)}) AND (p.status <> 'HIDDEN' OR (${this.scopeOrFalse(
+      scopes.edit,
+    )})))`;
+  }
+
   /** Điều kiện phạm vi, hoặc FALSE khi user không có quyền đó. */
   private scopeOrFalse(scope: PermissionScope | undefined): string {
     return scope ? scopeCondition(scope, PROPERTY_SCOPE_COLUMNS) : 'FALSE';
-  }
-
-  /** Điều kiện SQL "user được xem liên hệ chủ nhà của BĐS `p`". */
-  private contactCondition(contactScope: PermissionScope | undefined): string {
-    return this.scopeOrFalse(contactScope);
   }
 
   private async findOwner(tenantId: string, ownerId: string): Promise<PropertyOwnerContact | null> {
@@ -338,6 +364,16 @@ export class PropertiesService {
       [tenantId],
     )) as { last_value: string }[];
     return Number(row?.last_value);
+  }
+}
+
+/** `expectedUpdatedAt` client gửi khác `updatedAt` hiện tại → 409 (phase0/05-API-CONVENTIONS.md mục 8). */
+function assertNotModified(current: Property, expectedUpdatedAt: Date | undefined): void {
+  if (expectedUpdatedAt && expectedUpdatedAt.getTime() !== current.updatedAt.getTime()) {
+    throw new AppException(
+      ErrorCode.CONFLICT,
+      'BĐS đã được người khác cập nhật, vui lòng tải lại rồi thao tác lại',
+    );
   }
 }
 
