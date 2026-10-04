@@ -15,6 +15,8 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 ├── docs/       # Tài liệu dự án
 ├── scripts/    # Script hỗ trợ phát triển
 ├── docker-compose.yml
+├── eslint.config.mjs   # ESLint dùng chung
+├── tsconfig.base.json  # TypeScript strict dùng chung
 ├── .env.example
 ├── .env.development
 └── README.md
@@ -22,17 +24,17 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 
 ## Công nghệ
 
-| Thành phần | Công nghệ |
-|---|---|
-| Mobile | Flutter |
-| Backend | NestJS |
-| Admin | Next.js |
-| Database | PostgreSQL + PostGIS |
-| Lưu trữ ảnh | S3 / Cloudflare R2 |
-| Thông báo đẩy | Firebase Cloud Messaging |
-| Bản đồ | Google Maps |
-| AI | LLM API, chỉ gọi qua backend |
-| Hạ tầng | Docker, GitHub Actions |
+| Thành phần    | Công nghệ                    |
+| ------------- | ---------------------------- |
+| Mobile        | Flutter                      |
+| Backend       | NestJS                       |
+| Admin         | Next.js                      |
+| Database      | PostgreSQL + PostGIS         |
+| Lưu trữ ảnh   | S3 / Cloudflare R2           |
+| Thông báo đẩy | Firebase Cloud Messaging     |
+| Bản đồ        | Google Maps                  |
+| AI            | LLM API, chỉ gọi qua backend |
+| Hạ tầng       | Docker, GitHub Actions       |
 
 ## Nguyên tắc
 
@@ -50,15 +52,24 @@ sh scripts/setup-env.sh  # tạo .env (không commit), xem docs/environment.md
 docker compose up        # thêm -d để chạy nền
 ```
 
-| Service | Mô tả | Cổng host |
-|---|---|---|
-| `postgres` | PostgreSQL 16 + PostGIS 3.4, dữ liệu lưu trong volume `postgres_data` | `5432` |
-| `backend` | Container Node.js 22 cho NestJS API, mount thư mục `backend/` | `3000` |
-| `admin` | Container Node.js 22 cho Next.js admin, mount thư mục `admin/` | `3001` |
+| Service    | Mô tả                                                                 | Cổng host |
+| ---------- | --------------------------------------------------------------------- | --------- |
+| `postgres` | PostgreSQL 16 + PostGIS 3.4, dữ liệu lưu trong volume `postgres_data` | `5432`    |
+| `backend`  | Container Node.js 22 cho NestJS API, mount thư mục `backend/`         | `3000`    |
+| `admin`    | Container Node.js 22 cho Next.js admin, mount thư mục `admin/`        | `3001`    |
 
 - Các service nói chuyện với nhau qua network nội bộ `internal`, gọi nhau bằng tên service (vd backend kết nối `postgres:5432`).
 - Khi `backend/` hoặc `admin/` chưa có `package.json` (trước TASK-028 và TASK-100), container chạy một server giữ chỗ trả về `{"status":"placeholder"}`. Khi ứng dụng đã được khởi tạo, container tự `npm install` (lần đầu) rồi chạy `npm run start:dev` (backend) hoặc `npm run dev` (admin).
 - Dừng: `docker compose down`. Xoá cả dữ liệu database: `docker compose down -v`.
+
+## Chuẩn code
+
+```bash
+npm install      # cài ESLint, Prettier, TypeScript ở thư mục gốc
+npm run check    # lint + format + typecheck, phải pass trước khi commit
+```
+
+Chi tiết và quy ước đặt tên: [docs/coding-standards.md](docs/coding-standards.md).
 
 ## Quy trình phát triển
 

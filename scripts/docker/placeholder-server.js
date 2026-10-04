@@ -5,7 +5,7 @@ const http = require('node:http');
 const port = Number(process.env.PORT) || 3000;
 const service = process.env.SERVICE_NAME || 'app';
 
-const server = http.createServer((req, res) => {
+const server = http.createServer((_req, res) => {
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(
     JSON.stringify({

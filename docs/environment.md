@@ -2,11 +2,11 @@
 
 ## Các file
 
-| File | Commit? | Mục đích |
-|---|---|---|
-| `.env.example` | Có | Mẫu đầy đủ các biến, không có giá trị nhạy cảm |
-| `.env.development` | Có | Giá trị mặc định cho dev local, **không chứa secret thật** |
-| `.env` | **Không** | Giá trị riêng của từng máy và secret thật. Ghi đè `.env.development` |
+| File               | Commit?   | Mục đích                                                             |
+| ------------------ | --------- | -------------------------------------------------------------------- |
+| `.env.example`     | Có        | Mẫu đầy đủ các biến, không có giá trị nhạy cảm                       |
+| `.env.development` | Có        | Giá trị mặc định cho dev local, **không chứa secret thật**           |
+| `.env`             | **Không** | Giá trị riêng của từng máy và secret thật. Ghi đè `.env.development` |
 
 Tạo `.env` lần đầu:
 
@@ -19,16 +19,16 @@ Thứ tự ưu tiên trong Docker (sau ghi đè trước): `.env.development` �
 
 ## Danh sách biến
 
-| Biến | Bắt buộc | Dùng ở | Mô tả |
-|---|---|---|---|
-| `DATABASE_URL` | Có | backend | Chuỗi kết nối PostgreSQL `postgresql://USER:PASSWORD@HOST:PORT/DB` |
-| `JWT_SECRET` | Có | backend | Khoá ký JWT, chuỗi ngẫu nhiên ≥ 32 ký tự, khác nhau cho mỗi môi trường |
-| `STORAGE_KEY` | Khi dùng upload ảnh (TASK-057) | backend | Khoá truy cập S3 / Cloudflare R2 |
-| `AI_API_KEY` | Khi dùng AI (TASK-133) | backend | Khoá API nhà cung cấp LLM. Không bao giờ đưa vào mobile/admin |
-| `FCM_CONFIG` | Khi dùng thông báo (TASK-093) | backend | Service account Firebase, JSON mã hoá base64 |
-| `NODE_ENV` | Có | backend, admin | `development` / `production` / `test` |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Có (Docker) | postgres | Tài khoản database trong docker-compose |
-| `POSTGRES_PORT`, `BACKEND_PORT`, `ADMIN_PORT` | Không | docker-compose | Cổng mở ra máy host |
+| Biến                                                | Bắt buộc                       | Dùng ở         | Mô tả                                                                  |
+| --------------------------------------------------- | ------------------------------ | -------------- | ---------------------------------------------------------------------- |
+| `DATABASE_URL`                                      | Có                             | backend        | Chuỗi kết nối PostgreSQL `postgresql://USER:PASSWORD@HOST:PORT/DB`     |
+| `JWT_SECRET`                                        | Có                             | backend        | Khoá ký JWT, chuỗi ngẫu nhiên ≥ 32 ký tự, khác nhau cho mỗi môi trường |
+| `STORAGE_KEY`                                       | Khi dùng upload ảnh (TASK-057) | backend        | Khoá truy cập S3 / Cloudflare R2                                       |
+| `AI_API_KEY`                                        | Khi dùng AI (TASK-133)         | backend        | Khoá API nhà cung cấp LLM. Không bao giờ đưa vào mobile/admin          |
+| `FCM_CONFIG`                                        | Khi dùng thông báo (TASK-093)  | backend        | Service account Firebase, JSON mã hoá base64                           |
+| `NODE_ENV`                                          | Có                             | backend, admin | `development` / `production` / `test`                                  |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Có (Docker)                    | postgres       | Tài khoản database trong docker-compose                                |
+| `POSTGRES_PORT`, `BACKEND_PORT`, `ADMIN_PORT`       | Không                          | docker-compose | Cổng mở ra máy host                                                    |
 
 ## Quy tắc
 
