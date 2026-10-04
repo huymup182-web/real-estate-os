@@ -60,3 +60,4 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791097819681-create-customer-activities`      | TASK-019 | Bảng `customer_activities` (chỉ thêm, không sửa)                  |
 | `1791098216229-create-property-favorites-views` | TASK-020 | Bảng `property_favorites` và `property_views` (lượt xem chỉ thêm) |
 | `1791099052685-create-saved-searches`           | TASK-021 | Bảng `saved_searches`                                             |
+| `1791099160108-create-appointments`             | TASK-022 | Bảng `appointments`                                               |
