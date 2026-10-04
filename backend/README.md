@@ -37,11 +37,12 @@ Trong Docker (`docker compose up backend`), container tự `npm install` lần �
 
 ## Biến môi trường
 
-| Biến           | Mặc định      | Kiểm tra                                       |
-| -------------- | ------------- | ---------------------------------------------- |
-| `PORT`         | `3000`        | Số nguyên 1–65535                              |
-| `NODE_ENV`     | `development` | `development` \| `production` \| `test`        |
-| `DATABASE_URL` | (bắt buộc)    | Dạng `postgresql://USER:PASSWORD@HOST:PORT/DB` |
+| Biến           | Mặc định      | Kiểm tra                                                      |
+| -------------- | ------------- | ------------------------------------------------------------- |
+| `PORT`         | `3000`        | Số nguyên 1–65535                                             |
+| `NODE_ENV`     | `development` | `development` \| `production` \| `test`                       |
+| `DATABASE_URL` | (bắt buộc)    | Dạng `postgresql://USER:PASSWORD@HOST:PORT/DB`                |
+| `LOG_LEVEL`    | `log`         | `fatal` \| `error` \| `warn` \| `log` \| `debug` \| `verbose` |
 
 Sai giá trị thì ứng dụng dừng ngay khi khởi động. Các biến khác (JWT_SECRET…) được dùng từ các task sau.
 
@@ -123,3 +124,30 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 
 - Không trả gì → `data: null`. Response 204 (vd DELETE với `@HttpCode(204)`) không có body.
 - Lỗi theo định dạng ở mục Xử lý lỗi, không bị bọc lại.
+
+## Logging (TASK-034)
+
+- Dùng logger của NestJS ở chế độ JSON (`src/common/logging/app-logger.ts`), mỗi dòng một object:
+
+  ```json
+  {
+    "level": "log",
+    "timestamp": 1791110292315,
+    "message": "GET /api/v1/properties 200",
+    "context": "HTTP",
+    "method": "GET",
+    "path": "/api/v1/properties",
+    "statusCode": 200,
+    "durationMs": 12.4,
+    "requestId": "…",
+    "tenantId": "…",
+    "userId": "…"
+  }
+  ```
+
+- Mỗi request ghi một dòng khi kết thúc (method, đường dẫn, status, thời gian xử lý). Không ghi query string, header hay body.
+- Mọi log trong request tự kèm `requestId`; `tenantId`, `userId` được thêm khi request đã xác thực (gắn vào request context ở TASK-047, qua `getRequestContext()`).
+- Ghi log trong code: `private readonly logger = new Logger(TenService.name)`, dữ liệu kèm theo truyền dạng object: `this.logger.log('Đã duyệt BĐS', { propertyId })`.
+- Trường nhạy cảm (`password`, `token`, `accessToken`, `refreshToken`, `authorization`, `cookie`, `secret`…) trong object log được thay bằng `[REDACTED]`. Không đưa dữ liệu nhạy cảm vào câu log dạng chuỗi.
+- Lỗi 500 ghi mức `error` kèm stack; client chỉ nhận câu thông báo chung.
+- Mức log chỉnh bằng `LOG_LEVEL`.

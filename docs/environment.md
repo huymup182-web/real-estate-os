@@ -19,17 +19,18 @@ Thứ tự ưu tiên trong Docker (sau ghi đè trước): `.env.development` �
 
 ## Danh sách biến
 
-| Biến                                                | Bắt buộc                       | Dùng ở         | Mô tả                                                                  |
-| --------------------------------------------------- | ------------------------------ | -------------- | ---------------------------------------------------------------------- |
-| `DATABASE_URL`                                      | Có                             | backend        | Chuỗi kết nối PostgreSQL `postgresql://USER:PASSWORD@HOST:PORT/DB`     |
-| `JWT_SECRET`                                        | Có                             | backend        | Khoá ký JWT, chuỗi ngẫu nhiên ≥ 32 ký tự, khác nhau cho mỗi môi trường |
-| `STORAGE_KEY`                                       | Khi dùng upload ảnh (TASK-057) | backend        | Khoá truy cập S3 / Cloudflare R2                                       |
-| `AI_API_KEY`                                        | Khi dùng AI (TASK-133)         | backend        | Khoá API nhà cung cấp LLM. Không bao giờ đưa vào mobile/admin          |
-| `FCM_CONFIG`                                        | Khi dùng thông báo (TASK-093)  | backend        | Service account Firebase, JSON mã hoá base64                           |
-| `NODE_ENV`                                          | Có                             | backend, admin | `development` / `production` / `test`                                  |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Có (Docker)                    | postgres       | Tài khoản database trong docker-compose                                |
-| `POSTGRES_PORT`, `BACKEND_PORT`, `ADMIN_PORT`       | Không                          | docker-compose | Cổng mở ra máy host                                                    |
-| `SEED_DEMO_PASSWORD`                                | Khi chạy `npm run seed`        | database (dev) | Mật khẩu chung của tài khoản demo, ≥ 8 ký tự. Chỉ dùng ở dev           |
+| Biến                                                | Bắt buộc                       | Dùng ở         | Mô tả                                                                                                           |
+| --------------------------------------------------- | ------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                      | Có                             | backend        | Chuỗi kết nối PostgreSQL `postgresql://USER:PASSWORD@HOST:PORT/DB`                                              |
+| `JWT_SECRET`                                        | Có                             | backend        | Khoá ký JWT, chuỗi ngẫu nhiên ≥ 32 ký tự, khác nhau cho mỗi môi trường                                          |
+| `STORAGE_KEY`                                       | Khi dùng upload ảnh (TASK-057) | backend        | Khoá truy cập S3 / Cloudflare R2                                                                                |
+| `AI_API_KEY`                                        | Khi dùng AI (TASK-133)         | backend        | Khoá API nhà cung cấp LLM. Không bao giờ đưa vào mobile/admin                                                   |
+| `FCM_CONFIG`                                        | Khi dùng thông báo (TASK-093)  | backend        | Service account Firebase, JSON mã hoá base64                                                                    |
+| `NODE_ENV`                                          | Có                             | backend, admin | `development` / `production` / `test`                                                                           |
+| `LOG_LEVEL`                                         | Không (mặc định `log`)         | backend        | Mức log: `fatal` / `error` / `warn` / `log` / `debug` / `verbose` (bật mức đã chọn và các mức nghiêm trọng hơn) |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Có (Docker)                    | postgres       | Tài khoản database trong docker-compose                                                                         |
+| `POSTGRES_PORT`, `BACKEND_PORT`, `ADMIN_PORT`       | Không                          | docker-compose | Cổng mở ra máy host                                                                                             |
+| `SEED_DEMO_PASSWORD`                                | Khi chạy `npm run seed`        | database (dev) | Mật khẩu chung của tài khoản demo, ≥ 8 ký tự. Chỉ dùng ở dev                                                    |
 
 ## Quy tắc
 
