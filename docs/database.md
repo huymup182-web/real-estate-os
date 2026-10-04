@@ -313,9 +313,9 @@ Xoá cứng BĐS còn ảnh bị chặn (`ON DELETE RESTRICT`) để không bỏ
 
 Chỉ người có quyền `property.view_documents` mới xem được giấy tờ (kiểm ở backend). Xoá cứng BĐS còn giấy tờ bị chặn (`ON DELETE RESTRICT`); giấy tờ dùng soft delete.
 
-**property_favorites**: `tenant_id` NOT NULL · `user_id` T-FK users · `property_id` T-FK properties · `created_at` · PK (user_id, property_id).
+**property_favorites**: `tenant_id` NOT NULL · `user_id` T-FK users · `property_id` T-FK properties · `created_at` · PK (user_id, property_id). Xoá cứng user hoặc BĐS thì xoá theo.
 
-**property_views** (lượt xem chi tiết, chỉ thêm, không sửa): `id` PK · `tenant_id` NOT NULL · `property_id` T-FK properties · `user_id` T-FK users · `viewed_at` timestamptz NOT NULL DEFAULT now().
+**property_views** (lượt xem chi tiết, chỉ thêm, không sửa): `id` PK · `tenant_id` NOT NULL · `property_id` T-FK properties · `user_id` T-FK users · `viewed_at` timestamptz NOT NULL DEFAULT now(). Trigger `trg_property_views_append_only` chặn UPDATE; xoá cứng user hoặc BĐS thì xoá theo.
 
 ### 4.5 Khách hàng (CRM)
 
