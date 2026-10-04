@@ -243,3 +243,14 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 
 - `MailService.send({ to, subject, text })` dùng nodemailer qua SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, xem docs/environment.md). Production bắt buộc `SMTP_HOST`; môi trường khác để trống thì bỏ qua gửi và ghi cảnh báo.
 - Dev: `docker compose up mailpit` rồi xem thư tại http://localhost:8025 (`.env.development` đã trỏ SMTP tới `localhost:1025`).
+
+## User hiện tại (TASK-044)
+
+- `GET /api/v1/auth/me` (cần access token) → 200 `{ user, company, roles, permissions }`:
+  - `user`: `id, tenantId, fullName, email, phone, avatarUrl, departmentId, status`.
+  - `company`: `{ id, name, slug }`, `null` với tài khoản nền tảng.
+  - `roles`: `[{ code, name }]` các role chưa xoá của user.
+  - `permissions`: `[{ code, scope }]` quyền hiệu lực = hợp permission của mọi role, mỗi quyền lấy scope rộng nhất (`OWN < TEAM < DEPARTMENT < COMPANY < PLATFORM`, phase0/04-RBAC.md). Client chỉ dùng để ẩn/hiện UI; backend vẫn tự kiểm quyền (TASK-046).
+- Đọc lại từ DB mỗi lần gọi: user đã xoá hoặc không còn thuộc công ty trong token → 401; user bị khoá hoặc công ty tạm ngưng → 403.
+- `PermissionService.getEffectivePermissions(userId)` (`src/auth/permission.service.ts`) được export để guard phân quyền dùng lại; chưa có cache.
+- Đường dẫn theo phase0/04-RBAC.md và 05-API-CONVENTIONS (`/auth/me`); roadmap ghi tắt là `GET /me`.
