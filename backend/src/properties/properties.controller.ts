@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../auth/access-token.service.js';
 import type { RequestUser } from '../auth/jwt-auth.guard.js';
@@ -6,6 +6,7 @@ import type { PermissionScope } from '../auth/permission.service.js';
 import { GrantedScope, RequirePermission } from '../auth/permission.guard.js';
 import { TenantId } from '../auth/tenant.guard.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
+import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import { PropertiesService } from './properties.service.js';
 import type { Paginated } from '../common/response/paginated.js';
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
@@ -69,5 +70,26 @@ export class PropertiesController {
       viewScope,
       req.user.permissions['property.view_owner_contact'],
     );
+  }
+
+  /**
+   * `PATCH /api/v1/properties/:id` → chi tiết BĐS sau khi sửa (TASK-052). Cần quyền `property.edit`
+   * với BĐS đó; xem được nhưng ngoài phạm vi sửa → 403, không xem được → 404.
+   */
+  @Patch(':id')
+  @RequirePermission('property.edit')
+  update(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @GrantedScope() editScope: PermissionScope,
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: UpdatePropertyDto,
+  ): Promise<PropertyDetailResponse> {
+    const { permissions } = req.user;
+    return this.properties.update({ tenantId, userId: req.user.userId }, id, dto, {
+      view: permissions['property.view'],
+      edit: editScope,
+      contact: permissions['property.view_owner_contact'],
+    });
   }
 }
