@@ -20,6 +20,7 @@ import {
   type PropertyListItem,
   type PropertyOwnerContact,
   type PropertyResponse,
+  type PropertyViewerFlags,
   toPropertyDetailResponse,
   toPropertyListItem,
   toPropertyResponse,
@@ -47,6 +48,22 @@ interface LocationInput {
   provinceId: string;
   wardId: string;
   districtId?: string | null;
+}
+
+/** Cờ "user đã lưu BĐS `p` vào yêu thích". */
+const IS_FAVORITE = `EXISTS (SELECT 1 FROM property_favorites fav
+  WHERE fav.property_id = p.id AND fav.tenant_id = p.tenant_id AND fav.user_id = :scopeUserId)`;
+
+interface ViewerFlagsRow {
+  owner_contact_visible: boolean;
+  is_favorite: boolean;
+}
+
+function viewerFlags(row: ViewerFlagsRow): PropertyViewerFlags {
+  return {
+    ownerContactVisible: row.owner_contact_visible === true,
+    isFavorite: row.is_favorite === true,
+  };
 }
 
 /** Cột xét phạm vi của BĐS: môi giới phụ trách và người tạo. */
@@ -120,17 +137,21 @@ export class PropertiesService {
         query.where('p.id = :id', { id }).andWhere(this.visibleCondition(scopes)),
       )
       .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
+      .addSelect(IS_FAVORITE, 'is_favorite')
       .setParameter('scopeUserId', actor.userId)
-      .getRawAndEntities<{ owner_contact_visible: boolean }>();
+      .getRawAndEntities<ViewerFlagsRow>();
 
     const property = entities[0];
-    if (!property) {
+    const row = raw[0];
+    if (!property || !row) {
       throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
     }
-    const visible = raw[0]?.owner_contact_visible === true;
+    const flags = viewerFlags(row);
     const owner =
-      visible && property.ownerId ? await this.findOwner(actor.tenantId, property.ownerId) : null;
-    return toPropertyDetailResponse(property, owner, visible);
+      flags.ownerContactVisible && property.ownerId
+        ? await this.findOwner(actor.tenantId, property.ownerId)
+        : null;
+    return toPropertyDetailResponse(property, owner, flags);
   }
 
   /**
@@ -142,26 +163,79 @@ export class PropertiesService {
     query: PaginationQueryDto,
     scopes: PropertyScopes,
   ): Promise<Paginated<PropertyListItem>> {
-    const base = this.properties
+    return this.list(actor, query, scopes, false);
+  }
+
+  /**
+   * BĐS yêu thích của user (TASK-059), mới lưu trước. Chỉ gồm BĐS user vẫn xem được (BĐS đã xoá, bị ẩn
+   * hoặc ra khỏi phạm vi xem thì không hiện, lưu lại khi xem được lại).
+   */
+  async findFavorites(
+    actor: Actor,
+    query: PaginationQueryDto,
+    scopes: PropertyScopes,
+  ): Promise<Paginated<PropertyListItem>> {
+    return this.list(actor, query, scopes, true);
+  }
+
+  /** Lưu BĐS vào yêu thích (TASK-059). Cần xem được BĐS (không thì 404); lưu lại lần nữa không đổi gì. */
+  async addFavorite(actor: Actor, id: string, scopes: PropertyScopes): Promise<void> {
+    await this.scopeFlags(actor, id, scopes, {});
+    await this.dataSource.query(
+      `INSERT INTO property_favorites (tenant_id, user_id, property_id) VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, property_id) DO NOTHING`,
+      [actor.tenantId, actor.userId, id],
+    );
+  }
+
+  /**
+   * Bỏ BĐS khỏi yêu thích của chính user (TASK-059). Không cần xem được BĐS (để bỏ được cả BĐS đã ẩn);
+   * chưa lưu thì không đổi gì.
+   */
+  async removeFavorite(actor: Actor, id: string): Promise<void> {
+    await this.dataSource.query(
+      `DELETE FROM property_favorites WHERE tenant_id = $1 AND user_id = $2 AND property_id = $3`,
+      [actor.tenantId, actor.userId, id],
+    );
+  }
+
+  private async list(
+    actor: Actor,
+    query: PaginationQueryDto,
+    scopes: PropertyScopes,
+    favoritesOnly: boolean,
+  ): Promise<Paginated<PropertyListItem>> {
+    let base = this.properties
       .createQueryBuilder(actor.tenantId, 'p', (builder) =>
         builder.where(this.visibleCondition(scopes)),
       )
       .setParameter('scopeUserId', actor.userId);
+    if (favoritesOnly) {
+      base = base.innerJoin(
+        'property_favorites',
+        'f',
+        'f.property_id = p.id AND f.tenant_id = p.tenant_id AND f.user_id = :scopeUserId',
+      );
+    }
 
     const total = await base.clone().getCount();
-    const { entities, raw } = await base
+    let page = base
       .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
-      .orderBy('p.createdAt', 'DESC')
-      .addOrderBy('p.id', 'DESC')
+      .addSelect(IS_FAVORITE, 'is_favorite');
+    page = favoritesOnly
+      ? page.orderBy('f.created_at', 'DESC').addOrderBy('p.id', 'DESC')
+      : page.orderBy('p.createdAt', 'DESC').addOrderBy('p.id', 'DESC');
+    const { entities, raw } = await page
       .offset(query.offset)
       .limit(query.pageSize)
-      .getRawAndEntities<{ p_id: string; owner_contact_visible: boolean }>();
+      .getRawAndEntities<ViewerFlagsRow & { p_id: string }>();
 
-    const visibleIds = new Set(
-      raw.filter((row) => row.owner_contact_visible === true).map((row) => row.p_id),
-    );
+    const flagsById = new Map(raw.map((row) => [row.p_id, viewerFlags(row)]));
     const items = entities.map((property) =>
-      toPropertyListItem(property, visibleIds.has(property.id)),
+      toPropertyListItem(
+        property,
+        flagsById.get(property.id) ?? { ownerContactVisible: false, isFavorite: false },
+      ),
     );
     return new Paginated(items, query.page, query.pageSize, total);
   }
