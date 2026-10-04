@@ -254,3 +254,12 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Đọc lại từ DB mỗi lần gọi: user đã xoá hoặc không còn thuộc công ty trong token → 401; user bị khoá hoặc công ty tạm ngưng → 403.
 - `PermissionService.getEffectivePermissions(userId)` (`src/auth/permission.service.ts`) được export để guard phân quyền dùng lại; chưa có cache.
 - Đường dẫn theo phase0/04-RBAC.md và 05-API-CONVENTIONS (`/auth/me`); roadmap ghi tắt là `GET /me`.
+
+## Role và quyền trong request (TASK-045)
+
+- Sau khi `JwtAuthGuard` xác thực token, `req.user` (kiểu `RequestUser`) có thêm:
+  - `roles`: mã các role chưa xoá của user (chỉ để hiển thị/ghi log).
+  - `permissions`: object `permission code → scope rộng nhất`, vd `{ "property.edit": "TEAM" }`. Không có key = không có quyền.
+- Không có chỗ nào kiểm quyền theo **tên role** (phase0/04-RBAC.md mục 1): guard phân quyền ở TASK-046 chỉ đọc `req.user.permissions`.
+- `PermissionService.getUserAccess(userId)` cache trong process 60 giây (`ACCESS_CACHE_TTL_MS`). Đổi role/quyền trực tiếp trong DB có hiệu lực chậm nhất sau 60 giây; API đổi role/quyền (sau này) phải gọi `invalidate(userId)` hoặc `invalidate()` để có hiệu lực ngay.
+- `GET /auth/me` vẫn đọc mới từ DB, không qua cache.
