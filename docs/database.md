@@ -447,11 +447,11 @@ Giao dịch và hoa hồng là dữ liệu tài chính: khách, BĐS, môi giớ
 | ------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id           | uuid         | PK                                                                                                                                                       |
 | tenant_id    | uuid         | NULL, FK companies (`NULL` cho thông báo hệ thống tới SUPER_ADMIN)                                                                                       |
-| user_id      | uuid         | NOT NULL, FK users. Người nhận                                                                                                                           |
+| user_id      | uuid         | NOT NULL, FK users (CASCADE). Người nhận; trigger kiểm cùng tenant_id                                                                                    |
 | type         | varchar(30)  | NOT NULL: `NEW_PROPERTY` `PROPERTY_UPDATED` `MATCHED_PROPERTY` `CUSTOMER_ASSIGNED` `NEW_LEAD` `VIEWING_REMINDER` `VERIFY_REQUIRED` `SYSTEM_NOTIFICATION` |
-| title        | varchar(255) | NOT NULL                                                                                                                                                 |
-| body         | text         | NOT NULL                                                                                                                                                 |
-| data         | jsonb        | NOT NULL DEFAULT `'{}'` (vd `{"propertyId": "..."}`)                                                                                                     |
+| title        | varchar(255) | NOT NULL, không rỗng                                                                                                                                     |
+| body         | text         | NOT NULL, không rỗng                                                                                                                                     |
+| data         | jsonb        | NOT NULL DEFAULT `'{}'`, object (vd `{"propertyId": "..."}`)                                                                                             |
 | read_at      | timestamptz  | NULL                                                                                                                                                     |
 | push_sent_at | timestamptz  | NULL                                                                                                                                                     |
 | created_at   | timestamptz  |                                                                                                                                                          |
