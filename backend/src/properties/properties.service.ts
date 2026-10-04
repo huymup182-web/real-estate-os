@@ -3,11 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type EntityManager, Repository } from 'typeorm';
 
 import { AppException, type ErrorDetail } from '../common/errors/app.exception.js';
+import { scopeCondition } from '../auth/record-scope.js';
+import type { PermissionScope } from '../auth/permission.service.js';
 import { ErrorCode } from '../common/errors/error-code.js';
 import { TenantRepository } from '../database/tenant.repository.js';
 import type { CreatePropertyDto } from './dto/create-property.dto.js';
 import { Property } from './property.entity.js';
-import { toPropertyResponse, type PropertyResponse } from './property.response.js';
+import {
+  type PropertyDetailResponse,
+  type PropertyOwnerContact,
+  type PropertyResponse,
+  toPropertyDetailResponse,
+  toPropertyResponse,
+} from './property.response.js';
 import { formatPropertyCode } from './property-values.js';
 
 /** Người thực hiện thao tác, lấy từ access token (không bao giờ từ body). */
@@ -15,6 +23,9 @@ export interface Actor {
   userId: string;
   tenantId: string;
 }
+
+/** Cột xét phạm vi của BĐS: môi giới phụ trách và người tạo. */
+const PROPERTY_SCOPE_COLUMNS = { agent: 'p.agent_id', creator: 'p.created_by' };
 
 @Injectable()
 export class PropertiesService {
@@ -68,6 +79,50 @@ export class PropertiesService {
       });
     });
     return toPropertyResponse(property);
+  }
+
+  /**
+   * Chi tiết BĐS (TASK-050). Ngoài phạm vi `property.view` của user, đã xoá hoặc thuộc công ty khác → 404
+   * (không lộ BĐS có tồn tại). Địa chỉ chi tiết và chủ nhà chỉ trả khi BĐS nằm trong phạm vi
+   * `property.view_owner_contact` của user (phase0/04-RBAC.md, Q5).
+   */
+  async findOne(
+    actor: Actor,
+    id: string,
+    viewScope: PermissionScope,
+    contactScope: PermissionScope | undefined,
+  ): Promise<PropertyDetailResponse> {
+    const contactVisible = contactScope
+      ? scopeCondition(contactScope, PROPERTY_SCOPE_COLUMNS)
+      : 'FALSE';
+    const { entities, raw } = await this.properties
+      .createQueryBuilder(actor.tenantId, 'p', (query) =>
+        query
+          .where('p.id = :id', { id })
+          .andWhere(scopeCondition(viewScope, PROPERTY_SCOPE_COLUMNS)),
+      )
+      .addSelect(`(${contactVisible})`, 'owner_contact_visible')
+      .setParameter('scopeUserId', actor.userId)
+      .getRawAndEntities<{ owner_contact_visible: boolean }>();
+
+    const property = entities[0];
+    if (!property) {
+      throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
+    }
+    const visible = raw[0]?.owner_contact_visible === true;
+    const owner =
+      visible && property.ownerId ? await this.findOwner(actor.tenantId, property.ownerId) : null;
+    return toPropertyDetailResponse(property, owner, visible);
+  }
+
+  private async findOwner(tenantId: string, ownerId: string): Promise<PropertyOwnerContact | null> {
+    const [owner] = (await this.dataSource.query(
+      `SELECT id, full_name AS "fullName", phone, email
+         FROM owners
+        WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
+      [tenantId, ownerId],
+    )) as PropertyOwnerContact[];
+    return owner ?? null;
   }
 
   /** Tỉnh, phường/xã (và quận/huyện nếu có) phải tồn tại, đang dùng và thuộc đúng tỉnh. */

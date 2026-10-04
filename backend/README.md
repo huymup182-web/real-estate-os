@@ -324,3 +324,16 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
 - Client gửi `tenantId`, `code`, `status`, `agentId`, `ownerId`, `transactionType` → 400 (đổi trạng thái, chủ nhà, phân môi giới làm ở TASK-054..056).
 - Tỉnh, phường/xã (và quận/huyện nếu gửi) phải tồn tại, đang dùng và cùng tỉnh, sai → 400 chỉ rõ trường.
 - Mã nguồn: `src/properties/` (entity, DTO, service, controller). Test: `test/properties-create.spec.ts`.
+
+## Xem chi tiết BĐS (TASK-050)
+
+`GET /api/v1/properties/:id` → chi tiết BĐS. Cần quyền `property.view`.
+
+- Phạm vi `property.view` áp vào truy vấn: BĐS ngoài phạm vi, đã xoá mềm hoặc thuộc công ty khác → 404 (không lộ có tồn tại). id sai định dạng → 400.
+- Địa chỉ chi tiết (`streetAddress`), `ownerId` và `owner` (`{ id, fullName, phone, email }`) chỉ trả khi BĐS nằm trong phạm vi `property.view_owner_contact` của user; nếu không thì là `null` và `ownerContactVisible = false` (phase0/04-RBAC.md, Q5). Toạ độ luôn trả để cắm điểm bản đồ (Huy Lê chọn ngày 2026-10-04).
+- Phạm vi dùng chung ở `src/auth/record-scope.ts` (`scopeCondition`), theo người phụ trách/người tạo của bản ghi:
+  - `OWN`: mình phụ trách hoặc mình tạo;
+  - `TEAM`: thêm BĐS của thành viên và trưởng nhóm các team mình thuộc hoặc làm trưởng nhóm;
+  - `DEPARTMENT`: thêm BĐS của user cùng phòng ban (`users.department_id`);
+  - `COMPANY`: mọi BĐS trong công ty.
+- Test: `test/properties-get.spec.ts` (AGENT, TEAM_LEADER, MANAGER, COLLABORATOR, role tuỳ chỉnh phạm vi OWN, 2 công ty).
