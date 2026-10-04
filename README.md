@@ -71,6 +71,10 @@ npm run check    # lint + format + typecheck, phải pass trước khi commit
 
 Chi tiết và quy ước đặt tên: [docs/coding-standards.md](docs/coding-standards.md).
 
+## Git workflow
+
+Branch `main` / `develop` / `feature/*` / `fix/*`, commit theo Conventional Commits. Chi tiết: [docs/git-workflow.md](docs/git-workflow.md) và [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Quy trình phát triển
 
 Dự án được xây dựng tuần tự theo roadmap, mỗi lần một task:

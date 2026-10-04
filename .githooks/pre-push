@@ -1,0 +1,3 @@
+#!/bin/sh
+# Hook chặn push từ branch đặt tên sai quy tắc. Bật bằng: git config core.hooksPath .githooks
+exec sh "$(git rev-parse --show-toplevel)/scripts/check-branch-name.sh"
