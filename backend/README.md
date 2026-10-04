@@ -92,3 +92,12 @@ Mọi lỗi trả về cùng một định dạng:
 - JSON sai cú pháp → 400 `VALIDATION_ERROR`.
 - Lỗi khác → 500 `INTERNAL_ERROR` với câu thông báo chung; log server ghi đủ stack kèm request id, client không nhận stack.
 - Mỗi request có header `X-Request-Id`: dùng lại id client gửi nếu an toàn (chữ, số, `-_.:`, tối đa 100 ký tự), không thì tự sinh UUID. Id này cũng nằm trong `error.requestId`.
+
+## Kiểm tra dữ liệu request (TASK-032)
+
+- Mỗi endpoint nhận dữ liệu qua DTO viết bằng `class-validator` + `class-transformer`. `ValidationPipe` toàn cục (`src/common/validation/validation.pipe.ts`) chạy cho body, query và param:
+  - trường không khai báo trong DTO (kể cả `tenantId`) → 400;
+  - dữ liệu được đổi sang instance của DTO; số trong query cần `@Type(() => Number)`;
+  - lỗi trả 400 `VALIDATION_ERROR`, `details` liệt kê từng trường (trường lồng nhau dạng `address.street`), không gửi lại giá trị client đã nhập.
+- Tham số `:id` dùng `@Param('id', ParseUuidPipe)`: không phải UUID → 400, không chạm database.
+- Chuỗi tự do: luôn có `@MaxLength(...)`, thêm `@NoHtml()` để từ chối HTML (lưu text thuần).
