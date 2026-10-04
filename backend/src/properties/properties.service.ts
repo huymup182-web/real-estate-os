@@ -9,6 +9,8 @@ import type { PermissionScope } from '../auth/permission.service.js';
 import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
 import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
+import { keywordTsQuery } from '../search/keyword.js';
+import type { PropertySearchQueryDto } from '../search/property-search-query.dto.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { AssignPropertyDto } from './dto/assign-property.dto.js';
 import type { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
@@ -223,10 +225,10 @@ export class PropertiesService {
    */
   async findAll(
     actor: Actor,
-    query: PaginationQueryDto,
+    query: PropertySearchQueryDto,
     scopes: PropertyScopes,
   ): Promise<Paginated<PropertyListItem>> {
-    return this.list(actor, query, scopes, false);
+    return this.list(actor, query, scopes, false, query.q);
   }
 
   /**
@@ -305,12 +307,19 @@ export class PropertiesService {
     query: PaginationQueryDto,
     scopes: PropertyScopes,
     favoritesOnly: boolean,
+    keyword?: string,
   ): Promise<Paginated<PropertyListItem>> {
     let base = this.properties
       .createQueryBuilder(actor.tenantId, 'p', (builder) =>
         builder.where(this.visibleCondition(scopes)),
       )
       .setParameter('scopeUserId', actor.userId);
+    if (keyword) {
+      base = base.andWhere(this.keywordCondition(keyword, scopes), {
+        keywordCode: keyword.toUpperCase(),
+        keywordQuery: keywordTsQuery(keyword),
+      });
+    }
     if (favoritesOnly) {
       base = base.innerJoin(
         'property_favorites',
@@ -764,6 +773,24 @@ export class PropertiesService {
       createdAt: row.created_at,
     }));
     return new Paginated(items, query.page, query.pageSize, count?.total ?? 0);
+  }
+
+  /**
+   * Tìm theo từ khoá (TASK-064): đúng mã BĐS, hoặc mọi từ có trong tiêu đề, mô tả, địa chỉ (không phân
+   * biệt dấu, từ cuối theo tiền tố) qua `search_vector` có index GIN. Địa chỉ chi tiết là thông tin
+   * giới hạn: với BĐS ngoài phạm vi `property.view_owner_contact`, từ khoá phải khớp tiêu đề hoặc mô tả,
+   * để không dò được địa chỉ bằng tìm kiếm.
+   */
+  private keywordCondition(keyword: string, scopes: PropertyScopes): string {
+    if (keywordTsQuery(keyword) === null) {
+      return 'p.code = :keywordCode';
+    }
+    return `(p.code = :keywordCode OR (
+      p.search_vector @@ to_tsquery('simple', :keywordQuery)
+      AND ((${this.scopeOrFalse(scopes.contact)})
+        OR to_tsvector('simple', immutable_unaccent(
+             coalesce(p.title, '') || ' ' || coalesce(p.description, '')))
+           @@ to_tsquery('simple', :keywordQuery))))`;
   }
 
   /** BĐS không xem được (không có, đã xoá, công ty khác, ngoài phạm vi, HIDDEN với người không sửa được) → 404. */

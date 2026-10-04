@@ -1,0 +1,294 @@
+import 'reflect-metadata';
+
+import assert from 'node:assert/strict';
+import type { AddressInfo } from 'node:net';
+import { after, before, describe, it } from 'node:test';
+
+import type { INestApplication } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+
+import { createApp } from '../src/app.factory.js';
+import { hashPassword } from '../src/auth/password.js';
+import { useTestDatabase } from './support/test-database.js';
+
+const PASSWORD = 'mat-khau-dung-8';
+
+interface Detail {
+  id: string;
+  updatedAt: string;
+  updatedBy: string | null;
+  isFavorite: boolean;
+  ownerContactVisible: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
+ * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
+ */
+describe('Tìm BĐS theo từ khoá GET /api/v1/properties?q=', () => {
+  let app: INestApplication;
+  let baseUrl: string;
+  let db: DataSource;
+  let tenantA: string;
+  let khanhHoa: string;
+  let nhaTrang: string;
+  let vinhHai: string;
+  const tokens: Record<string, string> = {};
+  const userIds: Record<string, string> = {};
+
+  before(async () => {
+    await useTestDatabase();
+    app = await createApp();
+    app.useLogger(false);
+    await app.listen(0, '127.0.0.1');
+    const address = app.getHttpServer().address() as AddressInfo;
+    baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
+    db = app.get(DataSource);
+
+    khanhHoa = await insertId(`INSERT INTO provinces (code, name) VALUES ('56', 'Khánh Hòa')`);
+    nhaTrang = await insertId(
+      `INSERT INTO districts (province_id, code, name) VALUES ($1, '568', 'Nha Trang')`,
+      [khanhHoa],
+    );
+    vinhHai = await insertId(
+      `INSERT INTO wards (province_id, code, name) VALUES ($1, '22330', 'Vĩnh Hải')`,
+      [khanhHoa],
+    );
+
+    const admin = await register('admin@a.vn');
+    tenantA = admin.tenantId;
+    userIds['admin'] = admin.userId;
+    const d1 = await insertId(`INSERT INTO departments (tenant_id, name) VALUES ($1, 'D1')`, [
+      tenantA,
+    ]);
+    const d2 = await insertId(`INSERT INTO departments (tenant_id, name) VALUES ($1, 'D2')`, [
+      tenantA,
+    ]);
+    const hash = await hashPassword(PASSWORD);
+    for (const [name, role, department] of [
+      ['manager', 'MANAGER', d1],
+      ['leader', 'TEAM_LEADER', d1],
+      ['agent1', 'AGENT', d1],
+      ['agent2', 'AGENT', d1],
+      ['agent4', 'AGENT', d2],
+    ] as const) {
+      userIds[name] = await insertUser(name, hash, department, role);
+    }
+    const team = await insertId(
+      `INSERT INTO teams (tenant_id, department_id, name, leader_id) VALUES ($1, $2, 'T1', $3)`,
+      [tenantA, d1, userIds['leader']],
+    );
+    for (const name of ['agent1', 'agent2']) {
+      await db.query(`INSERT INTO team_members (tenant_id, team_id, user_id) VALUES ($1, $2, $3)`, [
+        tenantA,
+        team,
+        userIds[name],
+      ]);
+    }
+    for (const name of Object.keys(userIds)) {
+      tokens[name] = await login(`${name}@a.vn`);
+    }
+    await register('admin@b.vn');
+    tokens['adminB'] = await login('admin@b.vn');
+  });
+
+  after(async () => {
+    await app.close();
+  });
+
+  async function insertId(sql: string, params: unknown[] = []): Promise<string> {
+    const [row] = (await db.query(`${sql} RETURNING id`, params)) as { id: string }[];
+    assert.ok(row);
+    return row.id;
+  }
+
+  async function insertUser(
+    name: string,
+    hash: string,
+    department: string | null,
+    roleCode: string,
+  ): Promise<string> {
+    const id = await insertId(
+      `INSERT INTO users (tenant_id, email, password_hash, full_name, department_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [tenantA, `${name}@a.vn`, hash, name, department],
+    );
+    await db.query(
+      `INSERT INTO user_roles (user_id, role_id, tenant_id)
+       SELECT $1, id, tenant_id FROM roles WHERE tenant_id = $2 AND code = $3`,
+      [id, tenantA, roleCode],
+    );
+    return id;
+  }
+
+  async function register(email: string): Promise<{ userId: string; tenantId: string }> {
+    const response = await request('POST', '/auth/register', {
+      companyName: `Công ty ${email}`,
+      fullName: 'Quản trị',
+      email,
+      password: PASSWORD,
+    });
+    assert.equal(response.status, 201);
+    const data = (
+      (await response.json()) as { data: { user: { id: string }; company: { id: string } } }
+    ).data;
+    return { userId: data.user.id, tenantId: data.company.id };
+  }
+
+  async function login(email: string): Promise<string> {
+    const response = await request('POST', '/auth/login', {
+      identifier: email,
+      password: PASSWORD,
+    });
+    assert.equal(response.status, 200, email);
+    return ((await response.json()) as { data: { accessToken: string } }).data.accessToken;
+  }
+
+  function request(
+    method: string,
+    path: string,
+    payload?: unknown,
+    accessToken?: string,
+  ): Promise<Response> {
+    return fetch(`${baseUrl}${path}`, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    });
+  }
+
+  let tagSeq = 0;
+  /** Từ riêng cho mỗi test, chỉ gồm chữ để tách từ đúng một token. */
+  function tag(): string {
+    tagSeq += 1;
+    return `zq${'abcdefghij'[tagSeq % 10]}${'klmnopqrst'[Math.floor(tagSeq / 10) % 10]}x`;
+  }
+
+  async function createProperty(
+    values: Record<string, unknown>,
+    user = 'agent1',
+    token = tokens[user],
+  ): Promise<Detail & { code: string }> {
+    const response = await request(
+      'POST',
+      '/properties',
+      {
+        title: 'Nhà phố',
+        propertyType: 'HOUSE',
+        price: 3_500_000_000,
+        area: 70,
+        provinceId: khanhHoa,
+        districtId: nhaTrang,
+        wardId: vinhHai,
+        ...values,
+      },
+      token,
+    );
+    assert.equal(response.status, 201, await response.clone().text());
+    return ((await response.json()) as { data: Detail & { code: string } }).data;
+  }
+
+  async function search(q: string, user = 'agent1'): Promise<{ ids: string[]; total: number }> {
+    const response = await request(
+      'GET',
+      `/properties?pageSize=100&q=${encodeURIComponent(q)}`,
+      undefined,
+      tokens[user],
+    );
+    assert.equal(response.status, 200, await response.clone().text());
+    const body = (await response.json()) as { data: { id: string }[]; meta: { total: number } };
+    return { ids: body.data.map((item) => item.id), total: body.meta.total };
+  }
+
+  it('tìm trong tiêu đề, mô tả: gõ có dấu, không dấu, hoa thường, gõ dở từ cuối đều ra; mọi từ phải có', async () => {
+    const word = tag();
+    const house = await createProperty({
+      title: `Nhà phố Vĩnh Hải ${word}`,
+      description: 'Gần biển, đường ô tô',
+    });
+    const other = await createProperty({ title: `Đất nền Phước Đồng ${word}` });
+    for (const q of [
+      `vinh hai ${word}`,
+      `Vĩnh Hải ${word}`,
+      `VINH ${word.toUpperCase()}`,
+      `${word} vinh ha`,
+      `${word} gan bien`,
+      `${word}, đường ô-tô!`,
+    ]) {
+      assert.deepEqual((await search(q)).ids, [house.id], q);
+    }
+    const both = await search(word);
+    assert.deepEqual(both.ids, [other.id, house.id], 'mới tạo trước');
+    assert.equal(both.total, 2);
+    assert.deepEqual((await search(`${word} phuoc dong`)).ids, [other.id]);
+    assert.deepEqual((await search(`${word} khongcotu`)).ids, []);
+    const page = await request(
+      'GET',
+      `/properties?q=${word}&page=2&pageSize=1`,
+      undefined,
+      tokens['agent1'],
+    );
+    const body = (await page.json()) as { data: { id: string }[]; meta: { total: number } };
+    assert.deepEqual(
+      body.data.map((item) => item.id),
+      [house.id],
+    );
+    assert.equal(body.meta.total, 2);
+  });
+
+  it('tìm đúng mã BĐS, không phân biệt hoa thường', async () => {
+    const property = await createProperty({ title: `Căn hộ ${tag()}` });
+    assert.deepEqual((await search(property.code)).ids, [property.id]);
+    assert.deepEqual((await search(property.code.toLowerCase())).ids, [property.id]);
+    assert.deepEqual((await search('!!!')).ids, []);
+  });
+
+  it('địa chỉ chi tiết chỉ tìm được với BĐS mình được xem liên hệ chủ nhà', async () => {
+    const word = tag();
+    const property = await createProperty({
+      title: 'Nhà hẻm',
+      streetAddress: `Hẻm ${word} Trần Phú`,
+    });
+    assert.deepEqual((await search(word, 'agent1')).ids, [property.id]);
+    assert.deepEqual((await search(word, 'manager')).ids, [property.id]);
+    assert.deepEqual((await search(word, 'agent2')).ids, [], 'không có quyền xem địa chỉ');
+    assert.deepEqual((await search(word, 'agent4')).ids, []);
+    const titled = await createProperty({ title: `Nhà ${word}`, streetAddress: 'Hẻm khác' });
+    assert.deepEqual((await search(word, 'agent2')).ids, [titled.id]);
+  });
+
+  it('vẫn theo phạm vi xem: BĐS ẩn, đã xoá, công ty khác không ra', async () => {
+    const word = tag();
+    const visible = await createProperty({ title: `Nhà ${word}` });
+    const hidden = await createProperty({ title: `Nhà ${word}` });
+    await db.query(`UPDATE properties SET status = 'HIDDEN' WHERE id = $1`, [hidden.id]);
+    const removed = await createProperty({ title: `Nhà ${word}` });
+    assert.equal(
+      (await request('DELETE', `/properties/${removed.id}`, undefined, tokens['admin'])).status,
+      204,
+    );
+    await createProperty({ title: `Nhà ${word}` }, '_', tokens['adminB']);
+    assert.deepEqual((await search(word, 'agent2')).ids, [visible.id]);
+    assert.deepEqual((await search(word, 'agent1')).ids, [hidden.id, visible.id]);
+  });
+
+  it('q rỗng hoặc chỉ khoảng trắng thì không lọc; q quá 200 ký tự hoặc lặp tham số → 400', async () => {
+    const all = await request('GET', '/properties?pageSize=1', undefined, tokens['agent1']);
+    const total = ((await all.json()) as { meta: { total: number } }).meta.total;
+    assert.equal((await search('')).total, total);
+    assert.equal((await search('   ')).total, total);
+    const long = await request(
+      'GET',
+      `/properties?q=${'a'.repeat(201)}`,
+      undefined,
+      tokens['agent1'],
+    );
+    assert.equal(long.status, 400);
+    const twice = await request('GET', '/properties?q=a&q=b', undefined, tokens['agent1']);
+    assert.equal(twice.status, 400);
+  });
+});
