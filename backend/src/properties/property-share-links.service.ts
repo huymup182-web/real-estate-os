@@ -136,21 +136,33 @@ export class PropertyShareLinksService {
     }
     const token = generateShareToken();
     const days = dto.expiresInDays ?? DEFAULT_SHARE_LINK_DAYS;
-    const [row] = (await this.dataSource.query(
-      `INSERT INTO property_share_links (tenant_id, property_id, token_hash, created_by, expires_at)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, expires_at, created_at`,
-      [
-        actor.tenantId,
+    const row = await this.dataSource.transaction(async (manager) => {
+      const [inserted] = (await manager.query(
+        `INSERT INTO property_share_links (tenant_id, property_id, token_hash, created_by, expires_at)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, expires_at, created_at`,
+        [
+          actor.tenantId,
+          propertyId,
+          hashShareToken(token),
+          actor.userId,
+          new Date(Date.now() + days * DAY_MS),
+        ],
+      )) as { id: string; expires_at: Date; created_at: Date }[];
+      if (!inserted) {
+        throw new AppException(ErrorCode.INTERNAL_ERROR);
+      }
+      await this.properties.recordActivity(
+        manager,
+        actor,
         propertyId,
-        hashShareToken(token),
-        actor.userId,
-        new Date(Date.now() + days * DAY_MS),
-      ],
-    )) as { id: string; expires_at: Date; created_at: Date }[];
-    if (!row) {
-      throw new AppException(ErrorCode.INTERNAL_ERROR);
-    }
+        'property.create_share_link',
+        {
+          shareLinkId: [null, inserted.id],
+        },
+      );
+      return inserted;
+    });
     return { id: row.id, token, expiresAt: row.expires_at, createdAt: row.created_at };
   }
 
@@ -203,11 +215,22 @@ export class PropertyShareLinksService {
     if (!edit && link.created_by !== actor.userId) {
       throw new AppException(ErrorCode.FORBIDDEN, 'Không có quyền thu hồi link chia sẻ này');
     }
-    await this.dataSource.query(
-      `UPDATE property_share_links SET revoked_at = now()
-        WHERE tenant_id = $1 AND id = $2 AND revoked_at IS NULL`,
-      [actor.tenantId, linkId],
-    );
+    await this.dataSource.transaction(async (manager) => {
+      const [, revoked] = (await manager.query(
+        `UPDATE property_share_links SET revoked_at = now()
+          WHERE tenant_id = $1 AND id = $2 AND revoked_at IS NULL`,
+        [actor.tenantId, linkId],
+      )) as [unknown, number];
+      if (revoked > 0) {
+        await this.properties.recordActivity(
+          manager,
+          actor,
+          propertyId,
+          'property.revoke_share_link',
+          { shareLinkId: [linkId, null] },
+        );
+      }
+    });
   }
 
   /** Khách mở link: trả thông tin BĐS giới hạn và tăng lượt xem của link. */

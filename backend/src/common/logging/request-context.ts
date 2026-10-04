@@ -6,6 +6,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
  */
 export interface RequestContext {
   requestId: string;
+  /** IP và user agent của client, để ghi nhật ký thao tác (TASK-063). */
+  ipAddress?: string;
+  userAgent?: string;
   tenantId?: string;
   userId?: string;
 }

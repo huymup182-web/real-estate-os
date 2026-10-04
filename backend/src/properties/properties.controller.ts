@@ -29,6 +29,7 @@ import {
   type Actor,
   PropertiesService,
   type PropertyScopes,
+  type PropertyActivity,
   type PropertyViewStats,
 } from './properties.service.js';
 import type {
@@ -150,6 +151,21 @@ export class PropertiesController {
     @Param('id', ParseUuidPipe) id: string,
   ): Promise<PropertyViewStats> {
     return this.properties.viewStats(actorOf(tenantId, req.user), id, scopesOf(req.user));
+  }
+
+  /**
+   * `GET /api/v1/properties/:id/activities` → nhật ký hoạt động BĐS, mới trước, phân trang (TASK-063).
+   * Chỉ người sửa được BĐS xem được.
+   */
+  @Get(':id/activities')
+  @RequirePermission('property.view')
+  activities(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<Paginated<PropertyActivity>> {
+    return this.properties.activities(actorOf(tenantId, req.user), id, query, scopesOf(req.user));
   }
 
   /**

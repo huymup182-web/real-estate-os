@@ -153,6 +153,11 @@ export class PropertyImagesService implements OnApplicationShutdown {
           actor.userId,
         ],
       )) as ImageRow[];
+      if (inserted) {
+        await this.properties.recordActivity(manager, actor, propertyId, 'property.add_image', {
+          imageId: [null, inserted.id],
+        });
+      }
       return inserted;
     });
     if (!row) {
@@ -258,6 +263,18 @@ export class PropertyImagesService implements OnApplicationShutdown {
           WHERE i.id = o.id AND i.tenant_id = $1 AND i.property_id = $2 AND i.deleted_at IS NULL`,
         [actor.tenantId, propertyId, dto.imageIds],
       );
+      const previous = current.map((image) => image.id);
+      if (previous.join() !== dto.imageIds.join()) {
+        await this.properties.recordActivity(
+          manager,
+          actor,
+          propertyId,
+          'property.reorder_images',
+          {
+            imageIds: [previous, dto.imageIds],
+          },
+        );
+      }
       return this.list(manager, actor.tenantId, propertyId);
     });
   }
@@ -272,6 +289,22 @@ export class PropertyImagesService implements OnApplicationShutdown {
     return this.dataSource.transaction(async (manager) => {
       await this.properties.lockEditable(manager, actor, propertyId, scopes, FORBIDDEN_MESSAGE);
       await this.findImage(manager, actor.tenantId, propertyId, imageId);
+      const [cover] = (await manager.query(
+        `SELECT id FROM property_images
+          WHERE tenant_id = $1 AND property_id = $2 AND is_cover AND deleted_at IS NULL`,
+        [actor.tenantId, propertyId],
+      )) as { id: string }[];
+      if (cover?.id !== imageId) {
+        await this.properties.recordActivity(
+          manager,
+          actor,
+          propertyId,
+          'property.set_cover_image',
+          {
+            coverImageId: [cover?.id ?? null, imageId],
+          },
+        );
+      }
       await manager.query(
         `UPDATE property_images SET is_cover = false
           WHERE tenant_id = $1 AND property_id = $2 AND is_cover AND deleted_at IS NULL`,
@@ -302,6 +335,9 @@ export class PropertyImagesService implements OnApplicationShutdown {
           WHERE tenant_id = $1 AND id = $2`,
         [actor.tenantId, imageId],
       );
+      await this.properties.recordActivity(manager, actor, propertyId, 'property.remove_image', {
+        imageId: [imageId, null],
+      });
       if (image.is_cover) {
         await manager.query(
           `UPDATE property_images SET is_cover = true

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type EntityManager, Repository } from 'typeorm';
 
 import { AppException, type ErrorDetail } from '../common/errors/app.exception.js';
+import { type AuditChanges, AuditService } from '../audit/audit.service.js';
 import { scopeCondition } from '../auth/record-scope.js';
 import type { PermissionScope } from '../auth/permission.service.js';
 import { ErrorCode } from '../common/errors/error-code.js';
@@ -69,6 +70,46 @@ export interface PropertyViewStats {
   lastViewedAt: Date | null;
 }
 
+/** Một dòng nhật ký hoạt động BĐS (TASK-063). `user` null khi hệ thống tự làm. */
+export interface PropertyActivity {
+  id: string;
+  action: string;
+  changes: AuditChanges | null;
+  user: { id: string; fullName: string } | null;
+  createdAt: Date;
+}
+
+interface ActivityRow {
+  id: string;
+  action: string;
+  changes: AuditChanges | null;
+  created_at: Date;
+  user_id: string | null;
+  full_name: string | null;
+}
+
+/** Trường chỉ người xem được liên hệ chủ nhà mới thấy (phase0/04-RBAC.md, Q5). */
+const CONTACT_FIELDS = ['streetAddress', 'latitude', 'longitude'];
+
+function withoutContactFields(changes: AuditChanges): AuditChanges | null {
+  const visible = Object.fromEntries(
+    Object.entries(changes).filter(([field]) => !CONTACT_FIELDS.includes(field)),
+  );
+  return Object.keys(visible).length > 0 ? visible : null;
+}
+
+/** `{ field: [cũ, mới] }` cho các trường thật sự đổi giá trị; không đổi gì → null. */
+function diff(current: Property, patch: Record<string, unknown>): AuditChanges | null {
+  const changes: AuditChanges = {};
+  for (const [field, next] of Object.entries(patch)) {
+    const previous = (current as unknown as Record<string, unknown>)[field] ?? null;
+    if (JSON.stringify(previous) !== JSON.stringify(next ?? null)) {
+      changes[field] = [previous, next ?? null];
+    }
+  }
+  return Object.keys(changes).length > 0 ? changes : null;
+}
+
 /** Cờ "user đã lưu BĐS `p` vào yêu thích". */
 const IS_FAVORITE = `EXISTS (SELECT 1 FROM property_favorites fav
   WHERE fav.property_id = p.id AND fav.tenant_id = p.tenant_id AND fav.user_id = :scopeUserId)`;
@@ -98,6 +139,7 @@ export class PropertiesService {
   constructor(
     @InjectRepository(Property) repository: Repository<Property>,
     private readonly dataSource: DataSource,
+    private readonly audit: AuditService,
   ) {
     this.properties = new TenantRepository(repository);
   }
@@ -114,7 +156,7 @@ export class PropertiesService {
 
     const property = await this.dataSource.transaction(async (manager) => {
       const code = formatPropertyCode(await this.nextCodeValue(manager, actor.tenantId));
-      return this.properties.withManager(manager).create(actor.tenantId, {
+      const created = await this.properties.withManager(manager).create(actor.tenantId, {
         code,
         title: dto.title,
         description: dto.description ?? null,
@@ -141,6 +183,8 @@ export class PropertiesService {
         createdBy: actor.userId,
         updatedBy: actor.userId,
       });
+      await this.recordActivity(manager, actor, created.id, 'property.create');
+      return created;
     });
     return toPropertyResponse(property);
   }
@@ -342,6 +386,10 @@ export class PropertiesService {
         ...patch,
         updatedBy: actor.userId,
       } as TenantWritable<Property>);
+      const changes = diff(current, patch);
+      if (changes) {
+        await this.recordActivity(manager, actor, id, 'property.update', changes);
+      }
     });
 
     return this.findOne(actor, id, scopes);
@@ -382,6 +430,9 @@ export class PropertiesService {
         status: dto.status,
         updatedBy: actor.userId,
       });
+      await this.recordActivity(manager, actor, id, 'property.change_status', {
+        status: [current.status, dto.status],
+      });
     });
     return this.findOne(actor, id, scopes);
   }
@@ -415,6 +466,13 @@ export class PropertiesService {
         ...(NEEDS_VERIFICATION.includes(current.status) ? { status: 'AVAILABLE' } : {}),
         updatedBy: actor.userId,
       });
+      const changes: AuditChanges = {
+        verificationStatus: [current.verificationStatus, 'VERIFIED'],
+      };
+      if (NEEDS_VERIFICATION.includes(current.status)) {
+        changes['status'] = [current.status, 'AVAILABLE'];
+      }
+      await this.recordActivity(manager, actor, id, 'property.verify', changes);
     });
     return this.findOne(actor, id, scopes);
   }
@@ -423,24 +481,37 @@ export class PropertiesService {
    * Job hệ thống (TASK-062), chạy cho mọi công ty đang hoạt động: BĐS đang AVAILABLE/PENDING quá hạn xác
    * minh (tính từ lần xác minh gần nhất, chưa xác minh thì từ ngày tạo) chuyển sang VERIFY_REQUIRED,
    * `verificationStatus` = EXPIRED. Không đổi `updated_by` (không phải người dùng sửa). Chạy lại không
-   * đổi gì thêm. Trả về số BĐS vừa chuyển.
+   * đổi gì thêm. Mỗi BĐS bị chuyển ghi nhật ký `property.verification_expired` không có người làm
+   * (TASK-063). Trả về số BĐS vừa chuyển.
    */
   async markOverdueForVerification(): Promise<number> {
-    const [, affected] = (await this.dataSource.query(
-      `UPDATE properties p
+    const [row] = (await this.dataSource.query(
+      `WITH marked AS (
+       UPDATE properties p
           SET status = 'VERIFY_REQUIRED', verification_status = 'EXPIRED'
-         FROM companies c
-        WHERE c.id = p.tenant_id AND c.deleted_at IS NULL AND c.status = 'ACTIVE'
+         FROM companies c, properties old
+        WHERE old.id = p.id AND c.id = p.tenant_id AND c.deleted_at IS NULL AND c.status = 'ACTIVE'
           AND p.deleted_at IS NULL AND p.status IN ('AVAILABLE', 'PENDING')
           AND COALESCE(p.last_verified_at, p.created_at) <= now() - make_interval(days =>
                 CASE WHEN jsonb_typeof(c.settings -> 'verify_interval_days') = 'number'
                        AND (c.settings ->> 'verify_interval_days') ~ '^[0-9]+$'
                        AND (c.settings ->> 'verify_interval_days')::int BETWEEN 1 AND $2
                      THEN (c.settings ->> 'verify_interval_days')::int
-                     ELSE $1 END)`,
+                     ELSE $1 END)
+       RETURNING p.tenant_id, p.id, old.status AS old_status,
+                 old.verification_status AS old_verification_status
+       ), logged AS (
+         INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, changes)
+         SELECT tenant_id, NULL, 'property.verification_expired', 'property', id,
+                jsonb_build_object(
+                  'status', jsonb_build_array(old_status, 'VERIFY_REQUIRED'),
+                  'verificationStatus', jsonb_build_array(old_verification_status, 'EXPIRED'))
+           FROM marked
+       )
+       SELECT COUNT(*)::int AS count FROM marked`,
       [DEFAULT_VERIFY_INTERVAL_DAYS, MAX_VERIFY_INTERVAL_DAYS],
-    )) as [unknown, number];
-    return affected;
+    )) as { count: number }[];
+    return row?.count ?? 0;
   }
 
   /**
@@ -461,6 +532,7 @@ export class PropertiesService {
       );
       await properties.update(actor.tenantId, id, { updatedBy: actor.userId });
       await properties.softDelete(actor.tenantId, id);
+      await this.recordActivity(manager, actor, id, 'property.delete');
     });
   }
 
@@ -496,6 +568,9 @@ export class PropertiesService {
       await properties.update(actor.tenantId, id, {
         agentId: dto.agentId,
         updatedBy: actor.userId,
+      });
+      await this.recordActivity(manager, actor, id, 'property.assign', {
+        agentId: [current.agentId, dto.agentId],
       });
     });
     return this.findOne(actor, id, scopes);
@@ -544,6 +619,10 @@ export class PropertiesService {
         ownerId: ownerId ?? null,
         updatedBy: actor.userId,
       });
+      // Chỉ ghi id chủ nhà: tên, SĐT, email chủ nhà không vào nhật ký.
+      await this.recordActivity(manager, actor, id, 'property.set_owner', {
+        ownerId: [current.ownerId, ownerId ?? null],
+      });
     });
     return this.findOne(actor, id, scopes);
   }
@@ -560,6 +639,9 @@ export class PropertiesService {
         return;
       }
       await properties.update(actor.tenantId, id, { ownerId: null, updatedBy: actor.userId });
+      await this.recordActivity(manager, actor, id, 'property.remove_owner', {
+        ownerId: [current.ownerId, null],
+      });
       await manager.query(
         `UPDATE owners o
             SET deleted_at = now(), updated_by = $3
@@ -619,6 +701,69 @@ export class PropertiesService {
     return Object.fromEntries(
       keys.map((key, index) => [key, row[`flag_${index}`] === true]),
     ) as Record<K, boolean>;
+  }
+
+  /**
+   * Ghi một hoạt động của BĐS vào nhật ký (TASK-063), trong transaction của thao tác. Module ảnh, giấy
+   * tờ, link chia sẻ dùng chung để mọi hoạt động của BĐS nằm một chỗ.
+   */
+  recordActivity(
+    manager: EntityManager,
+    actor: Actor,
+    propertyId: string,
+    action: `property.${string}`,
+    changes: AuditChanges | null = null,
+  ): Promise<void> {
+    return this.audit.record(manager, {
+      tenantId: actor.tenantId,
+      userId: actor.userId,
+      action,
+      entityType: 'property',
+      entityId: propertyId,
+      changes,
+    });
+  }
+
+  /**
+   * Nhật ký hoạt động của BĐS (TASK-063), mới trước, phân trang. Chỉ người sửa được BĐS xem được (như
+   * thống kê lượt xem): không xem được BĐS → 404, ngoài phạm vi `property.edit` → 403. Địa chỉ chi tiết
+   * và toạ độ trong nhật ký chỉ hiện khi BĐS nằm trong phạm vi `property.view_owner_contact`.
+   */
+  async activities(
+    actor: Actor,
+    id: string,
+    query: PaginationQueryDto,
+    scopes: PropertyScopes,
+  ): Promise<Paginated<PropertyActivity>> {
+    const { edit, contact } = await this.scopeFlags(actor, id, scopes, {
+      edit: scopes.edit,
+      contact: scopes.contact,
+    });
+    if (!edit) {
+      throw new AppException(ErrorCode.FORBIDDEN, 'Không có quyền xem nhật ký hoạt động BĐS này');
+    }
+    const [count] = (await this.dataSource.query(
+      `SELECT COUNT(*)::int AS total FROM audit_logs
+        WHERE tenant_id = $1 AND entity_type = 'property' AND entity_id = $2`,
+      [actor.tenantId, id],
+    )) as { total: number }[];
+    const rows = (await this.dataSource.query(
+      `SELECT a.id, a.action, a.changes, a.created_at, a.user_id, u.full_name
+         FROM audit_logs a
+         LEFT JOIN users u ON u.id = a.user_id
+        WHERE a.tenant_id = $1 AND a.entity_type = 'property' AND a.entity_id = $2
+        ORDER BY a.created_at DESC, a.id DESC
+        OFFSET $3 LIMIT $4`,
+      [actor.tenantId, id, query.offset, query.pageSize],
+    )) as ActivityRow[];
+    const items = rows.map((row) => ({
+      id: row.id,
+      action: row.action,
+      changes: row.changes && !contact ? withoutContactFields(row.changes) : row.changes,
+      user: row.user_id ? { id: row.user_id, fullName: row.full_name ?? '' } : null,
+      createdAt: row.created_at,
+    }));
+    return new Paginated(items, query.page, query.pageSize, count?.total ?? 0);
   }
 
   /** BĐS không xem được (không có, đã xoá, công ty khác, ngoài phạm vi, HIDDEN với người không sửa được) → 404. */

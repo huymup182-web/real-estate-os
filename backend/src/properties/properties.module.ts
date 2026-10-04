@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AuditModule } from '../audit/audit.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 import { PropertiesController } from './properties.controller.js';
 import { PropertiesService } from './properties.service.js';
@@ -18,7 +19,7 @@ import { PropertyVerificationJob } from './property-verification.job.js';
 
 /** Module BĐS (Phase 4). */
 @Module({
-  imports: [TypeOrmModule.forFeature([Property]), StorageModule],
+  imports: [TypeOrmModule.forFeature([Property]), StorageModule, AuditModule],
   controllers: [
     PropertiesController,
     PropertyImagesController,
