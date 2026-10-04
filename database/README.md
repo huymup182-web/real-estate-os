@@ -61,4 +61,5 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791098216229-create-property-favorites-views` | TASK-020 | Bảng `property_favorites` và `property_views` (lượt xem chỉ thêm) |
 | `1791099052685-create-saved-searches`           | TASK-021 | Bảng `saved_searches`                                             |
 | `1791099160108-create-appointments`             | TASK-022 | Bảng `appointments`                                               |
-| `1791099481730-create-deals-commissions`        | TASK-023 | Bảng `appointments`                                               |
+| `1791099481730-create-deals-commissions`        | TASK-023 | Bảng `deals`, `commissions`                                       |
+| `1791099821233-create-notifications`            | TASK-024 | Bảng `notifications`                                              |
