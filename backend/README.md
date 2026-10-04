@@ -215,3 +215,10 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Token không tồn tại, hết hạn, đã thu hồi, hoặc user đã xoá → 401 `UNAUTHENTICATED`. User bị khoá hoặc công ty tạm ngưng → 403 `FORBIDDEN` (token không bị dùng mất).
 - **Phát hiện dùng lại:** token đã bị thay thế mà còn được gửi lên (có thể bị đánh cắp) → thu hồi mọi token của phiên đó, ghi log cảnh báo (chỉ có userId và familyId), trả 401. Các phiên khác của user không bị ảnh hưởng.
 - Client phải gọi refresh tuần tự: hai request refresh đồng thời với cùng một token thì request sau bị coi là dùng lại và cả phiên bị thu hồi.
+
+## Đăng xuất (TASK-041)
+
+- `POST /api/v1/auth/logout` (cần `Authorization: Bearer <accessToken>`) → 204 không có body. Thu hồi mọi refresh token còn hiệu lực của phiên hiện tại (`sid` trong access token), kể cả các token đã sinh ra do xoay vòng. Các phiên khác của user không bị ảnh hưởng.
+- Gọi lại khi phiên đã thu hồi vẫn trả 204. Thiếu hoặc sai access token → 401.
+- Access token đã cấp vẫn dùng được tới khi hết hạn (tối đa 15 phút) vì guard chỉ kiểm chữ ký; client phải xoá cả hai token khi đăng xuất.
+- `register`, `login`, `refresh` đánh dấu `@Public()` từng route; route mới thêm vào `AuthController` mặc định cần đăng nhập.

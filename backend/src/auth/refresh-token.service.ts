@@ -139,6 +139,15 @@ export class RefreshTokenService {
     }
   }
 
+  /** Thu hồi mọi refresh token còn hiệu lực của phiên (logout). Chỉ đụng phiên của chính user đó. */
+  async revokeSession(user: { userId: string; sessionId: string }): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE refresh_tokens SET revoked_at = now()
+        WHERE family_id = $1 AND user_id = $2 AND revoked_at IS NULL`,
+      [user.sessionId, user.userId],
+    );
+  }
+
   private async insertToken(
     manager: EntityManager,
     user: SessionUser,
