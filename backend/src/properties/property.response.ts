@@ -78,3 +78,39 @@ export function toPropertyResponse(property: Property): PropertyResponse {
     updatedAt: property.updatedAt,
   };
 }
+
+/** Chủ nhà: chỉ trả cho người có quyền `property.view_owner_contact` với BĐS này. */
+export interface PropertyOwnerContact {
+  id: string;
+  fullName: string;
+  phone: string;
+  email: string | null;
+}
+
+/**
+ * Chi tiết BĐS (TASK-050). Người không có quyền xem liên hệ chủ nhà với BĐS này
+ * (`ownerContactVisible = false`) nhận `streetAddress`, `ownerId`, `owner` là null.
+ * Toạ độ vẫn trả cho mọi người xem được BĐS để cắm điểm bản đồ (Huy Lê chọn ngày 2026-10-04).
+ */
+export interface PropertyDetailResponse extends PropertyResponse {
+  ownerContactVisible: boolean;
+  owner: PropertyOwnerContact | null;
+}
+
+export function toPropertyDetailResponse(
+  property: Property,
+  owner: PropertyOwnerContact | null,
+  ownerContactVisible: boolean,
+): PropertyDetailResponse {
+  const base = toPropertyResponse(property);
+  if (!ownerContactVisible) {
+    return {
+      ...base,
+      streetAddress: null,
+      ownerId: null,
+      ownerContactVisible,
+      owner: null,
+    };
+  }
+  return { ...base, ownerContactVisible, owner };
+}
