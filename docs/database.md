@@ -394,14 +394,16 @@ Trigger `trg_customer_activities_append_only` chặn mọi UPDATE. Khách hoặc
 | property_id                        | uuid         | NOT NULL, T-FK properties                                                   |
 | agent_id                           | uuid         | NOT NULL, T-FK users                                                        |
 | scheduled_at                       | timestamptz  | NOT NULL                                                                    |
-| duration_minutes                   | smallint     | NULL                                                                        |
+| duration_minutes                   | smallint     | NULL, CHECK > 0                                                             |
 | location                           | varchar(255) | NULL                                                                        |
 | notes                              | text         | NULL                                                                        |
 | status                             | varchar(20)  | NOT NULL DEFAULT `SCHEDULED`: `SCHEDULED` `COMPLETED` `CANCELLED` `NO_SHOW` |
 | outcome                            | varchar(20)  | NULL: `INTERESTED` `NOT_INTERESTED` `NEED_FOLLOW_UP` `NEGOTIATING`          |
 | reminder_sent_at                   | timestamptz  | NULL                                                                        |
-| created_by, updated_by             | uuid         | FK users                                                                    |
+| created_by, updated_by             | uuid         | NULL, T-FK users                                                            |
 | created_at, updated_at, deleted_at | timestamptz  |                                                                             |
+
+Khách, BĐS hoặc môi giới còn lịch hẹn thì không xoá cứng được (`ON DELETE RESTRICT`); lịch hẹn dùng soft delete.
 
 **deals** (giao dịch)
 
