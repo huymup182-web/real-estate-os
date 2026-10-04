@@ -50,3 +50,4 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791095078398-create-permissions`         | TASK-010 | Bảng `permissions` (kèm danh mục quyền MVP) và `role_permissions` |
 | `1791095262098-create-departments`         | TASK-011 | Bảng `departments` và cột `users.department_id`                   |
 | `1791095454364-create-teams`               | TASK-012 | Bảng `teams` và `team_members`                                    |
+| `1791095795199-create-locations`           | TASK-013 | Bảng `provinces`, `districts`, `wards` (chưa có dữ liệu)          |
