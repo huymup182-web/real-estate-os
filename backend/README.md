@@ -10,9 +10,10 @@ backend/
 │   ├── main.ts            # điểm khởi động: đọc cấu hình, lắng nghe cổng
 │   ├── app.factory.ts     # tạo app dùng chung cho main.ts và test (tiền tố /api/v1)
 │   ├── app.module.ts      # module gốc; module nghiệp vụ thêm ở các task sau
-│   ├── common/            # dùng chung: mã lỗi, AppException, bộ lọc lỗi chung, request id
+│   ├── common/            # dùng chung: lỗi, validation, response, logging, request id
 │   ├── config/            # đọc và kiểm tra biến môi trường (AppConfigModule, token APP_CONFIG)
-│   └── database/          # kết nối TypeORM, TenantEntity, TenantRepository, SnakeNamingStrategy
+│   ├── database/          # kết nối TypeORM, TenantEntity, TenantRepository, SnakeNamingStrategy
+│   └── health/            # GET /api/v1/health
 ├── test/                  # test (node:test), chạy trên bản build trong .test-dist/
 │   └── support/           # database test riêng <db>_backend_test, chạy migration của database/
 ├── nest-cli.json
@@ -151,3 +152,10 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Trường nhạy cảm (`password`, `token`, `accessToken`, `refreshToken`, `authorization`, `cookie`, `secret`…) trong object log được thay bằng `[REDACTED]`. Không đưa dữ liệu nhạy cảm vào câu log dạng chuỗi.
 - Lỗi 500 ghi mức `error` kèm stack; client chỉ nhận câu thông báo chung.
 - Mức log chỉnh bằng `LOG_LEVEL`.
+
+## Health check (TASK-035)
+
+`GET /api/v1/health`: không cần đăng nhập, dùng cho Docker, load balancer, giám sát.
+
+- Database trả lời `SELECT 1` trong 3 giây → 200 `{ "success": true, "data": { "status": "ok", "db": "up" }, "message": null }`.
+- Database tắt hoặc treo → 503, body theo định dạng lỗi (`INTERNAL_ERROR`), không lộ chi tiết lỗi.
