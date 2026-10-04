@@ -19,6 +19,7 @@ import { TenantId } from '../auth/tenant.guard.js';
 import type { Paginated } from '../common/response/paginated.js';
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
+import { AssignPropertyDto } from './dto/assign-property.dto.js';
 import { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
@@ -37,6 +38,7 @@ function scopesOf(user: RequestUser): PropertyScopes {
     edit: user.permissions['property.edit'],
     delete: user.permissions['property.delete'],
     contact: user.permissions['property.view_owner_contact'],
+    assign: user.permissions['property.assign'],
   };
 }
 
@@ -116,6 +118,22 @@ export class PropertiesController {
     @Body() dto: ChangePropertyStatusDto,
   ): Promise<PropertyDetailResponse> {
     return this.properties.changeStatus(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
+  }
+
+  /**
+   * `POST /api/v1/properties/:id/assign` → chi tiết BĐS sau khi đổi môi giới phụ trách (TASK-056).
+   * Cần quyền `property.assign` với BĐS đó và với người nhận.
+   */
+  @Post(':id/assign')
+  @HttpCode(200)
+  @RequirePermission('property.assign')
+  assign(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: AssignPropertyDto,
+  ): Promise<PropertyDetailResponse> {
+    return this.properties.assign(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
   }
 
   /**

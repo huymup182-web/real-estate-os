@@ -181,15 +181,15 @@ Ràng buộc (trigger `check_role_permissions_scope`): role nền tảng chỉ d
 
 Danh mục quyền MVP (seed trong migration TASK-010, `module` = phần trước dấu chấm đầu tiên):
 
-| Module             | Permission                                                                                                                                                              |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| property           | `property.view`, `property.create`, `property.edit`, `property.delete`, `property.approve`, `property.view_owner_contact`, `property.verify`, `property.view_documents` |
-| customer           | `customer.view`, `customer.create`, `customer.edit`, `customer.assign`, `customer.delete`                                                                               |
-| user, team, report | `user.view`, `user.manage`, `team.view`, `team.manage`, `report.view`                                                                                                   |
-| admin, audit       | `admin.manage`, `audit.view`                                                                                                                                            |
-| appointment        | `appointment.view`, `appointment.manage`                                                                                                                                |
-| deal, commission   | `deal.view`, `deal.manage`, `commission.view`, `commission.manage`                                                                                                      |
-| platform           | `platform.company.manage` (`is_platform = true`)                                                                                                                        |
+| Module             | Permission                                                                                                                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| property           | `property.view`, `property.create`, `property.edit`, `property.delete`, `property.approve`, `property.view_owner_contact`, `property.verify`, `property.view_documents`, `property.assign` (TASK-056) |
+| customer           | `customer.view`, `customer.create`, `customer.edit`, `customer.assign`, `customer.delete`                                                                                                             |
+| user, team, report | `user.view`, `user.manage`, `team.view`, `team.manage`, `report.view`                                                                                                                                 |
+| admin, audit       | `admin.manage`, `audit.view`                                                                                                                                                                          |
+| appointment        | `appointment.view`, `appointment.manage`                                                                                                                                                              |
+| deal, commission   | `deal.view`, `deal.manage`, `commission.view`, `commission.manage`                                                                                                                                    |
+| platform           | `platform.company.manage` (`is_platform = true`)                                                                                                                                                      |
 
 Quyền của từng role mặc định (ma trận trong RBAC) chưa được seed ở bảng này; sẽ tạo cùng role mặc định khi tạo công ty / seed TASK-027.
 
