@@ -53,6 +53,7 @@ function configWith(mail: MailConfig | null): AppConfig {
     logLevel: 'log',
     jwtSecret: 'khoa-test-du-dai-it-nhat-32-ky-tu-abc',
     mail,
+    storage: null,
   };
 }
 

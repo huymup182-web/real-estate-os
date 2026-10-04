@@ -383,6 +383,40 @@ export class PropertiesService {
     });
   }
 
+  /**
+   * Khoá BĐS trong transaction của module khác (ảnh BĐS, TASK-057) để thay đổi dữ liệu con của BĐS:
+   * không xem được → 404; xem được nhưng ngoài phạm vi `property.edit` → 403.
+   */
+  lockEditable(
+    manager: EntityManager,
+    actor: Actor,
+    id: string,
+    scopes: PropertyScopes,
+    forbiddenMessage: string,
+  ): Promise<Property> {
+    return this.lockForAction(
+      this.properties.withManager(manager),
+      actor,
+      id,
+      scopes,
+      [scopes.edit],
+      forbiddenMessage,
+    );
+  }
+
+  /** BĐS không xem được (không có, đã xoá, công ty khác, ngoài phạm vi, HIDDEN với người không sửa được) → 404. */
+  async assertVisible(actor: Actor, id: string, scopes: PropertyScopes): Promise<void> {
+    const count = await this.properties
+      .createQueryBuilder(actor.tenantId, 'p', (query) =>
+        query.where('p.id = :id', { id }).andWhere(this.visibleCondition(scopes)),
+      )
+      .setParameter('scopeUserId', actor.userId)
+      .getCount();
+    if (count === 0) {
+      throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
+    }
+  }
+
   /** Khoá BĐS để đổi chủ nhà: cần cả quyền sửa lẫn quyền xem liên hệ chủ nhà với BĐS đó. */
   private lockForOwnerChange(
     properties: TenantRepository<Property>,

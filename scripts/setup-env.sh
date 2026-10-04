@@ -22,4 +22,4 @@ fi
 
 sed "s|^JWT_SECRET=.*|JWT_SECRET=$SECRET|" "$SOURCE_FILE" > "$ENV_FILE"
 chmod 600 "$ENV_FILE"
-echo "Đã tạo .env với JWT_SECRET ngẫu nhiên. Điền thêm STORAGE_KEY, AI_API_KEY, FCM_CONFIG khi cần."
+echo "Đã tạo .env với JWT_SECRET ngẫu nhiên. Điền thêm STORAGE_*, AI_API_KEY, FCM_CONFIG khi cần."
