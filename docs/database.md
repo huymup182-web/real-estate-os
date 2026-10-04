@@ -372,9 +372,11 @@ Xoá cứng khách thì xoá luôn nhu cầu (`ON DELETE CASCADE`); khách dùng
 | type         | varchar(20) | NOT NULL: `CALL` `MESSAGE` `PROPERTY_SENT` `VIEWING` `NEGOTIATION` `DEPOSIT` `NOTE` `STATUS_CHANGE` `ASSIGNMENT` |
 | content      | text        | NULL                                                                                                             |
 | property_ids | uuid[]      | NULL. BĐS liên quan (vd đã gửi 5 căn)                                                                            |
-| metadata     | jsonb       | NOT NULL DEFAULT `'{}'` (vd trạng thái cũ/mới)                                                                   |
+| metadata     | jsonb       | NOT NULL DEFAULT `'{}'`, phải là object (vd trạng thái cũ/mới)                                                   |
 | occurred_at  | timestamptz | NOT NULL DEFAULT now()                                                                                           |
-| created_at   | timestamptz |                                                                                                                  |
+| created_at   | timestamptz | NOT NULL DEFAULT now()                                                                                           |
+
+Trigger `trg_customer_activities_append_only` chặn mọi UPDATE. Khách hoặc user còn lịch sử thì không xoá cứng được (`ON DELETE RESTRICT`), để lịch sử luôn đầy đủ.
 
 ### 4.6 Tìm kiếm
 
