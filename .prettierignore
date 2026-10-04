@@ -9,3 +9,4 @@ mobile
 *.dart
 .env
 .env.*
+docs/design-system/tokens/generated

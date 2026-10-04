@@ -9,3 +9,4 @@ Script hỗ trợ phát triển, thêm dần theo từng task.
 - `check-commit-msg.sh`: kiểm tra commit message, dùng bởi hook `.githooks/commit-msg` (TASK-005).
 - `check-branch-name.sh`: kiểm tra tên branch, dùng bởi hook `.githooks/pre-push` (TASK-005).
 - `generate-erd.sh`: tạo `docs/erd.png` từ `docs/erd.dot` bằng Graphviz (TASK-006).
+- `design-tokens/build.mts`: sinh `tokens.css` (Tailwind + shadcn/ui) và `app_tokens.dart` (Flutter) từ `docs/design-system/tokens/tokens.json`, kiểm tra tương phản WCAG. `npm run tokens:build`, `tokens:check`, `test:tokens`.

@@ -13,7 +13,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p database/tsconfig.json --noEmit",
-    "check": "npm run lint && npm run format:check && npm run typecheck"
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run tokens:check",
+    "tokens:build": "node scripts/design-tokens/build.mts",
+    "tokens:check": "node scripts/design-tokens/build.mts --check",
+    "test:tokens": "node --test 'scripts/design-tokens/*.test.mts'"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
