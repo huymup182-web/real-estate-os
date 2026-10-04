@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../auth/access-token.service.js';
 import type { RequestUser } from '../auth/jwt-auth.guard.js';
@@ -7,8 +7,14 @@ import { GrantedScope, RequirePermission } from '../auth/permission.guard.js';
 import { TenantId } from '../auth/tenant.guard.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { PropertiesService } from './properties.service.js';
+import type { Paginated } from '../common/response/paginated.js';
+import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
-import type { PropertyDetailResponse, PropertyResponse } from './property.response.js';
+import type {
+  PropertyDetailResponse,
+  PropertyListItem,
+  PropertyResponse,
+} from './property.response.js';
 
 @Controller('properties')
 export class PropertiesController {
@@ -23,6 +29,26 @@ export class PropertiesController {
     @Body() dto: CreatePropertyDto,
   ): Promise<PropertyResponse> {
     return this.properties.create({ tenantId, userId: req.user.userId }, dto);
+  }
+
+  /**
+   * `GET /api/v1/properties?page=1&pageSize=20` → danh sách BĐS trong phạm vi `property.view`,
+   * mới tạo trước, kèm `meta` phân trang (TASK-051).
+   */
+  @Get()
+  @RequirePermission('property.view')
+  findAll(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @GrantedScope() viewScope: PermissionScope,
+    @Query() query: PaginationQueryDto,
+  ): Promise<Paginated<PropertyListItem>> {
+    return this.properties.findAll(
+      { tenantId, userId: req.user.userId },
+      query,
+      viewScope,
+      req.user.permissions['property.view_owner_contact'],
+    );
   }
 
   /**

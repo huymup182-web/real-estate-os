@@ -6,14 +6,18 @@ import { AppException, type ErrorDetail } from '../common/errors/app.exception.j
 import { scopeCondition } from '../auth/record-scope.js';
 import type { PermissionScope } from '../auth/permission.service.js';
 import { ErrorCode } from '../common/errors/error-code.js';
+import { Paginated } from '../common/response/paginated.js';
+import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { TenantRepository } from '../database/tenant.repository.js';
 import type { CreatePropertyDto } from './dto/create-property.dto.js';
 import { Property } from './property.entity.js';
 import {
   type PropertyDetailResponse,
+  type PropertyListItem,
   type PropertyOwnerContact,
   type PropertyResponse,
   toPropertyDetailResponse,
+  toPropertyListItem,
   toPropertyResponse,
 } from './property.response.js';
 import { formatPropertyCode } from './property-values.js';
@@ -92,16 +96,13 @@ export class PropertiesService {
     viewScope: PermissionScope,
     contactScope: PermissionScope | undefined,
   ): Promise<PropertyDetailResponse> {
-    const contactVisible = contactScope
-      ? scopeCondition(contactScope, PROPERTY_SCOPE_COLUMNS)
-      : 'FALSE';
     const { entities, raw } = await this.properties
       .createQueryBuilder(actor.tenantId, 'p', (query) =>
         query
           .where('p.id = :id', { id })
           .andWhere(scopeCondition(viewScope, PROPERTY_SCOPE_COLUMNS)),
       )
-      .addSelect(`(${contactVisible})`, 'owner_contact_visible')
+      .addSelect(`(${this.contactCondition(contactScope)})`, 'owner_contact_visible')
       .setParameter('scopeUserId', actor.userId)
       .getRawAndEntities<{ owner_contact_visible: boolean }>();
 
@@ -113,6 +114,45 @@ export class PropertiesService {
     const owner =
       visible && property.ownerId ? await this.findOwner(actor.tenantId, property.ownerId) : null;
     return toPropertyDetailResponse(property, owner, visible);
+  }
+
+  /**
+   * Danh sách BĐS trong phạm vi `property.view` của user (TASK-051), mới tạo trước, phân trang offset.
+   * Không gồm BĐS đã xoá mềm. Lọc, tìm kiếm và các kiểu sắp xếp khác làm ở Phase 5 (TASK-064..074).
+   */
+  async findAll(
+    actor: Actor,
+    query: PaginationQueryDto,
+    viewScope: PermissionScope,
+    contactScope: PermissionScope | undefined,
+  ): Promise<Paginated<PropertyListItem>> {
+    const base = this.properties
+      .createQueryBuilder(actor.tenantId, 'p', (builder) =>
+        builder.where(scopeCondition(viewScope, PROPERTY_SCOPE_COLUMNS)),
+      )
+      .setParameter('scopeUserId', actor.userId);
+
+    const total = await base.clone().getCount();
+    const { entities, raw } = await base
+      .addSelect(`(${this.contactCondition(contactScope)})`, 'owner_contact_visible')
+      .orderBy('p.createdAt', 'DESC')
+      .addOrderBy('p.id', 'DESC')
+      .offset(query.offset)
+      .limit(query.pageSize)
+      .getRawAndEntities<{ p_id: string; owner_contact_visible: boolean }>();
+
+    const visibleIds = new Set(
+      raw.filter((row) => row.owner_contact_visible === true).map((row) => row.p_id),
+    );
+    const items = entities.map((property) =>
+      toPropertyListItem(property, visibleIds.has(property.id)),
+    );
+    return new Paginated(items, query.page, query.pageSize, total);
+  }
+
+  /** Điều kiện SQL "user được xem liên hệ chủ nhà của BĐS `p`". */
+  private contactCondition(contactScope: PermissionScope | undefined): string {
+    return contactScope ? scopeCondition(contactScope, PROPERTY_SCOPE_COLUMNS) : 'FALSE';
   }
 
   private async findOwner(tenantId: string, ownerId: string): Promise<PropertyOwnerContact | null> {

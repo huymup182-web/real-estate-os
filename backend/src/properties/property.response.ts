@@ -102,15 +102,23 @@ export function toPropertyDetailResponse(
   owner: PropertyOwnerContact | null,
   ownerContactVisible: boolean,
 ): PropertyDetailResponse {
+  const item = toPropertyListItem(property, ownerContactVisible);
+  return { ...item, owner: ownerContactVisible ? owner : null };
+}
+
+/**
+ * Một dòng trong danh sách BĐS (TASK-051): như chi tiết nhưng không kèm thông tin chủ nhà;
+ * địa chỉ chi tiết và `ownerId` ẩn theo cùng quy tắc với chi tiết.
+ */
+export type PropertyListItem = Omit<PropertyDetailResponse, 'owner'>;
+
+export function toPropertyListItem(
+  property: Property,
+  ownerContactVisible: boolean,
+): PropertyListItem {
   const base = toPropertyResponse(property);
   if (!ownerContactVisible) {
-    return {
-      ...base,
-      streetAddress: null,
-      ownerId: null,
-      ownerContactVisible,
-      owner: null,
-    };
+    return { ...base, streetAddress: null, ownerId: null, ownerContactVisible };
   }
-  return { ...base, ownerContactVisible, owner };
+  return { ...base, ownerContactVisible };
 }

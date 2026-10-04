@@ -337,3 +337,12 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
   - `DEPARTMENT`: thêm BĐS của user cùng phòng ban (`users.department_id`);
   - `COMPANY`: mọi BĐS trong công ty.
 - Test: `test/properties-get.spec.ts` (AGENT, TEAM_LEADER, MANAGER, COLLABORATOR, role tuỳ chỉnh phạm vi OWN, 2 công ty).
+
+## Danh sách BĐS (TASK-051)
+
+`GET /api/v1/properties?page=1&pageSize=20` → `data` (mảng) + `meta` `{ page, pageSize, total, totalPages }`. Cần quyền `property.view`.
+
+- Chỉ gồm BĐS trong phạm vi `property.view` của user (cùng `scopeCondition` với chi tiết), chưa xoá mềm, mới tạo trước.
+- Mỗi dòng giống chi tiết nhưng không có `owner`; `streetAddress`, `ownerId` ẩn theo phạm vi `property.view_owner_contact` (`ownerContactVisible`), toạ độ luôn có.
+- `pageSize` tối đa 100. Tham số lạ (vd `status`) → 400: lọc, tìm kiếm, sắp xếp khác làm ở Phase 5 (TASK-064..074).
+- Test: `test/properties-list.spec.ts`.
