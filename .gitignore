@@ -1,7 +1,9 @@
-# Biến môi trường và secret (chỉ commit .env.example)
+# Biến môi trường và secret
+# Chỉ commit .env.example (mẫu) và .env.development (giá trị dev, không chứa secret thật)
 .env
 .env.*
 !.env.example
+!.env.development
 *.pem
 *.key
 *.p12

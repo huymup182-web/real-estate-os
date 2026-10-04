@@ -16,6 +16,7 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 ├── scripts/    # Script hỗ trợ phát triển
 ├── docker-compose.yml
 ├── .env.example
+├── .env.development
 └── README.md
 ```
 
@@ -45,7 +46,7 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 Yêu cầu: Docker và Docker Compose v2.
 
 ```bash
-cp .env.example .env     # chỉnh giá trị nếu cần, không commit file .env
+sh scripts/setup-env.sh  # tạo .env (không commit), xem docs/environment.md
 docker compose up        # thêm -d để chạy nền
 ```
 

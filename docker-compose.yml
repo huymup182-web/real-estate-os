@@ -1,6 +1,7 @@
 # Môi trường phát triển local của AI Real Estate OS.
 # Chạy: docker compose up
-# Giá trị lấy từ file .env (copy từ .env.example); nếu không có .env thì dùng mặc định bên dưới.
+# Biến ${...} lấy từ file .env nếu có, không thì dùng mặc định bên dưới (trùng .env.development).
+# Tạo .env: sh scripts/setup-env.sh
 
 name: real-estate-os
 
@@ -29,6 +30,12 @@ services:
       context: .
       dockerfile: backend/Dockerfile.dev
     restart: unless-stopped
+    # Biến ứng dụng: .env.development (mặc định dev) rồi .env (local, ghi đè). Xem docs/environment.md
+    env_file:
+      - path: .env.development
+        required: true
+      - path: .env
+        required: false
     environment:
       SERVICE_NAME: backend
       PORT: 3000
@@ -53,6 +60,7 @@ services:
     restart: unless-stopped
     environment:
       SERVICE_NAME: admin
+      NODE_ENV: development
       PORT: 3001
       DEV_SCRIPT: dev
       # URL backend trong network nội bộ (dùng cho gọi API phía server)
