@@ -85,6 +85,8 @@ Ký hiệu trong tài liệu: `PK` khoá chính, `FK` khoá ngoại, `UQ` unique
 | manager_id                         | uuid         | NULL, T-FK users                            |
 | created_at, updated_at, deleted_at | timestamptz  |                                             |
 
+Xoá cứng phòng ban còn user, hoặc xoá cứng user đang là trưởng phòng, bị chặn (`ON DELETE RESTRICT`); phòng ban dùng soft delete.
+
 **teams**
 
 | Cột                                | Kiểu         | Ràng buộc                                                  |
@@ -125,7 +127,7 @@ Ký hiệu trong tài liệu: `PK` khoá chính, `FK` khoá ngoại, `UQ` unique
 | created_at, updated_at, deleted_at | timestamptz  |                                                                  |
 |                                    |              | CHECK (email IS NOT NULL OR phone IS NOT NULL)                   |
 
-Email/SĐT duy nhất toàn hệ thống để đăng nhập không cần nhập mã công ty (quyết định Q4 ở Phase 0). SĐT lưu dạng chuẩn `+` và 8–15 chữ số (vd `+84901234567`); email phải có dạng `x@y.z`. Cột `department_id` được thêm ở TASK-011 khi có bảng `departments`. Xoá cứng công ty còn user bị chặn (`ON DELETE RESTRICT`).
+Email/SĐT duy nhất toàn hệ thống để đăng nhập không cần nhập mã công ty (quyết định Q4 ở Phase 0). SĐT lưu dạng chuẩn `+` và 8–15 chữ số (vd `+84901234567`); email phải có dạng `x@y.z`. Cột `department_id` được thêm ở TASK-011 khi có bảng `departments`; user nền tảng (`tenant_id` NULL) không có phòng ban. Xoá cứng công ty còn user bị chặn (`ON DELETE RESTRICT`).
 
 **roles**
 

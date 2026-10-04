@@ -45,6 +45,7 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791093463414-create-updated-at-function` | TASK-007 | Hàm trigger `set_updated_at()` dùng chung cho mọi bảng            |
 | `1791093463415-create-companies`           | TASK-007 | Bảng `companies`                                                  |
 | `1791094180612-enable-citext`              | TASK-008 | Extension `citext` (email không phân biệt hoa thường)             |
-| `1791094180613-create-users`               | TASK-008 | Bảng `users` (chưa có `department_id`, thêm ở TASK-011)           |
+| `1791094180613-create-users`               | TASK-008 | Bảng `users` (`department_id` thêm ở TASK-011)                    |
 | `1791094605215-create-roles`               | TASK-009 | Bảng `roles` và `user_roles` (trigger chặn gán role chéo công ty) |
 | `1791095078398-create-permissions`         | TASK-010 | Bảng `permissions` (kèm danh mục quyền MVP) và `role_permissions` |
+| `1791095262098-create-departments`         | TASK-011 | Bảng `departments` và cột `users.department_id`                   |
