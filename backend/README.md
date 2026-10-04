@@ -10,6 +10,7 @@ backend/
 │   ├── main.ts            # điểm khởi động: đọc cấu hình, lắng nghe cổng
 │   ├── app.factory.ts     # tạo app dùng chung cho main.ts và test (tiền tố /api/v1)
 │   ├── app.module.ts      # module gốc; module nghiệp vụ thêm ở các task sau
+│   ├── common/            # dùng chung: mã lỗi, AppException, bộ lọc lỗi chung, request id
 │   ├── config/            # đọc và kiểm tra biến môi trường (AppConfigModule, token APP_CONFIG)
 │   └── database/          # kết nối TypeORM, TenantEntity, TenantRepository, SnakeNamingStrategy
 ├── test/                  # test (node:test), chạy trên bản build trong .test-dist/
@@ -66,3 +67,28 @@ Sai giá trị thì ứng dụng dừng ngay khi khởi động. Các biến kh�
 - `tenantId` lấy từ token đăng nhập (TASK-047), không bao giờ lấy từ body/query.
 
 Mọi API nằm dưới tiền tố `/api/v1` (phase0/05-API-CONVENTIONS.md).
+
+## Xử lý lỗi (TASK-031)
+
+Mọi lỗi trả về cùng một định dạng:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Dữ liệu không hợp lệ",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": [{ "field": "price", "message": "price phải >= 0" }],
+    "requestId": "8f0c…"
+  }
+}
+```
+
+- Mã lỗi nằm trong `src/common/errors/error-code.ts` (phase0/05-API-CONVENTIONS.md mục 4). Client xử lý theo `error.code`, không theo câu chữ.
+- Lỗi nghiệp vụ: `throw new AppException(ErrorCode.BUSINESS_RULE_VIOLATION, 'Câu thông báo', details?)`. Không truyền câu thông báo thì dùng câu mặc định của mã lỗi.
+- Exception có sẵn của NestJS (`NotFoundException`…) đổi sang mã lỗi theo HTTP status, dùng câu thông báo mặc định.
+- Lỗi PostgreSQL: trùng unique, vướng khoá ngoại → 409 `CONFLICT`; vi phạm check, sai kiểu (vd uuid sai) → 400 `VALIDATION_ERROR`. Không trả tên bảng, tên constraint cho client.
+- JSON sai cú pháp → 400 `VALIDATION_ERROR`.
+- Lỗi khác → 500 `INTERNAL_ERROR` với câu thông báo chung; log server ghi đủ stack kèm request id, client không nhận stack.
+- Mỗi request có header `X-Request-Id`: dùng lại id client gửi nếu an toàn (chữ, số, `-_.:`, tối đa 100 ký tự), không thì tự sinh UUID. Id này cũng nằm trong `error.requestId`.
