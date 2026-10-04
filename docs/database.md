@@ -201,6 +201,8 @@ Từ 01/07/2025 Việt Nam bỏ cấp quận/huyện (còn tỉnh → xã/phư�
 
 - `wards.province_id` bắt buộc, `wards.district_id` có thể `NULL` (phường/xã theo đơn vị mới).
 - `is_active = false` đánh dấu đơn vị cũ đã sáp nhập, vẫn giữ để tìm theo tên quen thuộc.
+- Khi phường/xã có `district_id`, quận/huyện phải cùng tỉnh (khoá ngoại kép `(province_id, district_id)`). Tỉnh hoặc quận/huyện đang được dùng thì không xoá được.
+- Migration chỉ tạo bảng; danh sách đơn vị hành chính chính thức sẽ được nhập riêng.
 
 **provinces**: `id` uuid PK · `code` varchar(10) NOT NULL UQ · `name` varchar(100) NOT NULL · `is_active` boolean NOT NULL DEFAULT true · `created_at`, `updated_at`.
 
