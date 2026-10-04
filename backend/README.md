@@ -179,3 +179,12 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Trong một transaction: công ty (ACTIVE, slug sinh từ tên, trùng thì thêm hậu tố), 6 role mặc định kèm quyền theo phase0/04-RBAC.md (`src/auth/default-roles.ts`, test kiểm tra khớp với `database/src/seed.ts`), user ACTIVE, gán role `COMPANY_ADMIN`.
 - Mật khẩu băm Argon2id (`@node-rs/argon2`), không trả về, không ghi log.
 - Trả 201 với `user` và `company`, không trả token: đăng nhập ở TASK-037.
+
+## Đăng nhập (TASK-037)
+
+`POST /api/v1/auth/login` với `{ "identifier": "email hoặc +84…", "password": "…" }`:
+
+- `identifier` có `@` thì tìm theo email (không phân biệt hoa thường), còn lại tìm theo số điện thoại.
+- Sai email/SĐT/mật khẩu, hoặc tài khoản đã xoá → 401 `UNAUTHENTICATED`, luôn cùng một câu thông báo để không lộ tài khoản nào tồn tại. Khi không có tài khoản vẫn chạy so mật khẩu giả để thời gian phản hồi tương đương.
+- Đúng mật khẩu nhưng tài khoản bị khoá/ngừng hoạt động, hoặc công ty bị tạm ngưng → 403 `FORBIDDEN`.
+- Thành công → 200 `{ user: { id, tenantId, fullName, email, phone } }` và ghi `last_login_at`. Access/refresh token sẽ được thêm vào response ở TASK-039/040.
