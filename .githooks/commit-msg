@@ -1,0 +1,4 @@
+#!/bin/sh
+# Hook kiểm tra commit message. Bật bằng: git config core.hooksPath .githooks
+# (npm install ở thư mục gốc tự bật qua script "prepare").
+exec sh "$(git rev-parse --show-toplevel)/scripts/check-commit-msg.sh" "$1"
