@@ -108,6 +108,8 @@ Xoá cứng phòng ban còn user, hoặc xoá cứng user đang là trưởng ph
 | joined_at | timestamptz | NOT NULL DEFAULT now() |
 |           |             | PK (team_id, user_id)  |
 
+Một user thuộc được nhiều team. Xoá cứng team hoặc user thì xoá luôn dòng thành viên (`ON DELETE CASCADE`); xoá cứng phòng ban còn team, hoặc user đang là trưởng nhóm, bị chặn (`ON DELETE RESTRICT`).
+
 ### 4.2 Người dùng & phân quyền
 
 **users**
