@@ -7,13 +7,14 @@ import type { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 import { createApp } from '../src/app.factory.js';
+import { useTestDatabase } from './support/test-database.js';
 
-/** Cần PostgreSQL đang chạy và DATABASE_URL (npm test đọc ../.env.development, ../.env). */
 describe('Kết nối database', () => {
   let app: INestApplication;
   let dataSource: DataSource;
 
   before(async () => {
+    await useTestDatabase();
     app = await createApp();
     app.useLogger(false);
     await app.init();

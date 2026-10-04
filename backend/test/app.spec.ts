@@ -7,12 +7,14 @@ import { after, before, describe, it } from 'node:test';
 import type { INestApplication } from '@nestjs/common';
 
 import { API_PREFIX, createApp } from '../src/app.factory.js';
+import { useTestDatabase } from './support/test-database.js';
 
 describe('Ứng dụng NestJS', () => {
   let app: INestApplication;
   let baseUrl: string;
 
   before(async () => {
+    await useTestDatabase();
     app = await createApp();
     app.useLogger(false);
     await app.listen(0, '127.0.0.1');
