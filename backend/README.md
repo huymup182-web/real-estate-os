@@ -449,3 +449,8 @@ Luật:
 - `GET /api/v1/properties/:id/share-links` → link của BĐS, mới trước (`viewCount`, `active`, `revokedAt`, không có token). Người sửa được BĐS thấy mọi link, người khác chỉ link mình tạo.
 - `DELETE /api/v1/properties/:id/share-links/:linkId` → 204, thu hồi. Người tạo link hoặc người sửa được BĐS; người khác → 403.
 - `GET /api/v1/shared-properties/:token` (không cần đăng nhập) → mã, tiêu đề, mô tả, loại, giá, diện tích, phòng, hướng, đường, pháp lý, tên tỉnh/quận/phường, ảnh và liên hệ của môi giới tạo link. Không trả chủ nhà, địa chỉ chi tiết, toạ độ, hoa hồng. Mỗi lần mở thành công tăng `viewCount`. Link sai, hết hạn, đã thu hồi, BĐS ẩn hoặc đã xoá, công ty tạm dừng, người tạo link bị khoá → 404.
+
+## Xác minh BĐS (TASK-062)
+
+- `POST /api/v1/properties/:id/verify` `{ expectedUpdatedAt? }` → 200 chi tiết BĐS. Cần `property.verify` với BĐS (AGENT: BĐS mình phụ trách, TEAM_LEADER: team, MANAGER: phòng, DIRECTOR/ADMIN: cả công ty); ngoài phạm vi → 403, không xem được → 404. Ghi `verificationStatus = VERIFIED`, `lastVerifiedAt`, `verifiedBy`. BĐS đang `VERIFY_REQUIRED` hoặc `EXPIRED` mở bán lại thành `AVAILABLE`; trạng thái khác giữ nguyên.
+- Job `property-verification` (`@nestjs/schedule`, mỗi giờ): BĐS `AVAILABLE`/`PENDING` của công ty đang hoạt động, quá hạn xác minh (từ `last_verified_at`, chưa xác minh thì từ `created_at`) → `status = VERIFY_REQUIRED`, `verificationStatus = EXPIRED`. Hạn mặc định 30 ngày; công ty đặt riêng bằng `companies.settings.verify_interval_days` (số nguyên 1–365). Thông báo cho môi giới làm ở Phase 8.

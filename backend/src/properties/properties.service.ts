@@ -13,6 +13,7 @@ import type { AssignPropertyDto } from './dto/assign-property.dto.js';
 import type { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import type { CreatePropertyDto } from './dto/create-property.dto.js';
 import type { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
+import type { VerifyPropertyDto } from './dto/verify-property.dto.js';
 import { EDITABLE_PROPERTY_FIELDS, type UpdatePropertyDto } from './dto/update-property.dto.js';
 import { Property } from './property.entity.js';
 import {
@@ -25,7 +26,13 @@ import {
   toPropertyListItem,
   toPropertyResponse,
 } from './property.response.js';
-import { canUserChangeStatus, formatPropertyCode } from './property-values.js';
+import {
+  canUserChangeStatus,
+  DEFAULT_VERIFY_INTERVAL_DAYS,
+  formatPropertyCode,
+  MAX_VERIFY_INTERVAL_DAYS,
+  NEEDS_VERIFICATION,
+} from './property-values.js';
 
 /** Người thực hiện thao tác, lấy từ access token (không bao giờ từ body). */
 export interface Actor {
@@ -41,6 +48,7 @@ export interface PropertyScopes {
   contact: PermissionScope | undefined;
   assign: PermissionScope | undefined;
   documents: PermissionScope | undefined;
+  verify: PermissionScope | undefined;
 }
 
 /** Địa giới của BĐS cần kiểm. */
@@ -376,6 +384,63 @@ export class PropertiesService {
       });
     });
     return this.findOne(actor, id, scopes);
+  }
+
+  /**
+   * Xác minh lại BĐS (TASK-062): ghi người và thời điểm xác minh, `verificationStatus` = VERIFIED.
+   * BĐS đang VERIFY_REQUIRED hoặc EXPIRED được mở bán lại (AVAILABLE); trạng thái khác giữ nguyên.
+   * Ngoài phạm vi xem → 404; xem được nhưng ngoài phạm vi `property.verify` → 403.
+   */
+  async verify(
+    actor: Actor,
+    id: string,
+    dto: VerifyPropertyDto,
+    scopes: PropertyScopes,
+  ): Promise<PropertyDetailResponse> {
+    await this.dataSource.transaction(async (manager) => {
+      const properties = this.properties.withManager(manager);
+      const current = await this.lockForAction(
+        properties,
+        actor,
+        id,
+        scopes,
+        [scopes.verify],
+        'Không có quyền xác minh BĐS này',
+      );
+      assertNotModified(current, dto.expectedUpdatedAt);
+      await properties.update(actor.tenantId, id, {
+        verificationStatus: 'VERIFIED',
+        lastVerifiedAt: new Date(),
+        verifiedBy: actor.userId,
+        ...(NEEDS_VERIFICATION.includes(current.status) ? { status: 'AVAILABLE' } : {}),
+        updatedBy: actor.userId,
+      });
+    });
+    return this.findOne(actor, id, scopes);
+  }
+
+  /**
+   * Job hệ thống (TASK-062), chạy cho mọi công ty đang hoạt động: BĐS đang AVAILABLE/PENDING quá hạn xác
+   * minh (tính từ lần xác minh gần nhất, chưa xác minh thì từ ngày tạo) chuyển sang VERIFY_REQUIRED,
+   * `verificationStatus` = EXPIRED. Không đổi `updated_by` (không phải người dùng sửa). Chạy lại không
+   * đổi gì thêm. Trả về số BĐS vừa chuyển.
+   */
+  async markOverdueForVerification(): Promise<number> {
+    const [, affected] = (await this.dataSource.query(
+      `UPDATE properties p
+          SET status = 'VERIFY_REQUIRED', verification_status = 'EXPIRED'
+         FROM companies c
+        WHERE c.id = p.tenant_id AND c.deleted_at IS NULL AND c.status = 'ACTIVE'
+          AND p.deleted_at IS NULL AND p.status IN ('AVAILABLE', 'PENDING')
+          AND COALESCE(p.last_verified_at, p.created_at) <= now() - make_interval(days =>
+                CASE WHEN jsonb_typeof(c.settings -> 'verify_interval_days') = 'number'
+                       AND (c.settings ->> 'verify_interval_days') ~ '^[0-9]+$'
+                       AND (c.settings ->> 'verify_interval_days')::int BETWEEN 1 AND $2
+                     THEN (c.settings ->> 'verify_interval_days')::int
+                     ELSE $1 END)`,
+      [DEFAULT_VERIFY_INTERVAL_DAYS, MAX_VERIFY_INTERVAL_DAYS],
+    )) as [unknown, number];
+    return affected;
   }
 
   /**

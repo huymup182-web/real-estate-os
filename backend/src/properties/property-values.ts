@@ -59,10 +59,17 @@ export type PropertyStatus = (typeof PROPERTY_STATUSES)[number];
 export const USER_SETTABLE_STATUSES = ['AVAILABLE', 'PENDING', 'SOLD', 'HIDDEN'] as const;
 
 /** Trạng thái chờ xác minh lại: muốn mở bán lại (AVAILABLE, PENDING) phải xác minh (TASK-062). */
-const NEEDS_VERIFICATION: readonly string[] = ['EXPIRED', 'VERIFY_REQUIRED'];
+export const NEEDS_VERIFICATION: readonly string[] = ['EXPIRED', 'VERIFY_REQUIRED'];
 const OPEN_FOR_SALE: readonly string[] = ['AVAILABLE', 'PENDING'];
 
 /** Người dùng có được chuyển BĐS từ `from` sang `to` không. Trạng thái `to` đã thuộc USER_SETTABLE_STATUSES. */
 export function canUserChangeStatus(from: string, to: string): boolean {
   return !(NEEDS_VERIFICATION.includes(from) && OPEN_FOR_SALE.includes(to));
 }
+
+/**
+ * BĐS không được xác minh lại sau số ngày này thì chuyển sang VERIFY_REQUIRED (TASK-062). Công ty đặt riêng
+ * bằng `companies.settings.verify_interval_days` (số nguyên 1–365); thiếu hoặc sai thì dùng mặc định.
+ */
+export const DEFAULT_VERIFY_INTERVAL_DAYS = 30;
+export const MAX_VERIFY_INTERVAL_DAYS = 365;

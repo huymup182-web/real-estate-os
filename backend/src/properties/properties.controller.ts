@@ -23,6 +23,7 @@ import { AssignPropertyDto } from './dto/assign-property.dto.js';
 import { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
+import { VerifyPropertyDto } from './dto/verify-property.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import {
   type Actor,
@@ -45,6 +46,7 @@ export function scopesOf(user: RequestUser): PropertyScopes {
     contact: user.permissions['property.view_owner_contact'],
     assign: user.permissions['property.assign'],
     documents: user.permissions['property.view_documents'],
+    verify: user.permissions['property.verify'],
   };
 }
 
@@ -179,6 +181,22 @@ export class PropertiesController {
     @Body() dto: ChangePropertyStatusDto,
   ): Promise<PropertyDetailResponse> {
     return this.properties.changeStatus(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
+  }
+
+  /**
+   * `POST /api/v1/properties/:id/verify` → chi tiết BĐS sau khi xác minh lại (TASK-062).
+   * Cần quyền `property.verify` với BĐS đó.
+   */
+  @Post(':id/verify')
+  @HttpCode(200)
+  @RequirePermission('property.verify')
+  verify(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: VerifyPropertyDto,
+  ): Promise<PropertyDetailResponse> {
+    return this.properties.verify(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
   }
 
   /**
