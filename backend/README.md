@@ -402,9 +402,11 @@ Upload 3 bước, file không đi qua backend (phase0/02-ARCHITECTURE.md mục 4
 
 Các API khác:
 
-- `GET /api/v1/properties/:id/images` → ảnh theo thứ tự, mỗi ảnh có `url` (CDN nếu có `STORAGE_PUBLIC_URL`, không thì link có hạn 1 giờ).
+- `GET /api/v1/properties/:id/images` → ảnh theo thứ tự, mỗi ảnh có `url` và `thumbnailUrl` (CDN nếu có `STORAGE_PUBLIC_URL`, không thì link có hạn 1 giờ).
 - `PUT /api/v1/properties/:id/images/order` `{ imageIds }` → phải gửi đúng toàn bộ ảnh hiện có (không thì 400).
 - `POST /api/v1/properties/:id/images/:imageId/cover` → đổi ảnh bìa. Ảnh đầu tiên tự là ảnh bìa.
 - `DELETE /api/v1/properties/:id/images/:imageId` → 204, xoá mềm (file giữ trên storage). Xoá ảnh bìa thì ảnh đầu còn lại thành ảnh bìa.
 
-Luật: định dạng jpeg/png/webp/heic, tối đa 10MB/ảnh và 30 ảnh/BĐS (phase0/05-API-CONVENTIONS.md mục 9, vượt → 422). Xem ảnh theo quyền xem BĐS; thêm, sắp xếp, đổi ảnh bìa, xoá cần `property.edit` với BĐS (ngoài phạm vi → 403, không xem được → 404). Cấu hình storage: biến `STORAGE_*` trong docs/environment.md. Chưa tạo thumbnail.
+Luật: định dạng jpeg/png/webp/heic, tối đa 10MB/ảnh và 30 ảnh/BĐS (phase0/05-API-CONVENTIONS.md mục 9, vượt → 422). Xem ảnh theo quyền xem BĐS; thêm, sắp xếp, đổi ảnh bìa, xoá cần `property.edit` với BĐS (ngoài phạm vi → 403, không xem được → 404). Cấu hình storage: biến `STORAGE_*` trong docs/environment.md.
+
+Thumbnail (thư viện `sharp`, Huy Lê duyệt ngày 2026-10-04): sau khi xác nhận, backend tạo nền ảnh webp cạnh dài tối đa 480px tại `{imageId}_thumb.webp` cùng thư mục. Trong lúc tạo hoặc khi không tạo được (vd HEIC, `sharp` bản dựng sẵn không đọc được) thì `thumbnailUrl = null`, ảnh gốc vẫn dùng bình thường.

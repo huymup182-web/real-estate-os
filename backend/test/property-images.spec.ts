@@ -9,6 +9,9 @@ import { DataSource } from 'typeorm';
 
 import { createApp } from '../src/app.factory.js';
 import { hashPassword } from '../src/auth/password.js';
+import sharp from 'sharp';
+
+import { PropertyImagesService } from '../src/properties/property-images.service.js';
 import { type StoredObject, StorageService } from '../src/storage/storage.service.js';
 import { useTestDatabase } from './support/test-database.js';
 
@@ -26,6 +29,7 @@ interface Detail {
 interface Image {
   id: string;
   url: string;
+  thumbnailUrl: string | null;
   mimeType: string;
   sizeBytes: number;
   width: number | null;
@@ -61,6 +65,9 @@ describe('Ảnh BĐS /api/v1/properties/:id/images', () => {
   /** Object "đã upload" trên storage giả, theo key. */
   const stored = new Map<string, StoredObject>();
   const uploadKeys: string[] = [];
+  /** Nội dung file trên storage giả (ảnh thật để thử tạo thumbnail). */
+  const bodies = new Map<string, Buffer>();
+  const puts: { key: string; contentType: string; body: Buffer }[] = [];
   const userIds: Record<string, string> = {};
 
   before(async () => {
@@ -82,6 +89,14 @@ describe('Ảnh BĐS /api/v1/properties/:id/images', () => {
     };
     storage.head = (key: string) => Promise.resolve(stored.get(key) ?? null);
     storage.readUrl = (key: string) => Promise.resolve(`https://cdn.test/${key}`);
+    storage.getObject = (key: string) => {
+      const body = bodies.get(key);
+      return body ? Promise.resolve(body) : Promise.reject(new Error('không có file'));
+    };
+    storage.putObject = (key: string, body: Buffer, contentType: string) => {
+      puts.push({ key, contentType, body });
+      return Promise.resolve();
+    };
 
     khanhHoa = await insertId(`INSERT INTO provinces (code, name) VALUES ('56', 'Khánh Hòa')`);
     nhaTrang = await insertId(
@@ -303,6 +318,7 @@ describe('Ảnh BĐS /api/v1/properties/:id/images', () => {
       {
         id: upload.imageId,
         url: `https://cdn.test/${key}`,
+        thumbnailUrl: null,
         mimeType: 'image/jpeg',
         sizeBytes: 2345,
         width: 1600,
@@ -324,6 +340,41 @@ describe('Ảnh BĐS /api/v1/properties/:id/images', () => {
       (await imageList(property.id, 'agent4')).map((image) => image.id),
       [first.id, second.id],
       'ai xem được BĐS thì xem được ảnh',
+    );
+  });
+
+  it('tạo thumbnail webp tối đa 480px cạnh ảnh gốc sau khi xác nhận; file lỗi thì ảnh vẫn dùng được', async () => {
+    const property = await createProperty();
+    const upload = ((await (await requestUpload(property.id, JPEG)).json()) as { data: Upload })
+      .data;
+    const key = String(uploadKeys.at(-1));
+    const photo = await sharp({
+      create: { width: 1600, height: 1200, channels: 3, background: '#3366cc' },
+    })
+      .jpeg()
+      .toBuffer();
+    stored.set(key, { sizeBytes: photo.length, contentType: 'image/jpeg' });
+    bodies.set(key, photo);
+    assert.equal(
+      (await confirm(property.id, { imageId: upload.imageId, mimeType: 'image/jpeg' })).status,
+      201,
+    );
+    await app.get(PropertyImagesService).waitForThumbnails();
+
+    const thumbKey = `${tenantA}/properties/${property.id}/${upload.imageId}_thumb.webp`;
+    const put = puts.find((item) => item.key === thumbKey);
+    assert.ok(put);
+    assert.equal(put.contentType, 'image/webp');
+    const meta = await sharp(put.body).metadata();
+    assert.deepEqual([meta.format, meta.width, meta.height], ['webp', 480, 360]);
+    const [image] = await imageList(property.id);
+    assert.equal(image?.thumbnailUrl, `https://cdn.test/${thumbKey}`);
+
+    const broken = await addImage(property.id);
+    await app.get(PropertyImagesService).waitForThumbnails();
+    assert.equal(
+      (await imageList(property.id)).find((item) => item.id === broken.id)?.thumbnailUrl,
+      null,
     );
   });
 

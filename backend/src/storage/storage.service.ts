@@ -84,6 +84,24 @@ export class StorageService {
     }
   }
 
+  /** Tải toàn bộ object về bộ nhớ (dùng cho file nhỏ như ảnh ≤ 10MB). */
+  async getObject(key: string): Promise<Buffer> {
+    const { client, bucket } = this.require();
+    const result = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    if (!result.Body) {
+      throw new Error(`Object rỗng: ${key}`);
+    }
+    return Buffer.from(await result.Body.transformToByteArray());
+  }
+
+  /** Ghi object do backend tạo (vd thumbnail). */
+  async putObject(key: string, body: Buffer, contentType: string): Promise<void> {
+    const { client, bucket } = this.require();
+    await client.send(
+      new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }),
+    );
+  }
+
   /** Địa chỉ đọc ảnh: qua CDN nếu có STORAGE_PUBLIC_URL, không thì link GET có hạn. */
   async readUrl(key: string): Promise<string> {
     const { client, bucket } = this.require();

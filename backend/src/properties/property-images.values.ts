@@ -23,3 +23,12 @@ export function imageStorageKey(
 ): string {
   return `${tenantId}/properties/${propertyId}/${imageId}.${IMAGE_EXTENSIONS[mimeType]}`;
 }
+
+/** Thumbnail: cạnh dài tối đa (pixel), lưu webp cạnh ảnh gốc. */
+export const THUMBNAIL_MAX_SIZE = 480;
+export const THUMBNAIL_MIME_TYPE = 'image/webp';
+
+/** `{...}/{image_id}.jpg` → `{...}/{image_id}_thumb.webp` (cùng thư mục BĐS). */
+export function thumbnailStorageKey(storageKey: string): string {
+  return `${storageKey.replace(/\.[a-z]+$/, '')}_thumb.webp`;
+}

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
+import sharp from 'sharp';
 import { DataSource, type EntityManager } from 'typeorm';
 
 import { AppException } from '../common/errors/app.exception.js';
@@ -17,12 +18,19 @@ import {
   imageStorageKey,
   MAX_IMAGE_BYTES,
   MAX_IMAGES_PER_PROPERTY,
+  THUMBNAIL_MAX_SIZE,
+  THUMBNAIL_MIME_TYPE,
+  thumbnailStorageKey,
 } from './property-images.values.js';
 
-/** Ảnh BĐS trả cho client. `url` để hiển thị (CDN hoặc link có hạn). */
+/**
+ * Ảnh BĐS trả cho client. `url` là ảnh gốc, `thumbnailUrl` là ảnh nhỏ (null khi chưa tạo xong hoặc không
+ * tạo được, vd HEIC); đều là CDN hoặc link có hạn.
+ */
 export interface PropertyImageResponse {
   id: string;
   url: string;
+  thumbnailUrl: string | null;
   mimeType: string;
   sizeBytes: number;
   width: number | null;
@@ -43,6 +51,7 @@ export interface ImageUploadResponse {
 interface ImageRow {
   id: string;
   storage_key: string;
+  thumbnail_key: string | null;
   mime_type: string;
   size_bytes: number;
   width: number | null;
@@ -58,9 +67,14 @@ const FORBIDDEN_MESSAGE = 'Không có quyền sửa ảnh của BĐS này';
  * Ảnh BĐS (TASK-057). File upload thẳng lên S3/R2 qua link backend cấp; bảng `property_images` chỉ lưu
  * key và thông tin ảnh. Xem ảnh theo quyền xem BĐS; thêm, sắp xếp, đổi ảnh bìa, xoá theo `property.edit`.
  * Mọi thay đổi khoá dòng BĐS nên hai thao tác cùng lúc trên một BĐS không vượt giới hạn 30 ảnh.
+ * Thumbnail tạo nền sau khi xác nhận (phase0/02-ARCHITECTURE.md mục 4, Huy Lê duyệt sharp ngày 2026-10-04).
  */
 @Injectable()
-export class PropertyImagesService {
+export class PropertyImagesService implements OnApplicationShutdown {
+  private readonly logger = new Logger(PropertyImagesService.name);
+  /** Job thumbnail đang chạy (để test và lúc tắt ứng dụng chờ được). */
+  private readonly thumbnailJobs = new Set<Promise<void>>();
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly properties: PropertiesService,
@@ -135,7 +149,51 @@ export class PropertyImagesService {
     if (!row) {
       throw new AppException(ErrorCode.INTERNAL_ERROR);
     }
+    this.scheduleThumbnail(actor.tenantId, row);
     return this.toResponse(row);
+  }
+
+  /** Chờ các job thumbnail đang chạy xong. */
+  async waitForThumbnails(): Promise<void> {
+    await Promise.all([...this.thumbnailJobs]);
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    await this.waitForThumbnails();
+  }
+
+  /** Tạo thumbnail nền; lỗi chỉ ghi log, ảnh vẫn dùng được với `thumbnailUrl = null`. */
+  private scheduleThumbnail(tenantId: string, image: ImageRow): void {
+    const job = this.createThumbnail(tenantId, image)
+      .catch((error: unknown) => {
+        this.logger.warn('Không tạo được thumbnail', {
+          imageId: image.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      })
+      .finally(() => this.thumbnailJobs.delete(job));
+    this.thumbnailJobs.add(job);
+  }
+
+  private async createThumbnail(tenantId: string, image: ImageRow): Promise<void> {
+    const original = await this.storage.getObject(image.storage_key);
+    const thumbnail = await sharp(original)
+      .rotate()
+      .resize({
+        width: THUMBNAIL_MAX_SIZE,
+        height: THUMBNAIL_MAX_SIZE,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 80 })
+      .toBuffer();
+    const key = thumbnailStorageKey(image.storage_key);
+    await this.storage.putObject(key, thumbnail, THUMBNAIL_MIME_TYPE);
+    await this.dataSource.query(
+      `UPDATE property_images SET thumbnail_key = $3
+        WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
+      [tenantId, image.id, key],
+    );
   }
 
   /** Ảnh của BĐS xem được, theo thứ tự hiển thị. */
@@ -308,6 +366,7 @@ export class PropertyImagesService {
     return {
       id: row.id,
       url: await this.storage.readUrl(row.storage_key),
+      thumbnailUrl: row.thumbnail_key ? await this.storage.readUrl(row.thumbnail_key) : null,
       mimeType: row.mime_type,
       sizeBytes: row.size_bytes,
       width: row.width,
