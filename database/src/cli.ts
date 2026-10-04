@@ -1,7 +1,8 @@
-// CLI migration: node src/cli.ts <run|revert|show|create> [tên-migration]
+// CLI migration: node src/cli.ts <run|revert|show|create|seed> [tên-migration]
 import { writeFileSync } from 'node:fs';
 
 import { createDataSource, requireDatabaseUrl } from './data-source.ts';
+import { DEMO_PASSWORD_ENV, seedDemo } from './seed.ts';
 
 const MIGRATIONS_DIR = new URL('../migrations/', import.meta.url);
 
@@ -59,8 +60,18 @@ async function main(): Promise<void> {
     } else if (command === 'show') {
       const pending = await dataSource.showMigrations();
       console.log(pending ? 'Có migration chưa chạy.' : 'Mọi migration đã được chạy.');
+    } else if (command === 'seed') {
+      if (process.env['NODE_ENV'] === 'production') {
+        throw new Error('Không nạp dữ liệu demo ở production');
+      }
+      const password = process.env[DEMO_PASSWORD_ENV];
+      if (!password) {
+        throw new Error(`Thiếu biến môi trường ${DEMO_PASSWORD_ENV} (mật khẩu tài khoản demo)`);
+      }
+      const result = await seedDemo(dataSource, password);
+      console.log(result.created ? 'Đã nạp dữ liệu demo.' : 'Dữ liệu demo đã có, không nạp lại.');
     } else {
-      throw new Error('Lệnh không hợp lệ. Dùng: run | revert | show | create <tên>');
+      throw new Error('Lệnh không hợp lệ. Dùng: run | revert | show | seed | create <tên>');
     }
   } finally {
     await dataSource.destroy();
