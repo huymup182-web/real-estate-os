@@ -1,0 +1,53 @@
+# Biến môi trường và secret (chỉ commit .env.example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+
+# Node.js (backend, admin)
+node_modules/
+dist/
+coverage/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Flutter / Dart (mobile)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+mobile/build/
+**/android/local.properties
+**/android/key.properties
+**/ios/Pods/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+google-services.json
+GoogleService-Info.plist
+
+# Build chung
+build/
+
+# Log
+logs/
+*.log
+
+# Hệ điều hành và editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
