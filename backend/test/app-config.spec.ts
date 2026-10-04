@@ -4,59 +4,88 @@ import { describe, it } from 'node:test';
 import { loadAppConfig } from '../src/config/app-config.js';
 
 const DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/real_estate_os';
+const JWT_SECRET = 'khoa-test-du-dai-it-nhat-32-ky-tu-abc';
 
 describe('loadAppConfig', () => {
   it('mặc định cổng 3000, môi trường development', () => {
-    assert.deepEqual(loadAppConfig({ DATABASE_URL }), {
+    assert.deepEqual(loadAppConfig({ DATABASE_URL, JWT_SECRET }), {
       port: 3000,
       nodeEnv: 'development',
       databaseUrl: DATABASE_URL,
       logLevel: 'log',
+      jwtSecret: JWT_SECRET,
     });
   });
 
   it('đọc PORT và NODE_ENV hợp lệ', () => {
-    const config = loadAppConfig({ PORT: '8080', NODE_ENV: 'production', DATABASE_URL });
+    const config = loadAppConfig({
+      PORT: '8080',
+      NODE_ENV: 'production',
+      DATABASE_URL,
+      JWT_SECRET,
+    });
     assert.equal(config.port, 8080);
     assert.equal(config.nodeEnv, 'production');
   });
 
   it('từ chối PORT sai', () => {
     for (const port of ['abc', '0', '65536', '30.5', '-1', '']) {
-      assert.throws(() => loadAppConfig({ PORT: port, DATABASE_URL }), /PORT không hợp lệ/, port);
+      assert.throws(
+        () => loadAppConfig({ PORT: port, DATABASE_URL, JWT_SECRET }),
+        /PORT không hợp lệ/,
+        port,
+      );
     }
   });
 
   it('từ chối NODE_ENV lạ', () => {
     assert.throws(
-      () => loadAppConfig({ NODE_ENV: 'staging', DATABASE_URL }),
+      () => loadAppConfig({ NODE_ENV: 'staging', DATABASE_URL, JWT_SECRET }),
       /NODE_ENV không hợp lệ/,
     );
   });
 
   it('bắt buộc DATABASE_URL đúng dạng PostgreSQL', () => {
-    assert.throws(() => loadAppConfig({}), /Thiếu DATABASE_URL/);
+    assert.throws(() => loadAppConfig({ JWT_SECRET }), /Thiếu DATABASE_URL/);
     for (const url of [
       'not-a-url',
       'mysql://u:p@localhost:3306/db',
       'postgresql://u:p@localhost:5432',
     ]) {
-      assert.throws(() => loadAppConfig({ DATABASE_URL: url }), /DATABASE_URL không hợp lệ/, url);
+      assert.throws(
+        () => loadAppConfig({ DATABASE_URL: url, JWT_SECRET }),
+        /DATABASE_URL không hợp lệ/,
+        url,
+      );
     }
     assert.equal(
-      loadAppConfig({ DATABASE_URL: 'postgres://u:p@db:5432/x' }).databaseUrl,
+      loadAppConfig({ DATABASE_URL: 'postgres://u:p@db:5432/x', JWT_SECRET }).databaseUrl,
       'postgres://u:p@db:5432/x',
     );
   });
 
   it('đọc LOG_LEVEL hợp lệ, từ chối giá trị lạ', () => {
-    assert.equal(loadAppConfig({ LOG_LEVEL: 'debug', DATABASE_URL }).logLevel, 'debug');
+    assert.equal(loadAppConfig({ LOG_LEVEL: 'debug', DATABASE_URL, JWT_SECRET }).logLevel, 'debug');
     for (const level of ['info', 'LOG', '']) {
       assert.throws(
-        () => loadAppConfig({ LOG_LEVEL: level, DATABASE_URL }),
+        () => loadAppConfig({ LOG_LEVEL: level, DATABASE_URL, JWT_SECRET }),
         /LOG_LEVEL không hợp lệ/,
         level,
       );
     }
+  });
+
+  it('bắt buộc JWT_SECRET đủ dài; production không dùng khoá dev', () => {
+    assert.throws(() => loadAppConfig({ DATABASE_URL }), /Thiếu JWT_SECRET/);
+    assert.throws(
+      () => loadAppConfig({ DATABASE_URL, JWT_SECRET: 'ngan-qua' }),
+      /JWT_SECRET phải có ít nhất 32 ký tự/,
+    );
+    const devSecret = 'dev-only-insecure-jwt-secret-change-me';
+    assert.equal(loadAppConfig({ DATABASE_URL, JWT_SECRET: devSecret }).jwtSecret, devSecret);
+    assert.throws(
+      () => loadAppConfig({ DATABASE_URL, JWT_SECRET: devSecret, NODE_ENV: 'production' }),
+      /khoá dev/,
+    );
   });
 });

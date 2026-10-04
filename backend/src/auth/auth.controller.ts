@@ -4,7 +4,9 @@ import { AuthService, type RegisterResult } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { type LoginResult, LoginService } from './login.service.js';
+import { Public } from './public.decorator.js';
 
+@Public()
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -18,7 +20,7 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  /** `POST /api/v1/auth/login` → 200 kèm thông tin user; token cấp ở TASK-039/040. */
+  /** `POST /api/v1/auth/login` → 200 `{ accessToken, expiresIn, user }`; refresh token thêm ở TASK-040. */
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto): Promise<LoginResult> {

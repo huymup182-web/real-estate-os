@@ -39,14 +39,15 @@ Trong Docker (`docker compose up backend`), container tự `npm install` lần �
 
 ## Biến môi trường
 
-| Biến           | Mặc định      | Kiểm tra                                                      |
-| -------------- | ------------- | ------------------------------------------------------------- |
-| `PORT`         | `3000`        | Số nguyên 1–65535                                             |
-| `NODE_ENV`     | `development` | `development` \| `production` \| `test`                       |
-| `DATABASE_URL` | (bắt buộc)    | Dạng `postgresql://USER:PASSWORD@HOST:PORT/DB`                |
-| `LOG_LEVEL`    | `log`         | `fatal` \| `error` \| `warn` \| `log` \| `debug` \| `verbose` |
+| Biến           | Mặc định      | Kiểm tra                                                               |
+| -------------- | ------------- | ---------------------------------------------------------------------- |
+| `PORT`         | `3000`        | Số nguyên 1–65535                                                      |
+| `NODE_ENV`     | `development` | `development` \| `production` \| `test`                                |
+| `DATABASE_URL` | (bắt buộc)    | Dạng `postgresql://USER:PASSWORD@HOST:PORT/DB`                         |
+| `JWT_SECRET`   | (bắt buộc)    | ≥ 32 ký tự; production không được dùng khoá dev của `.env.development` |
+| `LOG_LEVEL`    | `log`         | `fatal` \| `error` \| `warn` \| `log` \| `debug` \| `verbose`          |
 
-Sai giá trị thì ứng dụng dừng ngay khi khởi động. Các biến khác (JWT_SECRET…) được dùng từ các task sau.
+Sai giá trị thì ứng dụng dừng ngay khi khởi động.
 
 `npm run start:dev` và `npm test` tự đọc `../.env.development` rồi `../.env` (biến đã có trong môi trường được giữ nguyên). `npm start` (production) chỉ dùng biến môi trường.
 
@@ -148,7 +149,7 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
   ```
 
 - Mỗi request ghi một dòng khi kết thúc (method, đường dẫn, status, thời gian xử lý). Không ghi query string, header hay body.
-- Mọi log trong request tự kèm `requestId`; `tenantId`, `userId` được thêm khi request đã xác thực (gắn vào request context ở TASK-047, qua `getRequestContext()`).
+- Mọi log trong request tự kèm `requestId`; `tenantId`, `userId` được thêm khi request đã xác thực (`JwtAuthGuard` gắn vào request context, đọc qua `getRequestContext()`).
 - Ghi log trong code: `private readonly logger = new Logger(TenService.name)`, dữ liệu kèm theo truyền dạng object: `this.logger.log('Đã duyệt BĐS', { propertyId })`.
 - Trường nhạy cảm (`password`, `token`, `accessToken`, `refreshToken`, `authorization`, `cookie`, `secret`…) trong object log được thay bằng `[REDACTED]`. Không đưa dữ liệu nhạy cảm vào câu log dạng chuỗi.
 - Lỗi 500 ghi mức `error` kèm stack; client chỉ nhận câu thông báo chung.
@@ -187,7 +188,7 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - `identifier` có `@` thì tìm theo email (không phân biệt hoa thường), còn lại tìm theo số điện thoại.
 - Sai email/SĐT/mật khẩu, hoặc tài khoản đã xoá → 401 `UNAUTHENTICATED`, luôn cùng một câu thông báo để không lộ tài khoản nào tồn tại. Khi không có tài khoản vẫn chạy so mật khẩu giả để thời gian phản hồi tương đương.
 - Đúng mật khẩu nhưng tài khoản bị khoá/ngừng hoạt động, hoặc công ty bị tạm ngưng → 403 `FORBIDDEN`.
-- Thành công → 200 `{ user: { id, tenantId, fullName, email, phone } }` và ghi `last_login_at`. Access/refresh token sẽ được thêm vào response ở TASK-039/040.
+- Thành công → 200 `{ accessToken, expiresIn, user: { id, tenantId, fullName, email, phone } }` và ghi `last_login_at`. Refresh token thêm ở TASK-040.
 
 ## Mật khẩu (TASK-038)
 
@@ -197,3 +198,11 @@ Controller chỉ trả dữ liệu; `ResponseInterceptor` (`src/common/response/
 - Mật khẩu được chuẩn hoá Unicode NFKC trước khi băm/so, để mật khẩu tiếng Việt có dấu gõ từ bộ gõ khác nhau vẫn khớp. Seed (`database/src/seed.ts`) chuẩn hoá giống vậy.
 - Độ dài 8–128 ký tự khi đăng ký.
 - Đổi `ARGON2_OPTIONS` thì mật khẩu cũ được băm lại tự động lần đăng nhập thành công tiếp theo (`needsRehash`).
+
+## Access token & xác thực (TASK-039)
+
+- Đăng nhập trả `accessToken` (JWT HS256, ký bằng `JWT_SECRET`, sống 15 phút, `expiresIn` = 900 giây). Token chỉ chứa `sub` (user id), `tid` (tenant id, null với tài khoản nền tảng), `iat`, `exp`; không chứa permission (phase0/02-ARCHITECTURE.md).
+- `JwtAuthGuard` chạy toàn cục: **mọi route cần đăng nhập** (`Authorization: Bearer <accessToken>`), trừ route đánh dấu `@Public()` (đăng ký, đăng nhập, health check). Route mới mặc định được bảo vệ.
+- Token thiếu, sai chữ ký, sai thuật toán (chỉ nhận HS256, từ chối `none`), thiếu `sub`/`tid` → 401 `UNAUTHENTICATED`. Token hết hạn → 401 `TOKEN_EXPIRED` (client gọi refresh, TASK-040).
+- Token hợp lệ → `req.user = { userId, tenantId }` và request context có `userId`/`tenantId`. tenantId chỉ lấy từ token, không bao giờ từ body/query.
+- Guard chỉ kiểm token; kiểm user/công ty còn hoạt động và quyền làm ở TASK-045–047.

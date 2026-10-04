@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 
 import { AppException } from '../common/errors/app.exception.js';
 import { ErrorCode } from '../common/errors/error-code.js';
+import { ACCESS_TOKEN_TTL_SECONDS, AccessTokenService } from './access-token.service.js';
 import type { LoginDto } from './dto/login.dto.js';
 import { hashPassword, needsRehash, verifyPassword } from './password.js';
 
@@ -15,6 +16,9 @@ export interface LoginUser {
 }
 
 export interface LoginResult {
+  accessToken: string;
+  /** Số giây access token còn hiệu lực. */
+  expiresIn: number;
   user: LoginUser;
 }
 
@@ -37,12 +41,15 @@ export class LoginService {
   /** Băm giả dùng khi không tìm thấy user, để thời gian phản hồi giống khi sai mật khẩu. */
   private readonly dummyHash: Promise<string> = hashPassword('khong-co-tai-khoan-nay');
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly accessTokens: AccessTokenService,
+  ) {}
 
   /**
    * Kiểm tra thông tin đăng nhập. Sai email/SĐT hoặc mật khẩu → 401 cùng một câu thông báo.
    * Đúng mật khẩu nhưng tài khoản hoặc công ty không hoạt động → 403.
-   * Token (access/refresh) được cấp ở TASK-039/040.
+   * Thành công → access token (TASK-039); refresh token thêm ở TASK-040.
    */
   async login(dto: LoginDto): Promise<LoginResult> {
     const user = await this.findUser(dto.identifier);
@@ -66,7 +73,10 @@ export class LoginService {
       `UPDATE users SET last_login_at = now(), password_hash = COALESCE($2, password_hash) WHERE id = $1`,
       [user.id, newHash],
     );
+    const accessToken = await this.accessTokens.sign({ userId: user.id, tenantId: user.tenant_id });
     return {
+      accessToken,
+      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
       user: {
         id: user.id,
         tenantId: user.tenant_id,

@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 
 import { createApp } from '../src/app.factory.js';
+import { Public } from '../src/auth/public.decorator.js';
 import { AppModule } from '../src/app.module.js';
 import { Paginated } from '../src/common/response/paginated.js';
 import { PaginationQueryDto } from '../src/common/response/pagination-query.dto.js';
@@ -24,6 +25,7 @@ import { useTestDatabase } from './support/test-database.js';
 const ITEMS = Array.from({ length: 45 }, (_, index) => ({ id: index + 1 }));
 
 /** Controller chỉ dùng cho test: trả các loại kết quả khác nhau. */
+@Public()
 @Controller('test-response')
 class ResponseController {
   @Get('object')

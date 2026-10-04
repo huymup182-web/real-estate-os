@@ -16,6 +16,7 @@ import {
 import { DataSource } from 'typeorm';
 
 import { createApp } from '../src/app.factory.js';
+import { Public } from '../src/auth/public.decorator.js';
 import { AppModule } from '../src/app.module.js';
 import { AppException } from '../src/common/errors/app.exception.js';
 import { ErrorCode } from '../src/common/errors/error-code.js';
@@ -23,6 +24,7 @@ import { MissingTenantError } from '../src/database/tenant.repository.js';
 import { useTestDatabase } from './support/test-database.js';
 
 /** Controller chỉ dùng cho test: mỗi route ném một loại lỗi. */
+@Public()
 @Controller('test-errors')
 class ThrowingController {
   constructor(private readonly dataSource: DataSource) {}
