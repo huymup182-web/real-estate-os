@@ -465,4 +465,5 @@ Luật:
 
 - `GET /api/v1/properties?q=…` (tối đa 200 ký tự, kèm phân trang như cũ): ra BĐS có đúng mã (`BDS-000123`, không phân biệt hoa thường) hoặc có mọi từ trong tiêu đề, mô tả, địa chỉ. Gõ có dấu hay không dấu đều được (`immutable_unaccent` + `search_vector`, index GIN); từ cuối tìm theo tiền tố ("vinh ha" ra "Vĩnh Hải"). Tối đa 10 từ.
 - Vẫn theo phạm vi xem như danh sách thường. Địa chỉ chi tiết chỉ dùng để tìm với BĐS trong phạm vi `property.view_owner_contact` của user; BĐS khác phải khớp tiêu đề hoặc mô tả.
+- Lọc giá (TASK-065): `priceMin`, `priceMax` (số nguyên đồng, ≥ 0, gồm cả hai đầu), dùng riêng hoặc kèm `q`; `priceMin > priceMax`, giá âm hoặc không phải số nguyên → 400.
 - `src/search`: `PropertySearchQueryDto` (bộ lọc dùng chung cho saved search, các bộ lọc khác thêm ở TASK-065..072), `keywordTsQuery()`.

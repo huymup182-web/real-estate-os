@@ -1,5 +1,5 @@
-import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Max, Min, MaxLength } from 'class-validator';
 
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { MAX_KEYWORD_LENGTH } from './keyword.js';
@@ -18,4 +18,20 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
   @IsString({ message: 'q phải là chuỗi' })
   @MaxLength(MAX_KEYWORD_LENGTH, { message: `q tối đa ${MAX_KEYWORD_LENGTH} ký tự` })
   q?: string;
+
+  /** Giá thấp nhất, đồng (gồm cả giá này). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'priceMin phải là số nguyên (đồng)' })
+  @Min(0, { message: 'priceMin không được âm' })
+  @Max(Number.MAX_SAFE_INTEGER)
+  priceMin?: number;
+
+  /** Giá cao nhất, đồng (gồm cả giá này). Phải ≥ priceMin. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'priceMax phải là số nguyên (đồng)' })
+  @Min(0, { message: 'priceMax không được âm' })
+  @Max(Number.MAX_SAFE_INTEGER)
+  priceMax?: number;
 }

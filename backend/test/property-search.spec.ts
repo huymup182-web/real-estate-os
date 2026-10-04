@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm BĐS theo từ khoá GET /api/v1/properties?q=', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties?q=&priceMin=&priceMax=', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -192,10 +192,14 @@ describe('Tìm BĐS theo từ khoá GET /api/v1/properties?q=', () => {
     return ((await response.json()) as { data: Detail & { code: string } }).data;
   }
 
-  async function search(q: string, user = 'agent1'): Promise<{ ids: string[]; total: number }> {
+  async function search(
+    q: string,
+    user = 'agent1',
+    extra = '',
+  ): Promise<{ ids: string[]; total: number }> {
     const response = await request(
       'GET',
-      `/properties?pageSize=100&q=${encodeURIComponent(q)}`,
+      `/properties?pageSize=100&q=${encodeURIComponent(q)}${extra}`,
       undefined,
       tokens[user],
     );
@@ -290,5 +294,56 @@ describe('Tìm BĐS theo từ khoá GET /api/v1/properties?q=', () => {
     assert.equal(long.status, 400);
     const twice = await request('GET', '/properties?q=a&q=b', undefined, tokens['agent1']);
     assert.equal(twice.status, 400);
+  });
+
+  it('lọc giá: priceMin, priceMax gồm cả hai đầu, dùng riêng hoặc kèm từ khoá', async () => {
+    const word = tag();
+    const cheap = await createProperty({ title: `Nhà ${word}`, price: 1_000_000_000 });
+    const middle = await createProperty({ title: `Nhà ${word}`, price: 3_000_000_000 });
+    const expensive = await createProperty({ title: `Nhà ${word}`, price: 9_000_000_000 });
+    assert.deepEqual((await search(word, 'agent1', '&priceMin=3000000000')).ids, [
+      expensive.id,
+      middle.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&priceMax=3000000000')).ids, [
+      middle.id,
+      cheap.id,
+    ]);
+    assert.deepEqual(
+      (await search(word, 'agent1', '&priceMin=1000000000&priceMax=3000000000')).ids,
+      [middle.id, cheap.id],
+    );
+    assert.deepEqual(
+      (await search(word, 'agent1', '&priceMin=3000000000&priceMax=3000000000')).ids,
+      [middle.id],
+    );
+    assert.deepEqual((await search(word, 'agent1', '&priceMin=9000000001')).ids, []);
+    const all = await request(
+      'GET',
+      '/properties?pageSize=100&priceMin=8999999999&priceMax=9000000000',
+      undefined,
+      tokens['agent1'],
+    );
+    const body = (await all.json()) as { data: { id: string; price: number }[] };
+    assert.ok(body.data.some((item) => item.id === expensive.id));
+    assert.ok(body.data.every((item) => item.price === 9_000_000_000));
+  });
+
+  it('giá sai: âm, không phải số nguyên, priceMin > priceMax → 400', async () => {
+    for (const query of [
+      'priceMin=-1',
+      'priceMax=abc',
+      'priceMin=1.5',
+      'priceMin=99999999999999999999',
+      'priceMin=5&priceMax=4',
+    ]) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('price')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
   });
 });
