@@ -24,7 +24,12 @@ import { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
-import { type Actor, PropertiesService, type PropertyScopes } from './properties.service.js';
+import {
+  type Actor,
+  PropertiesService,
+  type PropertyScopes,
+  type PropertyViewStats,
+} from './properties.service.js';
 import type {
   PropertyDetailResponse,
   PropertyListItem,
@@ -117,15 +122,32 @@ export class PropertiesController {
   /**
    * `GET /api/v1/properties/:id` → chi tiết BĐS (TASK-050). Cần quyền `property.view`; không xem được → 404.
    * Địa chỉ chi tiết, chủ nhà chỉ có khi được xem liên hệ chủ nhà (`property.view_owner_contact`).
+   * Mỗi lần xem thành công ghi một lượt xem (TASK-060).
    */
   @Get(':id')
   @RequirePermission('property.view')
-  findOne(
+  async findOne(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
     @Param('id', ParseUuidPipe) id: string,
   ): Promise<PropertyDetailResponse> {
-    return this.properties.findOne(actorOf(tenantId, req.user), id, scopesOf(req.user));
+    const actor = actorOf(tenantId, req.user);
+    const detail = await this.properties.findOne(actor, id, scopesOf(req.user));
+    await this.properties.recordView(actor, id);
+    return detail;
+  }
+
+  /**
+   * `GET /api/v1/properties/:id/views` → thống kê lượt xem (TASK-060). Chỉ người sửa được BĐS xem được.
+   */
+  @Get(':id/views')
+  @RequirePermission('property.view')
+  viewStats(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+  ): Promise<PropertyViewStats> {
+    return this.properties.viewStats(actorOf(tenantId, req.user), id, scopesOf(req.user));
   }
 
   /**

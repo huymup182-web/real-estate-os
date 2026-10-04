@@ -50,6 +50,17 @@ interface LocationInput {
   districtId?: string | null;
 }
 
+/** Cùng một người xem lại BĐS trong khoảng này (phút) chỉ tính một lượt (TASK-060). */
+export const VIEW_DEDUP_MINUTES = 30;
+
+/** Thống kê lượt xem BĐS (TASK-060). */
+export interface PropertyViewStats {
+  totalViews: number;
+  uniqueViewers: number;
+  last7DaysViews: number;
+  lastViewedAt: Date | null;
+}
+
 /** Cờ "user đã lưu BĐS `p` vào yêu thích". */
 const IS_FAVORITE = `EXISTS (SELECT 1 FROM property_favorites fav
   WHERE fav.property_id = p.id AND fav.tenant_id = p.tenant_id AND fav.user_id = :scopeUserId)`;
@@ -197,6 +208,44 @@ export class PropertiesService {
       `DELETE FROM property_favorites WHERE tenant_id = $1 AND user_id = $2 AND property_id = $3`,
       [actor.tenantId, actor.userId, id],
     );
+  }
+
+  /**
+   * Ghi lượt xem chi tiết BĐS (TASK-060). Cùng một người mở lại trong 30 phút chỉ tính một lần, để tải
+   * lại trang không làm tăng số liệu. Gọi sau khi đã đọc được chi tiết (BĐS xem được).
+   */
+  async recordView(actor: Actor, id: string): Promise<void> {
+    await this.dataSource.query(
+      `INSERT INTO property_views (tenant_id, property_id, user_id)
+       SELECT $1, $2, $3
+        WHERE NOT EXISTS (
+          SELECT 1 FROM property_views
+           WHERE tenant_id = $1 AND property_id = $2 AND user_id = $3
+             AND viewed_at > now() - make_interval(mins => $4))`,
+      [actor.tenantId, id, actor.userId, VIEW_DEDUP_MINUTES],
+    );
+  }
+
+  /**
+   * Thống kê lượt xem BĐS (TASK-060): tổng, số người xem khác nhau, 7 ngày gần nhất, lần xem gần nhất.
+   * Chỉ người sửa được BĐS (phụ trách và cấp quản lý trong phạm vi) xem được: không xem được BĐS → 404,
+   * ngoài phạm vi `property.edit` → 403.
+   */
+  async viewStats(actor: Actor, id: string, scopes: PropertyScopes): Promise<PropertyViewStats> {
+    const { edit } = await this.scopeFlags(actor, id, scopes, { edit: scopes.edit });
+    if (!edit) {
+      throw new AppException(ErrorCode.FORBIDDEN, 'Không có quyền xem thống kê lượt xem BĐS này');
+    }
+    const [row] = (await this.dataSource.query(
+      `SELECT COUNT(*)::int AS "totalViews",
+              COUNT(DISTINCT user_id)::int AS "uniqueViewers",
+              (COUNT(*) FILTER (WHERE viewed_at > now() - interval '7 days'))::int AS "last7DaysViews",
+              MAX(viewed_at) AS "lastViewedAt"
+         FROM property_views
+        WHERE tenant_id = $1 AND property_id = $2`,
+      [actor.tenantId, id],
+    )) as PropertyViewStats[];
+    return row ?? { totalViews: 0, uniqueViewers: 0, last7DaysViews: 0, lastViewedAt: null };
   }
 
   private async list(

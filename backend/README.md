@@ -437,3 +437,8 @@ Luật:
 - `GET /api/v1/properties/favorites?page=1&pageSize=20` → BĐS yêu thích, mới lưu trước, cùng dạng với danh sách BĐS. Chỉ gồm BĐS user vẫn xem được: BĐS đã xoá, bị ẩn hay ra khỏi phạm vi xem thì không hiện (hiện lại khi xem được lại).
 - Chi tiết và danh sách BĐS có thêm `isFavorite` theo người đang xem.
 - Cả ba API cần `property.view`. Yêu thích là của riêng từng user, người khác không thấy.
+
+## Lượt xem BĐS (TASK-060)
+
+- Mỗi lần `GET /api/v1/properties/:id` thành công ghi một lượt xem vào `property_views`. Cùng một người mở lại trong 30 phút chỉ tính một lần. Sửa, đổi trạng thái, danh sách, mở thất bại (404) không ghi.
+- `GET /api/v1/properties/:id/views` → `{ totalViews, uniqueViewers, last7DaysViews, lastViewedAt }`. Chỉ người sửa được BĐS (phụ trách, cấp quản lý trong phạm vi `property.edit`) xem được: ngoài phạm vi → 403, không xem được BĐS → 404.
