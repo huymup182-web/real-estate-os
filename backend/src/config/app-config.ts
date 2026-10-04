@@ -14,6 +14,22 @@ export interface AppConfig {
   jwtSecret: string;
   /** null khi chưa cấu hình SMTP (chỉ cho phép ngoài production): email không được gửi. */
   mail: MailConfig | null;
+  /** null khi chưa cấu hình object storage (chỉ cho phép ngoài production): không upload ảnh được. */
+  storage: StorageConfig | null;
+}
+
+/** Object storage S3 / Cloudflare R2 / MinIO lưu ảnh BĐS (TASK-057). */
+export interface StorageConfig {
+  /** Endpoint S3-compatible (R2, MinIO); null = AWS S3 theo region. */
+  endpoint: string | null;
+  region: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  /** true với MinIO: URL dạng endpoint/bucket/key thay vì bucket.endpoint/key. */
+  forcePathStyle: boolean;
+  /** Địa chỉ CDN/public đọc ảnh, vd https://cdn.example.com; null = cấp link đọc có hạn. */
+  publicUrl: string | null;
 }
 
 /** Máy chủ SMTP gửi email (mã đặt lại mật khẩu, TASK-042). */
@@ -111,6 +127,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: loadLogLevel(env),
     jwtSecret,
     mail: loadMailConfig(env, nodeEnv),
+    storage: loadStorageConfig(env, nodeEnv),
   };
 }
 
@@ -147,4 +164,54 @@ function loadMailConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): MailConfig | 
   }
 
   return { host, port, secure: rawSecure === 'true', user, password, from };
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/** Object storage bắt buộc ở production; môi trường khác thiếu STORAGE_BUCKET thì không upload ảnh. */
+function loadStorageConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): StorageConfig | null {
+  const bucket = env['STORAGE_BUCKET'];
+  if (!bucket) {
+    if (nodeEnv === 'production') {
+      throw new Error('Thiếu STORAGE_BUCKET (xem docs/environment.md)');
+    }
+    return null;
+  }
+
+  const accessKeyId = env['STORAGE_ACCESS_KEY_ID'];
+  const secretAccessKey = env['STORAGE_SECRET_ACCESS_KEY'];
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error('Thiếu STORAGE_ACCESS_KEY_ID hoặc STORAGE_SECRET_ACCESS_KEY');
+  }
+
+  const endpoint = env['STORAGE_ENDPOINT'] || null;
+  if (endpoint !== null && !isHttpUrl(endpoint)) {
+    throw new Error(`STORAGE_ENDPOINT không hợp lệ: "${endpoint}" (cần http:// hoặc https://)`);
+  }
+  const publicUrl = env['STORAGE_PUBLIC_URL'] || null;
+  if (publicUrl !== null && !isHttpUrl(publicUrl)) {
+    throw new Error(`STORAGE_PUBLIC_URL không hợp lệ: "${publicUrl}" (cần http:// hoặc https://)`);
+  }
+
+  const rawPathStyle = env['STORAGE_FORCE_PATH_STYLE'] ?? 'false';
+  if (rawPathStyle !== 'true' && rawPathStyle !== 'false') {
+    throw new Error(`STORAGE_FORCE_PATH_STYLE không hợp lệ: "${rawPathStyle}" (cần true | false)`);
+  }
+
+  return {
+    endpoint,
+    region: env['STORAGE_REGION'] || 'auto',
+    bucket,
+    accessKeyId,
+    secretAccessKey,
+    forcePathStyle: rawPathStyle === 'true',
+    publicUrl: publicUrl?.replace(/\/+$/, '') ?? null,
+  };
 }

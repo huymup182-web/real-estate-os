@@ -32,7 +32,7 @@ import type {
 } from './property.response.js';
 
 /** Phạm vi các quyền BĐS của user (route đã có @RequirePermission nên quyền của route chắc chắn có). */
-function scopesOf(user: RequestUser): PropertyScopes {
+export function scopesOf(user: RequestUser): PropertyScopes {
   return {
     view: user.permissions['property.view'],
     edit: user.permissions['property.edit'],
@@ -42,7 +42,7 @@ function scopesOf(user: RequestUser): PropertyScopes {
   };
 }
 
-function actorOf(tenantId: string, user: AuthenticatedUser): Actor {
+export function actorOf(tenantId: string, user: AuthenticatedUser): Actor {
   return { tenantId, userId: user.userId };
 }
 

@@ -5,6 +5,11 @@ import { loadAppConfig } from '../src/config/app-config.js';
 
 const DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/real_estate_os';
 const JWT_SECRET = 'khoa-test-du-dai-it-nhat-32-ky-tu-abc';
+const STORAGE = {
+  STORAGE_BUCKET: 'anh-bds',
+  STORAGE_ACCESS_KEY_ID: 'access',
+  STORAGE_SECRET_ACCESS_KEY: 'secret',
+};
 
 describe('loadAppConfig', () => {
   it('mặc định cổng 3000, môi trường development', () => {
@@ -15,6 +20,7 @@ describe('loadAppConfig', () => {
       logLevel: 'log',
       jwtSecret: JWT_SECRET,
       mail: null,
+      storage: null,
     });
   });
 
@@ -26,6 +32,7 @@ describe('loadAppConfig', () => {
       JWT_SECRET,
       SMTP_HOST: 'smtp.example.com',
       MAIL_FROM: 'no-reply@example.com',
+      ...STORAGE,
     });
     assert.equal(config.port, 8080);
     assert.equal(config.nodeEnv, 'production');
@@ -133,6 +140,66 @@ describe('loadAppConfig', () => {
     assert.throws(
       () => loadAppConfig({ ...base, SMTP_USER: 'user' }),
       /SMTP_USER và SMTP_PASSWORD/,
+    );
+  });
+
+  it('đọc cấu hình object storage; mặc định region auto, không path-style, link đọc có hạn', () => {
+    assert.deepEqual(loadAppConfig({ DATABASE_URL, JWT_SECRET, ...STORAGE }).storage, {
+      endpoint: null,
+      region: 'auto',
+      bucket: 'anh-bds',
+      accessKeyId: 'access',
+      secretAccessKey: 'secret',
+      forcePathStyle: false,
+      publicUrl: null,
+    });
+    assert.deepEqual(
+      loadAppConfig({
+        DATABASE_URL,
+        JWT_SECRET,
+        ...STORAGE,
+        STORAGE_ENDPOINT: 'http://localhost:9000',
+        STORAGE_REGION: 'us-east-1',
+        STORAGE_FORCE_PATH_STYLE: 'true',
+        STORAGE_PUBLIC_URL: 'https://cdn.example.com/',
+      }).storage,
+      {
+        endpoint: 'http://localhost:9000',
+        region: 'us-east-1',
+        bucket: 'anh-bds',
+        accessKeyId: 'access',
+        secretAccessKey: 'secret',
+        forcePathStyle: true,
+        publicUrl: 'https://cdn.example.com',
+      },
+    );
+  });
+
+  it('object storage: bắt buộc ở production, từ chối cấu hình sai', () => {
+    const production = {
+      DATABASE_URL,
+      JWT_SECRET,
+      NODE_ENV: 'production',
+      SMTP_HOST: 'smtp.example.com',
+      MAIL_FROM: 'a@b.vn',
+    };
+    assert.throws(() => loadAppConfig(production), /Thiếu STORAGE_BUCKET/);
+    const base = { DATABASE_URL, JWT_SECRET, ...STORAGE };
+    assert.throws(
+      () => loadAppConfig({ ...base, STORAGE_SECRET_ACCESS_KEY: '' }),
+      /Thiếu STORAGE_ACCESS_KEY_ID hoặc STORAGE_SECRET_ACCESS_KEY/,
+    );
+    assert.throws(
+      () => loadAppConfig({ ...base, STORAGE_ENDPOINT: 'localhost:9000' }),
+      /STORAGE_ENDPOINT không hợp lệ/,
+    );
+    assert.throws(
+      () => loadAppConfig({ ...base, STORAGE_PUBLIC_URL: 'ftp://cdn' }),
+      /STORAGE_PUBLIC_URL không hợp lệ/,
+    );
+    assert.throws(
+      () => loadAppConfig({ ...base, STORAGE_FORCE_PATH_STYLE: 'yes' }),
+      /STORAGE_FORCE_PATH_STYLE không hợp lệ/,
     );
   });
 });
