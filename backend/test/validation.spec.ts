@@ -128,8 +128,9 @@ describe('Kiểm tra dữ liệu request', () => {
       address: { street: 'Lê Lợi' },
     });
     assert.equal(result.status, 201);
-    assert.equal(result.body['isDto'], true);
-    assert.deepEqual(result.body['dto'], {
+    const data = result.body['data'] as { isDto: boolean; dto: unknown };
+    assert.equal(data.isDto, true);
+    assert.deepEqual(data.dto, {
       name: 'Nhà phố',
       price: 5000000000,
       address: { street: 'Lê Lợi' },
@@ -181,7 +182,7 @@ describe('Kiểm tra dữ liệu request', () => {
   it('query string được đổi kiểu theo DTO và kiểm tra', async () => {
     const ok = await fetch(`${baseUrl}?page=2`);
     assert.equal(ok.status, 200);
-    assert.deepEqual(await ok.json(), { page: 2, type: 'number' });
+    assert.deepEqual(((await ok.json()) as Body)['data'], { page: 2, type: 'number' });
 
     const bad = await fetch(`${baseUrl}?page=0`);
     const body = (await bad.json()) as Body;
@@ -196,7 +197,7 @@ describe('Kiểm tra dữ liệu request', () => {
     const id = '3f1e6c1a-2b7d-4c3e-9a51-0d2f6b8e7c41';
     const ok = await fetch(`${baseUrl}/${id}`);
     assert.equal(ok.status, 200);
-    assert.deepEqual(await ok.json(), { id });
+    assert.deepEqual(((await ok.json()) as Body)['data'], { id });
 
     const bad = await fetch(`${baseUrl}/khong-phai-uuid`);
     const body = (await bad.json()) as Body;
