@@ -64,3 +64,43 @@ export async function revertAll(dataSource: DataSource): Promise<void> {
     await dataSource.undoLastMigration();
   }
 }
+
+/** Chèn một dòng vào bảng (tên bảng là hằng số trong test) và trả về dòng vừa tạo. */
+export async function insertRow(
+  dataSource: DataSource,
+  table: string,
+  values: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const columns = Object.keys(values);
+  const params = columns.map((_, index) => `$${index + 1}`).join(', ');
+  const rows: Record<string, unknown>[] = await dataSource.query(
+    `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${params}) RETURNING *`,
+    Object.values(values),
+  );
+  const row = rows[0];
+  if (!row) {
+    throw new Error(`Không chèn được vào ${table}`);
+  }
+  return row;
+}
+
+export interface ColumnInfo {
+  column_name: string;
+  data_type: string;
+  is_nullable: 'YES' | 'NO';
+}
+
+/** Danh sách [tên cột, kiểu, có NULL] theo thứ tự cột. */
+export async function describeTable(
+  dataSource: DataSource,
+  table: string,
+): Promise<[string, string, string][]> {
+  const columns: ColumnInfo[] = await dataSource.query(
+    `SELECT column_name, data_type, is_nullable
+       FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = $1
+      ORDER BY ordinal_position`,
+    [table],
+  );
+  return columns.map((c) => [c.column_name, c.data_type, c.is_nullable]);
+}
