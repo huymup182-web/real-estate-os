@@ -47,3 +47,4 @@ Test xoá sạch schema của database test, nên chỉ chạy trên database c�
 | `1791094180612-enable-citext`              | TASK-008 | Extension `citext` (email không phân biệt hoa thường)             |
 | `1791094180613-create-users`               | TASK-008 | Bảng `users` (chưa có `department_id`, thêm ở TASK-011)           |
 | `1791094605215-create-roles`               | TASK-009 | Bảng `roles` và `user_roles` (trigger chặn gán role chéo công ty) |
+| `1791095078398-create-permissions`         | TASK-010 | Bảng `permissions` (kèm danh mục quyền MVP) và `role_permissions` |
