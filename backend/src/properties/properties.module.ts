@@ -14,6 +14,7 @@ import {
   SharedPropertiesController,
 } from './property-share-links.controller.js';
 import { PropertyShareLinksService } from './property-share-links.service.js';
+import { PropertyVerificationJob } from './property-verification.job.js';
 
 /** Module BĐS (Phase 4). */
 @Module({
@@ -30,6 +31,7 @@ import { PropertyShareLinksService } from './property-share-links.service.js';
     PropertyImagesService,
     PropertyDocumentsService,
     PropertyShareLinksService,
+    PropertyVerificationJob,
   ],
 })
 export class PropertiesModule {}

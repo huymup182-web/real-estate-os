@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AuthModule } from './auth/auth.module.js';
 import { CommonModule } from './common/common.module.js';
@@ -14,6 +15,7 @@ import { PropertiesModule } from './properties/properties.module.js';
 @Module({
   imports: [
     AppConfigModule,
+    ScheduleModule.forRoot(),
     DatabaseModule,
     CommonModule,
     HealthModule,
