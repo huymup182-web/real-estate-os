@@ -442,3 +442,10 @@ Luật:
 
 - Mỗi lần `GET /api/v1/properties/:id` thành công ghi một lượt xem vào `property_views`. Cùng một người mở lại trong 30 phút chỉ tính một lần. Sửa, đổi trạng thái, danh sách, mở thất bại (404) không ghi.
 - `GET /api/v1/properties/:id/views` → `{ totalViews, uniqueViewers, last7DaysViews, lastViewedAt }`. Chỉ người sửa được BĐS (phụ trách, cấp quản lý trong phạm vi `property.edit`) xem được: ngoài phạm vi → 403, không xem được BĐS → 404.
+
+## Chia sẻ BĐS cho khách (TASK-061)
+
+- `POST /api/v1/properties/:id/share-links` `{ expiresInDays? }` (1–90, mặc định 30) → 201 `{ id, token, expiresAt, createdAt }`. Ai xem được BĐS (`property.view`) thì tạo được; BĐS đang ẩn → 422. `token` chỉ trả lần này, database chỉ lưu SHA-256 của nó.
+- `GET /api/v1/properties/:id/share-links` → link của BĐS, mới trước (`viewCount`, `active`, `revokedAt`, không có token). Người sửa được BĐS thấy mọi link, người khác chỉ link mình tạo.
+- `DELETE /api/v1/properties/:id/share-links/:linkId` → 204, thu hồi. Người tạo link hoặc người sửa được BĐS; người khác → 403.
+- `GET /api/v1/shared-properties/:token` (không cần đăng nhập) → mã, tiêu đề, mô tả, loại, giá, diện tích, phòng, hướng, đường, pháp lý, tên tỉnh/quận/phường, ảnh và liên hệ của môi giới tạo link. Không trả chủ nhà, địa chỉ chi tiết, toạ độ, hoa hồng. Mỗi lần mở thành công tăng `viewCount`. Link sai, hết hạn, đã thu hồi, BĐS ẩn hoặc đã xoá, công ty tạm dừng, người tạo link bị khoá → 404.
