@@ -77,7 +77,8 @@ export class PropertiesController {
    * (TASK-064), `priceMin`/`priceMax` lọc giá (TASK-065),
    * `areaMin`/`areaMax` lọc diện tích (TASK-066),
    * `provinceId`/`districtId`/`wardId` lọc khu vực (TASK-067),
-   * `propertyType` lọc loại BĐS (TASK-068).
+   * `propertyType` lọc loại BĐS (TASK-068),
+   * `bedroomsMin`/`bedroomsMax`/`bathroomsMin`/`bathroomsMax` lọc số phòng (TASK-069).
    */
   @Get()
   @RequirePermission('property.view')

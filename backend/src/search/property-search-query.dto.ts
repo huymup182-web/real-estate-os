@@ -21,6 +21,9 @@ import { MAX_KEYWORD_LENGTH } from './keyword.js';
 const MAX_AREA = 9_999_999_999.99;
 const AREA_NUMBER = { maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false };
 
+/** Số phòng lớn nhất cột `bedrooms`/`bathrooms` nhận (smallint). */
+const MAX_ROOMS = 32_767;
+
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
@@ -112,4 +115,36 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
     message: `propertyType phải là một hoặc nhiều loại trong: ${PROPERTY_TYPES.join(', ')}`,
   })
   propertyType?: string[];
+
+  /** Số phòng ngủ ít nhất (gồm cả mốc này) (TASK-069). BĐS chưa ghi số phòng không khớp. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'bedroomsMin phải là số nguyên' })
+  @Min(0, { message: 'bedroomsMin không được âm' })
+  @Max(MAX_ROOMS, { message: `bedroomsMin tối đa ${MAX_ROOMS}` })
+  bedroomsMin?: number;
+
+  /** Số phòng ngủ nhiều nhất (gồm cả mốc này) Phải ≥ bedroomsMin. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'bedroomsMax phải là số nguyên' })
+  @Min(0, { message: 'bedroomsMax không được âm' })
+  @Max(MAX_ROOMS, { message: `bedroomsMax tối đa ${MAX_ROOMS}` })
+  bedroomsMax?: number;
+
+  /** Số phòng tắm ít nhất (gồm cả mốc này). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'bathroomsMin phải là số nguyên' })
+  @Min(0, { message: 'bathroomsMin không được âm' })
+  @Max(MAX_ROOMS, { message: `bathroomsMin tối đa ${MAX_ROOMS}` })
+  bathroomsMin?: number;
+
+  /** Số phòng tắm nhiều nhất (gồm cả mốc này) Phải ≥ bathroomsMin. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'bathroomsMax phải là số nguyên' })
+  @Min(0, { message: 'bathroomsMax không được âm' })
+  @Max(MAX_ROOMS, { message: `bathroomsMax tối đa ${MAX_ROOMS}` })
+  bathroomsMax?: number;
 }

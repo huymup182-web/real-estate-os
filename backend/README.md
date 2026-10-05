@@ -469,4 +469,5 @@ Luật:
 - Lọc diện tích (TASK-066): `areaMin`, `areaMax` (m², ≥ 0, tối đa 2 chữ số thập phân, gồm cả hai đầu); sai dạng hoặc `areaMin > areaMax` → 400. Các bộ lọc kết hợp với nhau bằng AND.
 - Lọc khu vực (TASK-067): `provinceId`, `districtId` (quận/huyện cũ trước 07/2025), `wardId` (UUID). Lọc theo bản đồ (bán kính, khung) chưa làm vì toạ độ là thông tin giới hạn theo `property.view_owner_contact`.
 - Lọc loại BĐS (TASK-068): `propertyType=HOUSE,APARTMENT` hoặc lặp tham số; khớp một trong các loại. Loại không có trong danh sách hoặc để trống → 400.
+- Lọc số phòng (TASK-069): `bedroomsMin`, `bedroomsMax`, `bathroomsMin`, `bathroomsMax` (số nguyên ≥ 0, gồm cả hai đầu). BĐS chưa ghi số phòng không khớp khi có bộ lọc đó. Sai dạng hoặc min > max → 400.
 - `src/search`: `PropertySearchQueryDto` (bộ lọc dùng chung cho saved search, các bộ lọc khác thêm ở TASK-065..072), `keywordTsQuery()`.
