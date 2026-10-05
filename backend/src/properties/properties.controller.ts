@@ -76,7 +76,8 @@ export class PropertiesController {
    * phân trang (TASK-051). BĐS HIDDEN chỉ hiện với người sửa được BĐS đó (TASK-054). `q` tìm theo từ khoá
    * (TASK-064), `priceMin`/`priceMax` lọc giá (TASK-065),
    * `areaMin`/`areaMax` lọc diện tích (TASK-066),
-   * `provinceId`/`districtId`/`wardId` lọc khu vực (TASK-067).
+   * `provinceId`/`districtId`/`wardId` lọc khu vực (TASK-067),
+   * `propertyType` lọc loại BĐS (TASK-068).
    */
   @Get()
   @RequirePermission('property.view')

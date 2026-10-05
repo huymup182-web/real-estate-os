@@ -359,6 +359,12 @@ export class PropertiesService {
     if (search?.wardId) {
       base = base.andWhere('p.wardId = :wardId', { wardId: search.wardId });
     }
+    // Lọc loại BĐS (TASK-068): khớp một trong các loại đã chọn.
+    if (search?.propertyType) {
+      base = base.andWhere('p.propertyType IN (:...propertyTypes)', {
+        propertyTypes: search.propertyType,
+      });
+    }
     if (favoritesOnly) {
       base = base.innerJoin(
         'property_favorites',
