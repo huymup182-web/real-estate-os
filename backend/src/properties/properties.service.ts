@@ -242,6 +242,16 @@ export class PropertiesService {
     ) {
       throw invalid([{ field: 'areaMax', message: 'areaMax phải lớn hơn hoặc bằng areaMin' }]);
     }
+    for (const [min, max] of [
+      ['bedroomsMin', 'bedroomsMax'],
+      ['bathroomsMin', 'bathroomsMax'],
+    ] as const) {
+      const low = query[min];
+      const high = query[max];
+      if (low !== undefined && high !== undefined && low > high) {
+        throw invalid([{ field: max, message: `${max} phải lớn hơn hoặc bằng ${min}` }]);
+      }
+    }
     return this.list(actor, query, scopes, false, query);
   }
 
@@ -364,6 +374,19 @@ export class PropertiesService {
       base = base.andWhere('p.propertyType IN (:...propertyTypes)', {
         propertyTypes: search.propertyType,
       });
+    }
+    // Lọc số phòng ngủ/phòng tắm (TASK-069): BĐS chưa ghi số phòng (NULL) không khớp.
+    if (search?.bedroomsMin !== undefined) {
+      base = base.andWhere('p.bedrooms >= :bedroomsMin', { bedroomsMin: search.bedroomsMin });
+    }
+    if (search?.bedroomsMax !== undefined) {
+      base = base.andWhere('p.bedrooms <= :bedroomsMax', { bedroomsMax: search.bedroomsMax });
+    }
+    if (search?.bathroomsMin !== undefined) {
+      base = base.andWhere('p.bathrooms >= :bathroomsMin', { bathroomsMin: search.bathroomsMin });
+    }
+    if (search?.bathroomsMax !== undefined) {
+      base = base.andWhere('p.bathrooms <= :bathroomsMax', { bathroomsMax: search.bathroomsMax });
     }
     if (favoritesOnly) {
       base = base.innerJoin(

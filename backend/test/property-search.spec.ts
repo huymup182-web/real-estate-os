@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -485,6 +485,52 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
       const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
       assert.ok(
         error.details.some((detail) => detail.field.startsWith('propertyType')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('lọc số phòng ngủ, phòng tắm gồm cả hai đầu; BĐS chưa ghi số phòng không khớp', async () => {
+    const word = tag();
+    const studio = await createProperty({ title: `Nhà ${word}`, bedrooms: 1, bathrooms: 1 });
+    const family = await createProperty({ title: `Nhà ${word}`, bedrooms: 3, bathrooms: 2 });
+    const villa = await createProperty({
+      title: `Nhà ${word}`,
+      bedrooms: 5,
+      bathrooms: 4,
+      price: 9_000_000_000,
+    });
+    const unknown = await createProperty({ title: `Nhà ${word}` });
+    assert.deepEqual((await search(word)).ids, [unknown.id, villa.id, family.id, studio.id]);
+    assert.deepEqual((await search(word, 'agent1', '&bedroomsMin=3')).ids, [villa.id, family.id]);
+    assert.deepEqual((await search(word, 'agent1', '&bedroomsMax=3')).ids, [family.id, studio.id]);
+    assert.deepEqual((await search(word, 'agent1', '&bedroomsMin=3&bedroomsMax=3')).ids, [
+      family.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&bathroomsMin=2&bathroomsMax=3')).ids, [
+      family.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&bathroomsMax=0')).ids, []);
+    assert.deepEqual(
+      (await search(word, 'agent1', '&bedroomsMin=2&priceMax=5000000000&propertyType=HOUSE')).ids,
+      [family.id],
+    );
+  });
+
+  it('số phòng sai: âm, không phải số nguyên, quá lớn, min > max → 400', async () => {
+    for (const query of [
+      'bedroomsMin=-1',
+      'bedroomsMax=2.5',
+      'bathroomsMin=abc',
+      'bathroomsMax=40000',
+      'bedroomsMin=4&bedroomsMax=3',
+      'bathroomsMin=2&bathroomsMax=1',
+    ]) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => /^b(ed|ath)rooms/.test(detail.field)),
         `${query}: ${JSON.stringify(error)}`,
       );
     }
