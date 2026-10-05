@@ -1,5 +1,8 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
+  IsArray,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -11,6 +14,7 @@ import {
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
+import { PROPERTY_TYPES } from '../properties/property-values.js';
 import { MAX_KEYWORD_LENGTH } from './keyword.js';
 
 /** Diện tích lớn nhất cột `properties.area` nhận (numeric(12, 2)). */
@@ -19,6 +23,25 @@ const AREA_NUMBER = { maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
+
+/**
+ * Danh sách trong query: `?x=A,B` hoặc `?x=A&x=B` → `['A', 'B']` (bỏ khoảng trắng, phần rỗng và trùng).
+ * Giá trị không phải chuỗi giữ nguyên để validator báo lỗi.
+ */
+const commaList = ({ value }: { value: unknown }): unknown => {
+  const parts = Array.isArray(value) ? value : [value];
+  if (!parts.every((part) => typeof part === 'string')) {
+    return value;
+  }
+  return [
+    ...new Set(
+      (parts as string[])
+        .flatMap((part) => part.split(','))
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    ),
+  ];
+};
 
 /**
  * Tham số tìm kiếm BĐS trên `GET /properties` (Phase 5, phase0/05-API-CONVENTIONS.md mục 5). Các bộ lọc
@@ -78,4 +101,15 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID('all', { message: 'wardId phải là UUID' })
   wardId?: string;
+
+  /** Loại BĐS (TASK-068), một hoặc nhiều loại: `?propertyType=HOUSE,APARTMENT`; khớp một trong các loại. */
+  @IsOptional()
+  @Transform(commaList)
+  @IsArray({ message: 'propertyType phải là danh sách loại BĐS' })
+  @ArrayNotEmpty({ message: 'propertyType không được để trống' })
+  @IsIn(PROPERTY_TYPES, {
+    each: true,
+    message: `propertyType phải là một hoặc nhiều loại trong: ${PROPERTY_TYPES.join(', ')}`,
+  })
+  propertyType?: string[];
 }

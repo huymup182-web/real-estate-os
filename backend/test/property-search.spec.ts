@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -441,6 +441,51 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
       assert.ok(
         error.details.some((detail) => detail.field === field),
         JSON.stringify(error),
+      );
+    }
+  });
+
+  it('lọc loại BĐS: một loại, nhiều loại (dấu phẩy hoặc lặp tham số), kết hợp bộ lọc khác', async () => {
+    const word = tag();
+    const house = await createProperty({ title: `Nhà ${word}`, propertyType: 'HOUSE' });
+    const apartment = await createProperty({
+      title: `Căn hộ ${word}`,
+      propertyType: 'APARTMENT',
+      price: 2_000_000_000,
+    });
+    const land = await createProperty({ title: `Đất ${word}`, propertyType: 'LAND' });
+    assert.deepEqual((await search(word, 'agent1', '&propertyType=HOUSE')).ids, [house.id]);
+    assert.deepEqual((await search(word, 'agent1', '&propertyType=HOUSE,LAND')).ids, [
+      land.id,
+      house.id,
+    ]);
+    assert.deepEqual(
+      (await search(word, 'agent1', '&propertyType=APARTMENT&propertyType=LAND')).ids,
+      [land.id, apartment.id],
+    );
+    assert.deepEqual((await search(word, 'agent1', '&propertyType= HOUSE , HOUSE ,')).ids, [
+      house.id,
+    ]);
+    assert.deepEqual(
+      (await search(word, 'agent1', '&propertyType=HOUSE,APARTMENT&priceMax=2000000000')).ids,
+      [apartment.id],
+    );
+    assert.deepEqual((await search(word, 'agent1', '&propertyType=VILLA')).ids, []);
+  });
+
+  it('loại BĐS sai hoặc rỗng → 400', async () => {
+    for (const query of [
+      'propertyType=CASTLE',
+      'propertyType=HOUSE,house',
+      'propertyType=',
+      'propertyType=,',
+    ]) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('propertyType')),
+        `${query}: ${JSON.stringify(error)}`,
       );
     }
   });
