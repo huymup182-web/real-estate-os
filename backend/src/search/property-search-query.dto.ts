@@ -14,7 +14,7 @@ import {
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
-import { PROPERTY_TYPES } from '../properties/property-values.js';
+import { LEGAL_STATUSES, PROPERTY_TYPES } from '../properties/property-values.js';
 import { MAX_KEYWORD_LENGTH } from './keyword.js';
 
 /** Diện tích lớn nhất cột `properties.area` nhận (numeric(12, 2)). */
@@ -147,4 +147,15 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
   @Min(0, { message: 'bathroomsMax không được âm' })
   @Max(MAX_ROOMS, { message: `bathroomsMax tối đa ${MAX_ROOMS}` })
   bathroomsMax?: number;
+
+  /** Pháp lý (TASK-070), một hoặc nhiều loại: `?legalStatus=PRIVATE_BOOK,SHARED_BOOK`; BĐS chưa ghi pháp lý không khớp. */
+  @IsOptional()
+  @Transform(commaList)
+  @IsArray({ message: 'legalStatus phải là danh sách tình trạng pháp lý' })
+  @ArrayNotEmpty({ message: 'legalStatus không được để trống' })
+  @IsIn(LEGAL_STATUSES, {
+    each: true,
+    message: `legalStatus phải là một hoặc nhiều giá trị trong: ${LEGAL_STATUSES.join(', ')}`,
+  })
+  legalStatus?: string[];
 }

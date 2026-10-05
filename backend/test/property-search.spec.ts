@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -531,6 +531,51 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
       const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
       assert.ok(
         error.details.some((detail) => /^b(ed|ath)rooms/.test(detail.field)),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('lọc pháp lý: một hoặc nhiều tình trạng, kết hợp bộ lọc khác; BĐS chưa ghi pháp lý không khớp', async () => {
+    const word = tag();
+    const pink = await createProperty({ title: `Nhà ${word}`, legalStatus: 'PRIVATE_BOOK' });
+    const shared = await createProperty({
+      title: `Nhà ${word}`,
+      legalStatus: 'SHARED_BOOK',
+      price: 1_500_000_000,
+    });
+    const paper = await createProperty({ title: `Nhà ${word}`, legalStatus: 'HANDWRITTEN' });
+    const unknown = await createProperty({ title: `Nhà ${word}` });
+    assert.deepEqual((await search(word)).ids, [unknown.id, paper.id, shared.id, pink.id]);
+    assert.deepEqual((await search(word, 'agent1', '&legalStatus=PRIVATE_BOOK')).ids, [pink.id]);
+    assert.deepEqual((await search(word, 'agent1', '&legalStatus=PRIVATE_BOOK,SHARED_BOOK')).ids, [
+      shared.id,
+      pink.id,
+    ]);
+    assert.deepEqual(
+      (await search(word, 'agent1', '&legalStatus=HANDWRITTEN&legalStatus=PRIVATE_BOOK')).ids,
+      [paper.id, pink.id],
+    );
+    assert.deepEqual(
+      (await search(word, 'agent1', '&legalStatus=PRIVATE_BOOK,SHARED_BOOK&priceMax=2000000000'))
+        .ids,
+      [shared.id],
+    );
+    assert.deepEqual((await search(word, 'agent1', '&legalStatus=OTHER')).ids, []);
+  });
+
+  it('pháp lý sai hoặc rỗng → 400', async () => {
+    for (const query of [
+      'legalStatus=RED_BOOK',
+      'legalStatus=private_book',
+      'legalStatus=',
+      'legalStatus=,',
+    ]) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('legalStatus')),
         `${query}: ${JSON.stringify(error)}`,
       );
     }
