@@ -394,6 +394,10 @@ export class PropertiesService {
         legalStatuses: search.legalStatus,
       });
     }
+    // Lọc hướng nhà (TASK-071): khớp một trong các hướng đã chọn; BĐS chưa ghi hướng không khớp.
+    if (search?.direction) {
+      base = base.andWhere('p.direction IN (:...directions)', { directions: search.direction });
+    }
     if (favoritesOnly) {
       base = base.innerJoin(
         'property_favorites',

@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -576,6 +576,44 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
       const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
       assert.ok(
         error.details.some((detail) => detail.field.startsWith('legalStatus')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('lọc hướng nhà: một hoặc nhiều hướng, kết hợp bộ lọc khác; BĐS chưa ghi hướng không khớp', async () => {
+    const word = tag();
+    const east = await createProperty({ title: `Nhà ${word}`, direction: 'E' });
+    const southEast = await createProperty({
+      title: `Nhà ${word}`,
+      direction: 'SE',
+      price: 1_500_000_000,
+    });
+    const west = await createProperty({ title: `Nhà ${word}`, direction: 'W' });
+    const unknown = await createProperty({ title: `Nhà ${word}` });
+    assert.deepEqual((await search(word)).ids, [unknown.id, west.id, southEast.id, east.id]);
+    assert.deepEqual((await search(word, 'agent1', '&direction=E')).ids, [east.id]);
+    assert.deepEqual((await search(word, 'agent1', '&direction=E,SE')).ids, [
+      southEast.id,
+      east.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&direction=W&direction=E')).ids, [
+      west.id,
+      east.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&direction=E,SE&priceMax=2000000000')).ids, [
+      southEast.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&direction=N')).ids, []);
+  });
+
+  it('hướng sai hoặc rỗng → 400', async () => {
+    for (const query of ['direction=EAST', 'direction=e', 'direction=', 'direction=,']) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('direction')),
         `${query}: ${JSON.stringify(error)}`,
       );
     }
