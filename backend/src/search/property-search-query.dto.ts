@@ -1,5 +1,14 @@
 import { Transform, Type } from 'class-transformer';
-import { IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { MAX_KEYWORD_LENGTH } from './keyword.js';
@@ -54,4 +63,19 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
   @Min(0, { message: 'areaMax không được âm' })
   @Max(MAX_AREA)
   areaMax?: number;
+
+  /** Tỉnh/thành (TASK-067). */
+  @IsOptional()
+  @IsUUID('all', { message: 'provinceId phải là UUID' })
+  provinceId?: string;
+
+  /** Quận/huyện cũ (trước 07/2025), cho BĐS còn ghi theo địa chỉ cũ. */
+  @IsOptional()
+  @IsUUID('all', { message: 'districtId phải là UUID' })
+  districtId?: string;
+
+  /** Phường/xã. */
+  @IsOptional()
+  @IsUUID('all', { message: 'wardId phải là UUID' })
+  wardId?: string;
 }

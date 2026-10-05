@@ -349,6 +349,16 @@ export class PropertiesService {
     if (search?.areaMax !== undefined) {
       base = base.andWhere('p.area <= :areaMax', { areaMax: search.areaMax });
     }
+    // Lọc khu vực (TASK-067): tỉnh, quận/huyện cũ, phường/xã của BĐS; nhiều điều kiện thì phải khớp hết.
+    if (search?.provinceId) {
+      base = base.andWhere('p.provinceId = :provinceId', { provinceId: search.provinceId });
+    }
+    if (search?.districtId) {
+      base = base.andWhere('p.districtId = :districtId', { districtId: search.districtId });
+    }
+    if (search?.wardId) {
+      base = base.andWhere('p.wardId = :wardId', { wardId: search.wardId });
+    }
     if (favoritesOnly) {
       base = base.innerJoin(
         'property_favorites',

@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -383,6 +383,64 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích)', (
       assert.ok(
         error.details.some((detail) => detail.field.startsWith('area')),
         `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('lọc khu vực: tỉnh, quận cũ, phường; kết hợp được với bộ lọc khác', async () => {
+    const word = tag();
+    const lamDong = await insertId(`INSERT INTO provinces (code, name) VALUES ('68', 'Lâm Đồng')`);
+    const daLat = await insertId(
+      `INSERT INTO wards (province_id, code, name) VALUES ($1, '24781', 'Xuân Hương - Đà Lạt')`,
+      [lamDong],
+    );
+    const phuocDong = await insertId(
+      `INSERT INTO wards (province_id, code, name) VALUES ($1, '22420', 'Phước Đồng')`,
+      [khanhHoa],
+    );
+    const inVinhHai = await createProperty({ title: `Nhà ${word}`, price: 5_000_000_000 });
+    const inPhuocDong = await createProperty({
+      title: `Nhà ${word}`,
+      districtId: undefined,
+      wardId: phuocDong,
+    });
+    const inDaLat = await createProperty({
+      title: `Nhà ${word}`,
+      provinceId: lamDong,
+      districtId: undefined,
+      wardId: daLat,
+    });
+    assert.deepEqual((await search(word, 'agent1', `&provinceId=${khanhHoa}`)).ids, [
+      inPhuocDong.id,
+      inVinhHai.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', `&provinceId=${lamDong}`)).ids, [inDaLat.id]);
+    assert.deepEqual((await search(word, 'agent1', `&districtId=${nhaTrang}`)).ids, [inVinhHai.id]);
+    assert.deepEqual((await search(word, 'agent1', `&wardId=${phuocDong}`)).ids, [inPhuocDong.id]);
+    assert.deepEqual(
+      (await search(word, 'agent1', `&provinceId=${lamDong}&wardId=${phuocDong}`)).ids,
+      [],
+      'phường không thuộc tỉnh thì không ra gì',
+    );
+    assert.deepEqual(
+      (await search(word, 'agent1', `&provinceId=${khanhHoa}&priceMin=4000000000`)).ids,
+      [inVinhHai.id],
+    );
+  });
+
+  it('id khu vực sai dạng → 400', async () => {
+    for (const field of ['provinceId', 'districtId', 'wardId']) {
+      const response = await request(
+        'GET',
+        `/properties?${field}=abc`,
+        undefined,
+        tokens['agent1'],
+      );
+      assert.equal(response.status, 400, field);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field === field),
+        JSON.stringify(error),
       );
     }
   });
