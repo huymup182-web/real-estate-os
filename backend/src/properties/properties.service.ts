@@ -235,6 +235,13 @@ export class PropertiesService {
     ) {
       throw invalid([{ field: 'priceMax', message: 'priceMax phải lớn hơn hoặc bằng priceMin' }]);
     }
+    if (
+      query.areaMin !== undefined &&
+      query.areaMax !== undefined &&
+      query.areaMin > query.areaMax
+    ) {
+      throw invalid([{ field: 'areaMax', message: 'areaMax phải lớn hơn hoặc bằng areaMin' }]);
+    }
     return this.list(actor, query, scopes, false, query);
   }
 
@@ -334,6 +341,13 @@ export class PropertiesService {
     }
     if (search?.priceMax !== undefined) {
       base = base.andWhere('p.price <= :priceMax', { priceMax: search.priceMax });
+    }
+    // Lọc diện tích (TASK-066), m², gồm cả hai đầu.
+    if (search?.areaMin !== undefined) {
+      base = base.andWhere('p.area >= :areaMin', { areaMin: search.areaMin });
+    }
+    if (search?.areaMax !== undefined) {
+      base = base.andWhere('p.area <= :areaMax', { areaMax: search.areaMax });
     }
     if (favoritesOnly) {
       base = base.innerJoin(
