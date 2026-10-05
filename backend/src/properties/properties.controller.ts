@@ -79,7 +79,8 @@ export class PropertiesController {
    * `provinceId`/`districtId`/`wardId` lọc khu vực (TASK-067),
    * `propertyType` lọc loại BĐS (TASK-068),
    * `bedroomsMin`/`bedroomsMax`/`bathroomsMin`/`bathroomsMax` lọc số phòng (TASK-069),
-   * `legalStatus` lọc pháp lý (TASK-070).
+   * `legalStatus` lọc pháp lý (TASK-070),
+   * `direction` lọc hướng nhà (TASK-071).
    */
   @Get()
   @RequirePermission('property.view')

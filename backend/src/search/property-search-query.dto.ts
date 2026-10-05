@@ -14,7 +14,7 @@ import {
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
-import { LEGAL_STATUSES, PROPERTY_TYPES } from '../properties/property-values.js';
+import { DIRECTIONS, LEGAL_STATUSES, PROPERTY_TYPES } from '../properties/property-values.js';
 import { MAX_KEYWORD_LENGTH } from './keyword.js';
 
 /** Diện tích lớn nhất cột `properties.area` nhận (numeric(12, 2)). */
@@ -158,4 +158,15 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
     message: `legalStatus phải là một hoặc nhiều giá trị trong: ${LEGAL_STATUSES.join(', ')}`,
   })
   legalStatus?: string[];
+
+  /** Hướng nhà (TASK-071), một hoặc nhiều hướng: `?direction=E,SE`; BĐS chưa ghi hướng không khớp. */
+  @IsOptional()
+  @Transform(commaList)
+  @IsArray({ message: 'direction phải là danh sách hướng' })
+  @ArrayNotEmpty({ message: 'direction không được để trống' })
+  @IsIn(DIRECTIONS, {
+    each: true,
+    message: `direction phải là một hoặc nhiều hướng trong: ${DIRECTIONS.join(', ')}`,
+  })
+  direction?: string[];
 }
