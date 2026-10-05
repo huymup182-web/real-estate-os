@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties?q=&priceMin=&priceMax=', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -342,6 +342,46 @@ describe('Tìm và lọc BĐS GET /api/v1/properties?q=&priceMin=&priceMax=', ()
       const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
       assert.ok(
         error.details.some((detail) => detail.field.startsWith('price')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('lọc diện tích: areaMin, areaMax (m², số lẻ) gồm cả hai đầu, kèm lọc giá và từ khoá', async () => {
+    const word = tag();
+    const small = await createProperty({ title: `Nhà ${word}`, area: 45.5 });
+    const medium = await createProperty({ title: `Nhà ${word}`, area: 80 });
+    const large = await createProperty({
+      title: `Nhà ${word}`,
+      area: 250.75,
+      price: 9_000_000_000,
+    });
+    assert.deepEqual((await search(word, 'agent1', '&areaMin=80')).ids, [large.id, medium.id]);
+    assert.deepEqual((await search(word, 'agent1', '&areaMax=45.5')).ids, [small.id]);
+    assert.deepEqual((await search(word, 'agent1', '&areaMin=45.51&areaMax=250.75')).ids, [
+      large.id,
+      medium.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&areaMin=80&priceMax=5000000000')).ids, [
+      medium.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&areaMin=250.76')).ids, []);
+  });
+
+  it('diện tích sai: âm, không phải số, quá 2 chữ số thập phân, areaMin > areaMax → 400', async () => {
+    for (const query of [
+      'areaMin=-1',
+      'areaMax=abc',
+      'areaMin=1.234',
+      'areaMax=Infinity',
+      'areaMin=99999999999',
+      'areaMin=100&areaMax=99.99',
+    ]) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('area')),
         `${query}: ${JSON.stringify(error)}`,
       );
     }
