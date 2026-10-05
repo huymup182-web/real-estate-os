@@ -470,4 +470,5 @@ Luật:
 - Lọc khu vực (TASK-067): `provinceId`, `districtId` (quận/huyện cũ trước 07/2025), `wardId` (UUID). Lọc theo bản đồ (bán kính, khung) chưa làm vì toạ độ là thông tin giới hạn theo `property.view_owner_contact`.
 - Lọc loại BĐS (TASK-068): `propertyType=HOUSE,APARTMENT` hoặc lặp tham số; khớp một trong các loại. Loại không có trong danh sách hoặc để trống → 400.
 - Lọc số phòng (TASK-069): `bedroomsMin`, `bedroomsMax`, `bathroomsMin`, `bathroomsMax` (số nguyên ≥ 0, gồm cả hai đầu). BĐS chưa ghi số phòng không khớp khi có bộ lọc đó. Sai dạng hoặc min > max → 400.
+- Lọc pháp lý (TASK-070): `legalStatus=PRIVATE_BOOK,SHARED_BOOK` hoặc lặp tham số; khớp một trong các giá trị (`PRIVATE_BOOK`, `SHARED_BOOK`, `PENDING_BOOK`, `SALE_CONTRACT`, `HANDWRITTEN`, `OTHER`). BĐS chưa ghi pháp lý không khớp. Giá trị lạ hoặc để trống → 400.
 - `src/search`: `PropertySearchQueryDto` (bộ lọc dùng chung cho saved search, các bộ lọc khác thêm ở TASK-065..072), `keywordTsQuery()`.

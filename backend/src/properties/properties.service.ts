@@ -388,6 +388,12 @@ export class PropertiesService {
     if (search?.bathroomsMax !== undefined) {
       base = base.andWhere('p.bathrooms <= :bathroomsMax', { bathroomsMax: search.bathroomsMax });
     }
+    // Lọc pháp lý (TASK-070): khớp một trong các tình trạng đã chọn; BĐS chưa ghi pháp lý không khớp.
+    if (search?.legalStatus) {
+      base = base.andWhere('p.legalStatus IN (:...legalStatuses)', {
+        legalStatuses: search.legalStatus,
+      });
+    }
     if (favoritesOnly) {
       base = base.innerJoin(
         'property_favorites',
