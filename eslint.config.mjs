@@ -15,6 +15,7 @@ export default tseslint.config(
       '**/coverage/**',
       '**/.next/**',
       '**/out/**',
+      '**/next-env.d.ts',
       'mobile/**',
     ],
   },
