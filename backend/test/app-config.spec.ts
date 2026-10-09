@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { generateKeyPairSync } from 'node:crypto';
+
 import { loadAppConfig } from '../src/config/app-config.js';
 
 const DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/real_estate_os';
@@ -21,6 +23,7 @@ describe('loadAppConfig', () => {
       jwtSecret: JWT_SECRET,
       mail: null,
       storage: null,
+      fcm: null,
     });
   });
 
@@ -201,5 +204,37 @@ describe('loadAppConfig', () => {
       () => loadAppConfig({ ...base, STORAGE_FORCE_PATH_STYLE: 'yes' }),
       /STORAGE_FORCE_PATH_STYLE không hợp lệ/,
     );
+  });
+
+  it('FCM: không bắt buộc, đọc JSON service account base64, từ chối cấu hình sai', () => {
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+    const encode = (value: unknown): string =>
+      Buffer.from(JSON.stringify(value)).toString('base64');
+    const account = { project_id: 'bds-app', client_email: 'push@bds-app.iam', private_key: pem };
+
+    assert.equal(loadAppConfig({ DATABASE_URL, JWT_SECRET }).fcm, null);
+    assert.deepEqual(loadAppConfig({ DATABASE_URL, JWT_SECRET, FCM_CONFIG: encode(account) }).fcm, {
+      projectId: 'bds-app',
+      clientEmail: 'push@bds-app.iam',
+      privateKey: pem,
+      tokenUri: 'https://oauth2.googleapis.com/token',
+    });
+    const withUri = { ...account, token_uri: 'http://localhost:9/token' };
+    assert.equal(
+      loadAppConfig({ DATABASE_URL, JWT_SECRET, FCM_CONFIG: encode(withUri) }).fcm?.tokenUri,
+      'http://localhost:9/token',
+    );
+
+    const load = (fcmConfig: string) => () =>
+      loadAppConfig({ DATABASE_URL, JWT_SECRET, FCM_CONFIG: fcmConfig });
+    assert.throws(load('khong-phai-base64-json'), /FCM_CONFIG không hợp lệ/);
+    assert.throws(load(encode({ ...account, client_email: '' })), /FCM_CONFIG thiếu/);
+    assert.throws(load(encode(['mảng'])), /FCM_CONFIG thiếu/);
+    assert.throws(
+      load(encode({ ...account, private_key: 'abc' })),
+      /private_key không phải khoá PEM/,
+    );
+    assert.throws(load(encode({ ...account, token_uri: 'ftp://x' })), /token_uri không hợp lệ/);
   });
 });
