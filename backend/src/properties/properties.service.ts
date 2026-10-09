@@ -321,11 +321,7 @@ export class PropertiesService {
     search?: PropertySearchQueryDto,
   ): Promise<Paginated<PropertyListItem>> {
     const keyword = search?.q;
-    let base = this.properties
-      .createQueryBuilder(actor.tenantId, 'p', (builder) =>
-        builder.where(this.visibleCondition(scopes)),
-      )
-      .setParameter('scopeUserId', actor.userId);
+    let base = this.visible(actor, scopes);
     if (keyword) {
       base = base.andWhere(this.keywordCondition(keyword, scopes), {
         keywordCode: keyword.toUpperCase(),
@@ -917,6 +913,18 @@ export class PropertiesService {
     if (count === 0) {
       throw new AppException(ErrorCode.NOT_FOUND, 'Không tìm thấy BĐS');
     }
+  }
+
+  /**
+   * Truy vấn BĐS (alias `p`) trong phạm vi xem của user (như danh sách, kể cả luật BĐS ẩn), đã có điều kiện
+   * công ty và bỏ BĐS đã xoá; thêm điều kiện bằng andWhere. Dùng cho matching (TASK-088).
+   */
+  visible(actor: Actor, scopes: PropertyScopes): SelectQueryBuilder<Property> {
+    return this.properties
+      .createQueryBuilder(actor.tenantId, 'p', (builder) =>
+        builder.where(this.visibleCondition(scopes)),
+      )
+      .setParameter('scopeUserId', actor.userId);
   }
 
   /** Khoá BĐS để đổi chủ nhà: cần cả quyền sửa lẫn quyền xem liên hệ chủ nhà với BĐS đó. */
