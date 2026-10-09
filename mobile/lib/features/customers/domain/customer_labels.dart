@@ -37,3 +37,17 @@ const customerSourceLabels = {
   'OLD_CUSTOMER': 'Khách cũ',
   'OTHER': 'Khác',
 };
+
+const transactionTypeLabels = {'SALE': 'Mua', 'RENT': 'Thuê'};
+
+const activityTypeLabels = {
+  'CALL': 'Gọi điện',
+  'MESSAGE': 'Nhắn tin',
+  'PROPERTY_SENT': 'Gửi BĐS',
+  'VIEWING': 'Đi xem',
+  'NEGOTIATION': 'Thương lượng',
+  'DEPOSIT': 'Đặt cọc',
+  'NOTE': 'Ghi chú',
+  'STATUS_CHANGE': 'Đổi bước',
+  'ASSIGNMENT': 'Giao khách',
+};

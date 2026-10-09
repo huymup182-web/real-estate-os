@@ -7,6 +7,7 @@ import '../../../core/format/vn_format.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/detail_section.dart';
 import '../../../core/widgets/error_retry.dart';
 import '../domain/property_detail.dart';
 import '../domain/property_labels.dart';
@@ -167,33 +168,33 @@ class _Body extends StatelessWidget {
             ],
           ),
         ),
-        _Section(
+        DetailSection(
           title: 'Thông tin',
           child: Column(
             children: [
               for (final (label, value) in facts)
-                _InfoRow(label: label, value: value),
+                InfoRow(label: label, value: value),
             ],
           ),
         ),
         if (property.description case final description?
             when description.trim().isNotEmpty)
-          _Section(title: 'Mô tả', child: Text(description)),
-        _Section(
+          DetailSection(title: 'Mô tả', child: Text(description)),
+        DetailSection(
           title: 'Chủ nhà',
           child: _Owner(property: property),
         ),
-        _Section(
+        DetailSection(
           title: 'Xác minh',
           child: Column(
             children: [
-              _InfoRow(
+              InfoRow(
                 label: 'Tình trạng',
                 value: labelOf(verificationLabels, property.verificationStatus),
               ),
               if (property.lastVerifiedAt case final at?)
-                _InfoRow(label: 'Xác minh lần cuối', value: vnDate(at)),
-              _InfoRow(
+                InfoRow(label: 'Xác minh lần cuối', value: vnDate(at)),
+              InfoRow(
                 label: 'Cập nhật',
                 value:
                     '${vnTime(property.updatedAt)} ${vnDate(property.updatedAt)}',
@@ -226,70 +227,13 @@ class _Owner extends StatelessWidget {
     }
     return Column(
       children: [
-        _InfoRow(label: 'Họ tên', value: owner.fullName),
-        _InfoRow(label: 'Điện thoại', value: owner.phone, selectable: true),
+        InfoRow(label: 'Họ tên', value: owner.fullName),
+        InfoRow(label: 'Điện thoại', value: owner.phone, selectable: true),
         if (owner.email case final email?)
-          _InfoRow(label: 'Email', value: email, selectable: true),
+          InfoRow(label: 'Email', value: email, selectable: true),
         if (owner.notes case final notes? when notes.trim().isNotEmpty)
-          _InfoRow(label: 'Ghi chú', value: notes),
+          InfoRow(label: 'Ghi chú', value: notes),
       ],
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpacing.gutter,
-      AppSpacing.s8,
-      AppSpacing.gutter,
-      AppSpacing.s16,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.s8),
-        child,
-      ],
-    ),
-  );
-}
-
-/// Một dòng "nhãn — giá trị"; nhãn cột trái cố định, giá trị xuống dòng khi dài.
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.selectable = false,
-  });
-
-  final String label;
-  final String value;
-  final bool selectable;
-
-  @override
-  Widget build(BuildContext context) {
-    final muted = context.appColors.mutedForeground;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 128,
-            child: Text(label, style: TextStyle(color: muted)),
-          ),
-          const SizedBox(width: AppSpacing.s8),
-          Expanded(child: selectable ? SelectableText(value) : Text(value)),
-        ],
-      ),
     );
   }
 }

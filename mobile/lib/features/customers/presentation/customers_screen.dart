@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/format/vn_format.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/debounced_search_field.dart';
@@ -13,7 +15,7 @@ import 'customer_card.dart';
 import 'customer_list_controller.dart';
 
 /// Tab "Khách hàng": tìm theo tên, số điện thoại, email; lọc theo bước pipeline (chọn nhiều); danh sách khách
-/// trong phạm vi xem, mới tạo trước. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại.
+/// trong phạm vi xem, mới tạo trước. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
 class CustomersScreen extends ConsumerWidget {
   const CustomersScreen({super.key});
 
@@ -162,7 +164,12 @@ class CustomersScreen extends ConsumerWidget {
                         onRetry: controller.loadMore,
                       );
                     }
-                    return CustomerCard(customer: value.items[index - 1]);
+                    final customer = value.items[index - 1];
+                    return CustomerCard(
+                      customer: customer,
+                      onTap: () =>
+                          context.push(AppRoutes.customerDetail(customer.id)),
+                    );
                   },
                 ),
               ),

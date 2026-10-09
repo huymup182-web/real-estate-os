@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/session_controller.dart';
+import '../../features/customers/presentation/customer_detail_screen.dart';
 import '../../features/customers/presentation/customers_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
@@ -36,6 +37,9 @@ abstract final class AppRoutes {
   static String propertyEdit(String id) => '$properties/$id/edit';
 
   static String propertyImages(String id) => '$properties/$id/images';
+
+  /// Chi tiết khách, nằm trong tab "Khách hàng".
+  static String customerDetail(String id) => '$customers/$id';
 }
 
 /// Router của app. Chuyển màn hình theo phiên đăng nhập ([sessionProvider]): đang kiểm hoặc lỗi → splash, chưa
@@ -97,7 +101,18 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          _branch(AppRoutes.customers, const CustomersScreen()),
+          _branch(
+            AppRoutes.customers,
+            const CustomersScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => CustomerDetailScreen(
+                  customerId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
           _branch(AppRoutes.notifications, const NotificationsScreen()),
           _branch(AppRoutes.profile, const ProfileScreen()),
         ],
