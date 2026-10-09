@@ -15,6 +15,12 @@ const _offline = ApiException(
   message: 'Không kết nối được máy chủ',
 );
 
+/// Vùng cuộn của danh sách (ô tìm kiếm phía trên cũng có Scrollable riêng).
+final _list = find.descendant(
+  of: find.byType(ListView),
+  matching: find.byType(Scrollable),
+);
+
 void main() {
   late FakePropertiesRepository repository;
 
@@ -74,7 +80,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Nhà phố số 40'),
       500,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _list,
     );
     await tester.pumpAndSettle();
     expect(repository.listedPages, [1, 2]);
@@ -122,12 +128,12 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Không kết nối được máy chủ'),
       500,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _list,
     );
     expect(find.text('Nhà phố số 20'), findsOneWidget);
     // Lỗi rồi thì cuộn tiếp không tự gọi lại, chỉ thử lại khi bấm.
     final calls = repository.listedPages.length;
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+    await tester.drag(_list, const Offset(0, -300));
     await tester.pumpAndSettle();
     expect(repository.listedPages.length, calls);
 
@@ -140,7 +146,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Nhà phố số 40'),
       500,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: _list,
     );
     expect(find.text('Nhà phố số 40'), findsOneWidget);
   });

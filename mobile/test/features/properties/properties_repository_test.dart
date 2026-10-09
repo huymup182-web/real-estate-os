@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:real_estate_os/core/network/api_client.dart';
 import 'package:real_estate_os/core/storage/token_storage.dart';
 import 'package:real_estate_os/features/properties/data/properties_repository.dart';
+import 'package:real_estate_os/features/properties/domain/property_query.dart';
 
 import '../../support/fake_adapter.dart';
 
@@ -72,5 +73,46 @@ void main() {
     expect(second.coverUrl, 'https://cdn/b.jpg');
     expect(second.area, 100.25);
     expect(second.location, 'Khánh Hòa');
+  });
+
+  test('có từ khoá thì gửi q, không có thì không gửi', () async {
+    final adapter = FakeAdapter(
+      (options) => (
+        200,
+        {
+          'success': true,
+          'message': null,
+          'data': <Object>[],
+          'meta': {'page': 1, 'pageSize': 20, 'total': 0, 'totalPages': 0},
+        },
+      ),
+    );
+    final repository = PropertiesRepository(
+      ApiClient(
+        baseUrl: 'https://api.example.vn/api/v1',
+        tokens: MemoryTokenStorage(),
+        dio: Dio()..httpClientAdapter = adapter,
+      ),
+    );
+
+    await repository.list(
+      page: 1,
+      query: const PropertyQuery().withKeyword(' BDS-000123 '),
+    );
+    await repository.list(page: 1, query: const PropertyQuery());
+    final [withKeyword, without] = adapter.requests;
+    expect(withKeyword.options.queryParameters, {
+      'page': 1,
+      'pageSize': 20,
+      'q': 'BDS-000123',
+    });
+    expect(without.options.queryParameters, {'page': 1, 'pageSize': 20});
+  });
+
+  test('normalizeKeyword: bỏ khoảng trắng thừa, tối đa 200 ký tự', () {
+    expect(normalizeKeyword('  nhà   phố \n Vĩnh Hải  '), 'nhà phố Vĩnh Hải');
+    expect(normalizeKeyword('   '), '');
+    expect(normalizeKeyword('a' * 250), hasLength(200));
+    expect(normalizeKeyword('${'a' * 199} b'), 'a' * 199);
   });
 }
