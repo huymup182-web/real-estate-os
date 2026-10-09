@@ -21,6 +21,9 @@ import { MAX_KEYWORD_LENGTH } from './keyword.js';
 const MAX_AREA = 9_999_999_999.99;
 const AREA_NUMBER = { maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false };
 
+/** Độ rộng đường lớn nhất cột `properties.road_width` nhận (numeric(6, 2)). */
+const MAX_ROAD_WIDTH = 9_999.99;
+
 /** Số phòng lớn nhất cột `bedrooms`/`bathrooms` nhận (smallint). */
 const MAX_ROOMS = 32_767;
 
@@ -169,4 +172,20 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
     message: `direction phải là một hoặc nhiều hướng trong: ${DIRECTIONS.join(', ')}`,
   })
   direction?: string[];
+
+  /** Độ rộng đường/hẻm trước nhà nhỏ nhất, mét (TASK-072), gồm cả mốc này. BĐS chưa ghi độ rộng không khớp. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber(AREA_NUMBER, { message: 'roadWidthMin phải là số, tối đa 2 chữ số thập phân' })
+  @Min(0, { message: 'roadWidthMin không được âm' })
+  @Max(MAX_ROAD_WIDTH, { message: `roadWidthMin tối đa ${MAX_ROAD_WIDTH}` })
+  roadWidthMin?: number;
+
+  /** Độ rộng đường lớn nhất, mét (gồm cả mốc này). Phải ≥ roadWidthMin. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber(AREA_NUMBER, { message: 'roadWidthMax phải là số, tối đa 2 chữ số thập phân' })
+  @Min(0, { message: 'roadWidthMax không được âm' })
+  @Max(MAX_ROAD_WIDTH, { message: `roadWidthMax tối đa ${MAX_ROAD_WIDTH}` })
+  roadWidthMax?: number;
 }
