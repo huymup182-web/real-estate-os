@@ -62,6 +62,15 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - `/teams/new` và `/teams/[id]` tạo, sửa team: tên, phòng ban, trưởng nhóm, thành viên. Trưởng nhóm và thành viên chỉ chọn trong phòng ban đang chọn; đổi phòng ban thì danh sách đổi theo.
 - Người không quản lý được team đó chỉ xem trưởng nhóm và thành viên.
 
+## Bất động sản (TASK-107)
+
+- Menu "Bất động sản" hiện khi có `property.view`.
+- `/properties` liệt kê BĐS trong phạm vi xem: tìm theo mã, tiêu đề, mô tả; lọc loại, tỉnh/thành; sắp xếp theo mới nhất, giá, diện tích; phân trang.
+- `/properties/[id]` hiện thông tin, ảnh, khu vực, môi giới phụ trách và chủ nhà (khi được xem liên hệ chủ nhà). Có thao tác đổi trạng thái, xác minh, giao cho môi giới khác và xoá, mỗi nút chỉ hiện khi có quyền tương ứng.
+- `/properties/new` và `/properties/[id]/edit` dùng chung form; đổi tỉnh/thành thì tải lại phường/xã. Người không xem được địa chỉ chi tiết thì không thấy ô này và giá trị cũ được giữ.
+- Sửa và các thao tác gửi kèm `expectedUpdatedAt`: ai khác đã sửa BĐS trước thì form báo tải lại trang thay vì ghi đè.
+- Chưa có trên admin: lọc theo trạng thái, quản lý ảnh, giấy tờ và chủ nhà (vẫn làm trên app).
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |

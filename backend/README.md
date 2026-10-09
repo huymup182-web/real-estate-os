@@ -767,3 +767,10 @@ Quy tắc:
 - Phòng ban không tồn tại → 400; ngoài phạm vi `team.manage` → 403.
 - Tên team trùng trong cùng phòng ban → 409.
 - Ghi `audit_logs` `team.create`, `team.update` (gồm danh sách thành viên trước/sau), `team.delete`.
+
+## Danh mục địa giới (TASK-107)
+
+Module `src/locations`, chỉ đọc, mọi người dùng đã đăng nhập đều gọi được (dữ liệu dùng chung, không thuộc công ty nào). Dùng cho ô chọn khu vực khi tạo, sửa BĐS trên admin.
+
+- `GET /api/v1/locations/provinces`: tỉnh/thành đang dùng, theo tên.
+- `GET /api/v1/locations/provinces/:id/wards`: phường/xã đang dùng của tỉnh, theo tên. Tỉnh không có hoặc ngừng dùng → 404; id sai → 400.

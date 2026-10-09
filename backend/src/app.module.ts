@@ -9,6 +9,7 @@ import { CustomersModule } from './customers/customers.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
+import { LocationsModule } from './locations/locations.module.js';
 import { MatchingModule } from './matching/matching.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module.js';
     RolesModule,
     CompanyModule,
     TeamsModule,
+    LocationsModule,
   ],
 })
 export class AppModule {}
