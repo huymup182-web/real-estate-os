@@ -643,3 +643,11 @@ fieldset.field {
 .badge-appointment-no_show {
   color: var(--color-danger);
 }
+
+.badge-deal-won {
+  color: var(--color-success);
+}
+
+.badge-deal-lost {
+  color: var(--color-danger);
+}

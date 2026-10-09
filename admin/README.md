@@ -90,6 +90,14 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - `/appointments/[id]/edit` sửa BĐS, giờ, thời lượng, điểm hẹn, ghi chú; không đổi khách. Giờ hẹn không đổi thì gửi lại đúng mốc cũ.
 - Chưa có trên admin: xem lịch dạng lịch tháng/tuần, tìm khách và BĐS ngoài 100 mục mới nhất khi đặt lịch.
 
+## Giao dịch (TASK-110)
+
+- Menu "Giao dịch" hiện khi có `deal.view`; tạo, sửa, chuyển bước, xoá khi có `deal.manage`.
+- `/deals` liệt kê giao dịch trong phạm vi xem, mới tạo trước; lọc theo bước và khách (`?customerId=`, mở từ trang khách).
+- `/deals/new` chọn khách, BĐS (100 mới nhất trong phạm vi xem), giá chốt, tiền cọc (gõ `3.500.000.000` hay `3500000000` đều được), ngày cọc, ghi chú. Mở từ trang khách thì chọn sẵn khách đó.
+- `/deals/[id]` hiện thông tin và chuyển bước; sang "Thành công" cần có giá chốt (backend báo lỗi cạnh nút). `/deals/[id]/edit` sửa giá, cọc, ghi chú; không đổi khách, BĐS.
+- Chưa có trên admin: hoa hồng, đổi môi giới của giao dịch.
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |
