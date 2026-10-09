@@ -10,6 +10,8 @@ import { DeviceTokensController } from './device-tokens.controller.js';
 import { DeviceTokensService } from './device-tokens.service.js';
 import { pushSenderFor } from './fcm-push-sender.js';
 import { MatchingNotifier } from './matching-notifier.js';
+import { NotificationCenterController } from './notification-center.controller.js';
+import { NotificationCenterService } from './notification-center.service.js';
 import { NewPropertyNotifier } from './new-property-notifier.js';
 import { NotificationsService } from './notifications.service.js';
 import { PushSender } from './push-sender.js';
@@ -25,14 +27,15 @@ import { VerifyReminderNotifier } from './verify-reminder-notifier.js';
  * `NewPropertyNotifier` báo BĐS mới khớp tìm kiếm đã lưu (TASK-095),
  * `MatchingNotifier` báo môi giới khi BĐS mới phù hợp khách của họ (TASK-096),
  * `AppointmentReminderJob` nhắc lịch hẹn (TASK-097),
- * `VerifyReminderNotifier` báo BĐS quá hạn xác minh (TASK-098).
+ * `VerifyReminderNotifier` báo BĐS quá hạn xác minh (TASK-098). Hộp thư `/notifications` (TASK-099).
  */
 @Module({
   imports: [PropertiesModule, AuthModule, MatchingModule],
-  controllers: [SavedSearchesController, DeviceTokensController],
+  controllers: [SavedSearchesController, DeviceTokensController, NotificationCenterController],
   providers: [
     SavedSearchesService,
     NotificationsService,
+    NotificationCenterService,
     NewPropertyNotifier,
     MatchingNotifier,
     AppointmentReminderJob,
