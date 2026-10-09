@@ -80,3 +80,16 @@ export function canChangeCustomerStatus(from: string, to: CustomerStatus): boole
   const statuses: readonly string[] = CUSTOMER_STATUSES;
   return statuses.includes(from) && statuses.includes(to);
 }
+
+/** Kỳ thống kê mặc định và dài nhất của dashboard khách hàng (mặc định Claude chọn ở TASK-085). */
+export const DASHBOARD_DEFAULT_DAYS = 30;
+export const DASHBOARD_MAX_DAYS = 366;
+
+/**
+ * Khách đang mở (chưa WON/LOST) không có hoạt động nào trong số ngày này thì tính là cần chăm sóc
+ * (TASK-085). Mặc định Claude chọn 14 ngày, chờ Huy Lê xác nhận.
+ */
+export const FOLLOW_UP_AFTER_DAYS = 14;
+
+/** Bước pipeline đã kết thúc: không tính vào khách cần chăm sóc. */
+export const CLOSED_CUSTOMER_STATUSES = ['WON', 'LOST'] as const;

@@ -18,10 +18,15 @@ import type { Paginated } from '../common/response/paginated.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
 import { actorOf } from '../properties/properties.controller.js';
 import type { CustomerResponse } from './customer.response.js';
-import { type CustomerScopes, CustomersService } from './customers.service.js';
+import {
+  type CustomerDashboard,
+  type CustomerScopes,
+  CustomersService,
+} from './customers.service.js';
 import { AssignCustomerDto } from './dto/assign-customer.dto.js';
 import { ChangeCustomerStatusDto } from './dto/change-customer-status.dto.js';
 import { CreateCustomerDto } from './dto/create-customer.dto.js';
+import { CustomerDashboardQueryDto } from './dto/customer-dashboard-query.dto.js';
 import { CustomerListQueryDto } from './dto/customer-list-query.dto.js';
 import { UpdateCustomerDto } from './dto/update-customer.dto.js';
 
@@ -76,6 +81,20 @@ export class CustomersController {
     @Req() req: { user: RequestUser },
   ): Promise<{ status: string; count: number }[]> {
     return this.customers.pipeline(actorOf(tenantId, req.user), customerScopesOf(req.user));
+  }
+
+  /**
+   * `GET /api/v1/customers/dashboard?from&to` → số liệu khách hàng trong phạm vi xem (TASK-085). Khai báo
+   * trước `:id`.
+   */
+  @Get('dashboard')
+  @RequirePermission('customer.view')
+  dashboard(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Query() query: CustomerDashboardQueryDto,
+  ): Promise<CustomerDashboard> {
+    return this.customers.dashboard(actorOf(tenantId, req.user), query, customerScopesOf(req.user));
   }
 
   /** `GET /api/v1/customers/:id`; không xem được → 404. */
