@@ -617,4 +617,14 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 - Gọi thẳng FCM HTTP v1 (`src/notifications/fcm.client.ts`), không dùng SDK `firebase-admin`: ký JWT RS256 bằng khoá service account, đổi lấy access token OAuth2 ở `token_uri` (cache tới 1 phút trước khi hết hạn), rồi `POST /v1/projects/{project_id}/messages:send` cho từng token thiết bị, timeout 10 giây.
 - Tin gồm `notification {title, body}` và `data` dạng chuỗi: dữ liệu của thông báo (giá trị khác chuỗi đổi sang JSON, bỏ khoá FCM cấm như `from`, `google*`, `gcm*`) cộng `type` và `notificationId`.
 - Token trả 404 `UNREGISTERED` hoặc 400 `INVALID_ARGUMENT` bị xoá khỏi kho token. Gửi được ít nhất một thiết bị → `push_sent_at` được ghi; người nhận chưa có thiết bị → không ghi; mọi lần gửi đều lỗi → ghi log cảnh báo.
-- Token thiết bị lấy từ `DeviceTokenStore`. Bảng `device_tokens` và API đăng ký token làm ở TASK-094; tới lúc đó kho token rỗng nên chưa thiết bị nào nhận tin.
+- Token thiết bị lấy từ `DeviceTokenStore`, bản lưu bảng `device_tokens` là `DeviceTokensService` (TASK-094).
+
+## Thiết bị nhận thông báo (TASK-094)
+
+Token FCM của thiết bị lưu ở bảng `device_tokens`. Chỉ cần đăng nhập, không cần permission; mỗi người chỉ thấy và gỡ được thiết bị của mình:
+
+- `POST /device-tokens` {token, platform: `ANDROID` | `IOS` | `WEB`} → 201 `{id, platform, lastSeenAt, createdAt}`. App gọi sau khi đăng nhập và mỗi khi FCM cấp token mới. Token đã có thì làm mới `last_seen_at` và chuyển sang người đang đăng nhập (một thiết bị chỉ nhận tin của người đăng nhập gần nhất). Token 1..4096 ký tự, không khoảng trắng.
+- `GET /device-tokens` → thiết bị của mình, dùng gần nhất trước; không trả lại token.
+- `DELETE /device-tokens/:id` → 204; app gọi trước khi đăng xuất. Thiết bị của người khác hoặc đã gỡ → 404.
+- Mỗi người tối đa 10 thiết bị (`MAX_DEVICES_PER_USER`); đăng ký thêm thì thiết bị lâu không dùng nhất bị gỡ.
+- FCM chỉ gửi tới token được làm mới trong 270 ngày (`DEVICE_TOKEN_STALE_DAYS`); token FCM báo hỏng bị xoá.
