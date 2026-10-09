@@ -682,3 +682,25 @@ Mọi số liệu chỉ tính bản ghi chưa xoá của công ty, trong phạm 
 - `deals`: `new` tạo trong kỳ; `won` là giao dịch `WON` có `closed_at` trong kỳ; `revenue` là tổng `deal_price` của các giao dịch `won` đó.
 - `agents`: người dùng đang hoạt động trong phạm vi.
 - `leadFunnel`: khách hiện có theo 8 trạng thái; `salesFunnel`: giao dịch hiện có theo 5 bước, kèm tổng giá trị.
+
+## Người dùng (TASK-103)
+
+Module `src/users`. Không có API xoá: nhân viên nghỉ thì chuyển `INACTIVE` để giữ lịch sử BĐS, khách và giao dịch họ phụ trách.
+
+- `GET /api/v1/users?q&status&roleId&departmentId&page&pageSize` (`user.view`): danh sách trong phạm vi xem, mới tạo trước. Phạm vi TEAM/DEPARTMENT/COMPANY như `record-scope.ts`, với chính user là "người phụ trách". `q` tìm trong tên, email, SĐT.
+- `GET /api/v1/users/:id` (`user.view`): ngoài phạm vi → 404.
+- `GET /api/v1/users/options` (`user.manage`): role và phòng ban của công ty cho form.
+- `POST /api/v1/users` (`user.manage` phạm vi COMPANY) → 201. Body: `fullName`, `email` và/hoặc `phone`, `password` (mật khẩu ban đầu do admin đặt, Huy Lê chọn 2026-10-09), `departmentId?`, `roleIds` (1–10).
+- `PATCH /api/v1/users/:id` (`user.manage`): chỉ sửa trường có gửi. `email`/`phone`/`departmentId` gửi `null` để xoá; `roleIds` thay toàn bộ danh sách role.
+- `POST /api/v1/users/:id/status` (`user.manage`) `{ status: ACTIVE|INACTIVE|LOCKED }`. Rời ACTIVE thì thu hồi mọi refresh token; TenantGuard chặn access token ngay ở request kế tiếp.
+
+Quy tắc an toàn (phase0/04-RBAC.md mục 6):
+
+- Ngoài `user.view` → 404; thấy được nhưng ngoài phạm vi `user.manage` → 403.
+- Role phải thuộc công ty (sai → 400).
+- Không gán được role có quyền mà người gán không có, hoặc có phạm vi rộng hơn của người gán → 403.
+- Không tự đổi role hay trạng thái của mình → 422.
+- Công ty luôn còn ít nhất một COMPANY_ADMIN đang hoạt động → 422. Các dòng admin được khoá `FOR UPDATE` để hai thao tác đồng thời không cùng gỡ hai admin cuối.
+- Email/SĐT trùng (toàn hệ thống) → 409.
+- Ghi `audit_logs` cho `user.create`, `user.update` (gồm đổi role) và `user.status`; không bao giờ ghi mật khẩu.
+- Đổi role xoá cache quyền của user đó, nên quyền mới có hiệu lực ngay.

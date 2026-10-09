@@ -26,8 +26,22 @@ export const UNKNOWN_ERROR_MESSAGE = 'Có lỗi xảy ra, vui lòng thử lại'
 
 /** Kết quả một lần gọi Backend API: `data` khi 2xx; `code` + `message` theo body lỗi chuẩn khi không. */
 export type BackendResult<T> =
-  | { ok: true; status: number; data: T }
-  | { ok: false; status: number; code: string; message: string };
+  | { ok: true; status: number; data: T; meta?: PaginationMeta }
+  | { ok: false; status: number; code: string; message: string; details?: ErrorDetail[] };
+
+/** `meta` của danh sách phân trang (phase0/05-API-CONVENTIONS.md mục 3). */
+export interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+/** Lỗi theo từng trường trong `error.details`, vd `{ field: 'email', message: 'Email đã được sử dụng' }`. */
+export interface ErrorDetail {
+  field?: string;
+  message: string;
+}
 
 export interface BackendDeps {
   fetchImpl?: typeof fetch;
@@ -36,8 +50,9 @@ export interface BackendDeps {
 
 interface BackendBody {
   data?: unknown;
+  meta?: PaginationMeta;
   message?: unknown;
-  error?: { code?: unknown };
+  error?: { code?: unknown; details?: ErrorDetail[] };
 }
 
 /**
@@ -76,10 +91,16 @@ export async function callBackend<T>(
   }
 
   if (response.ok) {
-    return { ok: true, status: response.status, data: (body?.data ?? null) as T };
+    const data = (body?.data ?? null) as T;
+    return body?.meta
+      ? { ok: true, status: response.status, data, meta: body.meta }
+      : { ok: true, status: response.status, data };
   }
   const code = typeof body?.error?.code === 'string' ? body.error.code : 'INTERNAL_ERROR';
   const message =
     typeof body?.message === 'string' && body.message !== '' ? body.message : UNKNOWN_ERROR_MESSAGE;
-  return { ok: false, status: response.status, code, message };
+  const details = Array.isArray(body?.error?.details) ? body.error.details : undefined;
+  return details
+    ? { ok: false, status: response.status, code, message, details }
+    : { ok: false, status: response.status, code, message };
 }
