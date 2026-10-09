@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 
+import { AppointmentsModule } from './appointments/appointments.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CommonModule } from './common/common.module.js';
 import { CustomersModule } from './customers/customers.module.js';
@@ -25,6 +26,7 @@ import { PropertiesModule } from './properties/properties.module.js';
     PropertiesModule,
     NotificationsModule,
     CustomersModule,
+    AppointmentsModule,
   ],
 })
 export class AppModule {}
