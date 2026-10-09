@@ -15,7 +15,7 @@ import 'property_detail_providers.dart';
 import 'property_gallery.dart';
 
 /// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Sửa được (`canEdit`)
-/// thì có nút sửa trên thanh tiêu đề.
+/// thì có nút quản lý ảnh và nút sửa trên thanh tiêu đề.
 class PropertyDetailScreen extends ConsumerWidget {
   const PropertyDetailScreen({super.key, required this.propertyId});
 
@@ -44,12 +44,19 @@ class PropertyDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(detail.value?.code ?? 'Chi tiết BĐS'),
         actions: [
-          if (detail.value?.canEdit ?? false)
+          if (detail.value?.canEdit ?? false) ...[
+            IconButton(
+              tooltip: 'Quản lý ảnh',
+              icon: const Icon(Icons.photo_library_outlined),
+              onPressed: () =>
+                  context.push(AppRoutes.propertyImages(propertyId)),
+            ),
             IconButton(
               tooltip: 'Sửa BĐS',
               icon: const Icon(Icons.edit_outlined),
               onPressed: () => context.push(AppRoutes.propertyEdit(propertyId)),
             ),
+          ],
         ],
       ),
       body: switch (detail) {

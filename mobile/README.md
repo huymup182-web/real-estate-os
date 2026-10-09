@@ -151,6 +151,19 @@ lib/
 - Người khác vừa lưu trước (409) thì báo "BĐS vừa được người khác sửa…", không ghi đè.
 - Đổi trạng thái, chủ nhà, phân môi giới, xác minh chưa làm trên app.
 
+## Ảnh BĐS (TASK-124)
+
+- Chi tiết BĐS có nút "Quản lý ảnh" khi `canEdit` → `/properties/:id/images`: lưới ảnh, ảnh bìa có nhãn. Chạm ảnh để
+  đặt làm ảnh bìa (`POST …/images/:imageId/cover`) hoặc xoá (hỏi lại; `DELETE`, xoá ảnh bìa thì ảnh đầu còn lại
+  thành ảnh bìa).
+- "Thêm ảnh": chọn nhiều ảnh từ thư viện hoặc chụp (gói `image_picker`, ảnh thu nhỏ còn cạnh dài ≤ 2560px). Tải lần
+  lượt 3 bước: `POST …/images/upload-url` → PUT file thẳng lên link storage (Dio riêng, không gửi token) →
+  `POST …/images`. Mỗi ảnh hiện tiến độ; lỗi thì chạm để thử lại hoặc bỏ. JPG/PNG/WEBP/HEIC, ≤ 10MB, tối đa 30 ảnh.
+- Đang tải mà quay lại thì hỏi "Dừng tải ảnh?". Chưa đổi thứ tự ảnh (API `PUT …/images/order` có sẵn).
+- Quyền máy: iOS khai báo `NSPhotoLibraryUsageDescription`, `NSCameraUsageDescription` (`ios/Runner/Info.plist`);
+  Android không cần khai báo thêm (trình chọn ảnh hệ thống).
+- Backend cần cấu hình storage (`STORAGE_*`); chưa cấu hình thì bước xin link báo lỗi.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):
