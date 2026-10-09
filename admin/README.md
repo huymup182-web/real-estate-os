@@ -107,6 +107,12 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - Phần "Nhận tin BĐS mới" (khi có `property.view`): tìm kiếm đã lưu của mình, bật/tắt nhận tin và xoá. Tạo, sửa bộ lọc vẫn làm trên app.
 - Chưa có trên admin: gửi thông báo cho người khác (backend chưa có API gửi tay).
 
+## Nhật ký thao tác (TASK-112)
+
+- Menu "Nhật ký" hiện khi có `audit.view` (mặc định quản trị công ty và giám đốc).
+- `/audit-logs` liệt kê nhật ký mới nhất trước: thời gian (giờ Việt Nam) và IP, người thao tác ("Hệ thống" khi do job nền), thao tác, đối tượng (link tới trang của nó), thay đổi dạng `trường: cũ → mới`.
+- Lọc theo loại đối tượng, mã thao tác, khoảng ngày (gồm cả ngày cuối). Bấm tên người để xem thao tác của người đó; bấm "Lịch sử" để xem mọi thay đổi của một đối tượng.
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |
