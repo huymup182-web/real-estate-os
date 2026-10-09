@@ -79,6 +79,16 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - `/customers/new` và `/customers/[id]/edit` dùng chung form; số điện thoại `0xxx` được đổi sang `+84xxx` trước khi gửi.
 - Sửa và các thao tác gửi kèm `expectedUpdatedAt`: ai khác đã sửa khách trước thì form báo tải lại trang.
 - Chưa có trên admin: sửa nhu cầu và ghi các loại hoạt động khác ngoài ghi chú (vẫn làm trên app).
+- Trang khách có link xem lịch hẹn của khách và đặt lịch xem (khi có quyền lịch hẹn).
+
+## Lịch hẹn (TASK-109)
+
+- Menu "Lịch hẹn" hiện khi có `appointment.view`; đặt, sửa, đổi trạng thái, xoá khi có `appointment.manage`.
+- `/appointments` liệt kê lịch hẹn trong phạm vi xem, giờ hẹn sớm trước. Mở lần đầu thì xem từ hôm nay; lọc theo khoảng ngày (giờ Việt Nam, gồm cả ngày cuối), trạng thái và khách (`?customerId=`, mở từ trang khách).
+- `/appointments/new` chọn khách, BĐS (100 mới nhất trong phạm vi xem), ngày giờ, thời lượng, điểm hẹn, ghi chú. Mở từ trang khách thì chọn sẵn khách đó.
+- `/appointments/[id]` hiện thông tin và đổi trạng thái: chọn "Đã xem" thì ghi kèm kết quả buổi xem (không bắt buộc). "Đã xem" và "Khách không đến" chỉ chọn được khi đã tới giờ hẹn (backend báo lỗi cạnh nút).
+- `/appointments/[id]/edit` sửa BĐS, giờ, thời lượng, điểm hẹn, ghi chú; không đổi khách. Giờ hẹn không đổi thì gửi lại đúng mốc cũ.
+- Chưa có trên admin: xem lịch dạng lịch tháng/tuần, tìm khách và BĐS ngoài 100 mục mới nhất khi đặt lịch.
 
 ## Cấu hình
 

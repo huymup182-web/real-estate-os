@@ -612,3 +612,34 @@ fieldset.field {
   min-width: 0;
   flex: 1 1 200px;
 }
+
+.filter-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.filter-date span {
+  white-space: nowrap;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.filter-date input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.badge-appointment-completed {
+  color: var(--color-success);
+}
+
+.badge-appointment-cancelled {
+  color: var(--color-muted);
+}
+
+.badge-appointment-no_show {
+  color: var(--color-danger);
+}

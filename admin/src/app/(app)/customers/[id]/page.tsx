@@ -218,6 +218,21 @@ export default async function CustomerPage({
         )}
       </section>
 
+      {can('appointment.view') && (
+        <section className="card">
+          <h2>Lịch hẹn</h2>
+          <p>
+            <Link href={`/appointments?from=&customerId=${data.id}`}>Xem lịch hẹn của khách</Link>
+            {can('appointment.manage') && (
+              <>
+                {' · '}
+                <Link href={`/appointments/new?customerId=${data.id}`}>Đặt lịch xem</Link>
+              </>
+            )}
+          </p>
+        </section>
+      )}
+
       {can('customer.delete') && (
         <section className="card">
           <h2>Xoá khách hàng</h2>
