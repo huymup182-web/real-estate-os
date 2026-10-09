@@ -12,7 +12,17 @@ npm run dev        # http://localhost:3001
 
 Trong Docker (`docker compose up`), container `admin` tự `npm install` lần đầu rồi chạy `npm run dev` ở cổng `3001`.
 
-Trang chủ tạm gọi `GET /api/v1/health` của backend (phía server) và hiện backend có hoạt động không.
+## Đăng nhập (TASK-101)
+
+- Mọi trang trừ `/login` cần đăng nhập. `src/proxy.ts` chuyển người chưa đăng nhập tới `/login?next=<trang đang mở>`.
+- Form đăng nhập là Server Action: phía server của admin gọi `POST /api/v1/auth/login`, rồi lưu token vào hai cookie HttpOnly. JavaScript trên trình duyệt không đọc được token.
+  - `reos_access`: access token, SameSite=Lax, hết hạn sớm hơn token 30 giây.
+  - `reos_refresh`: refresh token, SameSite=Strict, 30 ngày.
+  - Cả hai bật `Secure` khi `NODE_ENV=production`.
+- Hết access token mà còn refresh token: proxy gọi `POST /auth/refresh` và đặt cặp cookie mới. Các request đến cùng lúc với cùng refresh token dùng chung một lần gọi, vì backend coi việc dùng lại refresh token cũ là bị lộ và thu hồi cả phiên.
+- Refresh bị từ chối: xoá cookie và về `/login`. Backend không trả lời được: giữ phiên, trang tự báo lỗi kết nối.
+- Đăng xuất gọi `POST /auth/logout` rồi xoá cookie.
+- Mọi tài khoản đang hoạt động đều đăng nhập được; menu sẽ ẩn/hiện theo permission. Kiểm quyền thật vẫn ở backend.
 
 ## Cấu hình
 
@@ -38,6 +48,7 @@ Lint và format dùng cấu hình chung ở thư mục gốc (`npm run check`, �
 
 ```text
 src/
-├── app/         # App Router: layout.tsx, page.tsx, globals.css
-└── lib/         # Hàm dùng chung, vd backend.ts (URL và health check Backend API)
+├── app/         # App Router: layout.tsx, page.tsx, login/, auth-actions.ts (Server Action đăng nhập/đăng xuất)
+├── lib/         # backend.ts (gọi Backend API), auth/ (cookie phiên, đường dẫn, gọi API auth)
+└── proxy.ts     # Chặn trang khi chưa đăng nhập, tự làm mới phiên
 ```
