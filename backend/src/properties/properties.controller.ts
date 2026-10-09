@@ -81,7 +81,8 @@ export class PropertiesController {
    * `bedroomsMin`/`bedroomsMax`/`bathroomsMin`/`bathroomsMax` lọc số phòng (TASK-069),
    * `legalStatus` lọc pháp lý (TASK-070),
    * `direction` lọc hướng nhà (TASK-071),
-   * `roadWidthMin`/`roadWidthMax` lọc độ rộng đường (TASK-072).
+   * `roadWidthMin`/`roadWidthMax` lọc độ rộng đường (TASK-072),
+   * `sort=newest|price_asc|price_desc|area_asc|area_desc|relevance` sắp xếp (TASK-073).
    */
   @Get()
   @RequirePermission('property.view')

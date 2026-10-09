@@ -473,4 +473,5 @@ Luật:
 - Lọc pháp lý (TASK-070): `legalStatus=PRIVATE_BOOK,SHARED_BOOK` hoặc lặp tham số; khớp một trong các giá trị (`PRIVATE_BOOK`, `SHARED_BOOK`, `PENDING_BOOK`, `SALE_CONTRACT`, `HANDWRITTEN`, `OTHER`). BĐS chưa ghi pháp lý không khớp. Giá trị lạ hoặc để trống → 400.
 - Lọc hướng nhà (TASK-071): `direction=E,SE` hoặc lặp tham số; khớp một trong các hướng (`N`, `S`, `E`, `W`, `NE`, `NW`, `SE`, `SW`). BĐS chưa ghi hướng không khớp. Hướng lạ hoặc để trống → 400.
 - Lọc độ rộng đường (TASK-072): `roadWidthMin`, `roadWidthMax` (mét, ≥ 0, tối đa 2 chữ số thập phân, gồm cả hai đầu). BĐS chưa ghi độ rộng đường không khớp. Sai dạng hoặc min > max → 400.
+- Sắp xếp (TASK-073): `sort=newest|price_asc|price_desc|area_asc|area_desc|relevance`. Mặc định `relevance` khi có `q` (đúng mã BĐS lên đầu, rồi khớp tiêu đề + mô tả nhiều hơn lên trước; không tính địa chỉ), không có `q` thì `newest`. Cùng giá trị thì BĐS mới hơn đứng trước. Giá trị khác → 400.
 - `src/search`: `PropertySearchQueryDto` (bộ lọc dùng chung cho saved search, các bộ lọc khác thêm ở TASK-065..072), `keywordTsQuery()`.
