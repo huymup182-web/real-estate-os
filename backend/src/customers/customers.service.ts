@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, type EntityManager, Repository } from 'typeorm';
+import { DataSource, type EntityManager, Repository, type SelectQueryBuilder } from 'typeorm';
 
 import { type AuditChanges, AuditService } from '../audit/audit.service.js';
 import type { PermissionScope } from '../auth/permission.service.js';
@@ -11,12 +11,22 @@ import { Paginated } from '../common/response/paginated.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { Actor } from '../properties/properties.service.js';
 import { insertCustomerActivity } from './customer-activity.record.js';
-import { CUSTOMER_STATUSES, canChangeCustomerStatus } from './customer-values.js';
+import {
+  ACTIVITY_TYPES,
+  CLOSED_CUSTOMER_STATUSES,
+  CUSTOMER_SOURCES,
+  CUSTOMER_STATUSES,
+  DASHBOARD_DEFAULT_DAYS,
+  DASHBOARD_MAX_DAYS,
+  FOLLOW_UP_AFTER_DAYS,
+  canChangeCustomerStatus,
+} from './customer-values.js';
 import { Customer } from './customer.entity.js';
 import { type CustomerResponse, toCustomerResponse } from './customer.response.js';
 import type { AssignCustomerDto } from './dto/assign-customer.dto.js';
 import type { ChangeCustomerStatusDto } from './dto/change-customer-status.dto.js';
 import type { CreateCustomerDto } from './dto/create-customer.dto.js';
+import type { CustomerDashboardQueryDto } from './dto/customer-dashboard-query.dto.js';
 import type { CustomerListQueryDto } from './dto/customer-list-query.dto.js';
 import { EDITABLE_CUSTOMER_FIELDS, type UpdateCustomerDto } from './dto/update-customer.dto.js';
 
@@ -26,6 +36,21 @@ export interface CustomerScopes {
   edit: PermissionScope | undefined;
   delete: PermissionScope | undefined;
   assign: PermissionScope | undefined;
+}
+
+const DAY_MS = 24 * 3600 * 1000;
+
+/** Số liệu dashboard khách hàng (TASK-085). */
+export interface CustomerDashboard {
+  period: { from: Date; to: Date };
+  totalCustomers: number;
+  newCustomers: number;
+  followUpNeeded: number;
+  wonCustomers: number;
+  lostCustomers: number;
+  pipeline: { status: string; count: number }[];
+  sources: { source: string | null; count: number }[];
+  activities: { type: string; count: number }[];
 }
 
 /** Cột xét phạm vi của khách hàng: môi giới phụ trách và người tạo. */
@@ -206,6 +231,119 @@ export class CustomersService {
       .getRawMany<{ status: string; count: number }>();
     const counts = new Map(rows.map((row) => [row.status, row.count]));
     return CUSTOMER_STATUSES.map((status) => ({ status, count: counts.get(status) ?? 0 }));
+  }
+
+  /**
+   * Dashboard khách hàng trong phạm vi `customer.view` (TASK-085). Kỳ `[from, to)` mặc định 30 ngày gần
+   * nhất, dài nhất 366 ngày; `from` ≥ `to` hoặc kỳ quá dài → 400.
+   * - `totalCustomers`, `pipeline`, `sources`: theo hiện trạng; `followUpNeeded`: khách chưa WON/LOST
+   *   không có hoạt động nào (tính cả lúc tạo) trong `FOLLOW_UP_AFTER_DAYS` ngày tới bây giờ.
+   * - `newCustomers`: tạo trong kỳ; `activities`: số hoạt động theo loại trong kỳ; `wonCustomers`,
+   *   `lostCustomers`: số khách được chuyển sang WON/LOST trong kỳ.
+   */
+  async dashboard(
+    actor: Actor,
+    query: CustomerDashboardQueryDto,
+    scopes: CustomerScopes,
+  ): Promise<CustomerDashboard> {
+    const to = query.to ?? new Date();
+    const from = query.from ?? new Date(to.getTime() - DASHBOARD_DEFAULT_DAYS * DAY_MS);
+    if (from.getTime() >= to.getTime()) {
+      throw invalid([{ field: 'to', message: 'to phải sau from' }]);
+    }
+    if (to.getTime() - from.getTime() > DASHBOARD_MAX_DAYS * DAY_MS) {
+      throw invalid([
+        { field: 'from', message: `Kỳ thống kê dài nhất ${DASHBOARD_MAX_DAYS} ngày` },
+      ]);
+    }
+    const visible = (): SelectQueryBuilder<Customer> =>
+      this.customers
+        .createQueryBuilder(actor.tenantId, 'c', (builder) =>
+          builder.where(this.scopeOrFalse(scopes.view)),
+        )
+        .setParameter('scopeUserId', actor.userId);
+
+    const [totals] = await visible()
+      .select('count(*)::int', 'total')
+      .addSelect(
+        '(count(*) FILTER (WHERE c.created_at >= :from AND c.created_at < :to))::int',
+        'new',
+      )
+      .addSelect(
+        `(count(*) FILTER (WHERE c.status NOT IN (:...closed) AND GREATEST(c.created_at, (
+            SELECT max(ca.occurred_at) FROM customer_activities ca
+             WHERE ca.tenant_id = c.tenant_id AND ca.customer_id = c.id
+          )) < :followUpBefore))::int`,
+        'followUp',
+      )
+      .setParameters({
+        from,
+        to,
+        closed: [...CLOSED_CUSTOMER_STATUSES],
+        followUpBefore: new Date(Date.now() - FOLLOW_UP_AFTER_DAYS * DAY_MS),
+      })
+      .getRawMany<{ total: number; new: number; followUp: number }>();
+
+    const sourceRows = await visible()
+      .select('c.source', 'source')
+      .addSelect('count(*)::int', 'count')
+      .groupBy('c.source')
+      .getRawMany<{ source: string | null; count: number }>();
+    const sourceCounts = new Map(sourceRows.map((row) => [row.source, row.count]));
+
+    const ids = visible().select('c.id');
+    const activityRows = (await this.dataSource.query(
+      ...this.inPeriod(
+        ids,
+        `SELECT ca.type, count(*)::int AS count, count(DISTINCT ca.customer_id) FILTER (
+                  WHERE ca.type = 'STATUS_CHANGE' AND ca.metadata->>'toStatus' = 'WON')::int AS won,
+                count(DISTINCT ca.customer_id) FILTER (
+                  WHERE ca.type = 'STATUS_CHANGE' AND ca.metadata->>'toStatus' = 'LOST')::int AS lost
+           FROM customer_activities ca`,
+        'GROUP BY ca.type',
+        from,
+        to,
+      ),
+    )) as { type: string; count: number; won: number; lost: number }[];
+    const activityCounts = new Map(activityRows.map((row) => [row.type, row.count]));
+    const statusChanges = activityRows.find((row) => row.type === 'STATUS_CHANGE');
+
+    return {
+      period: { from, to },
+      totalCustomers: totals?.total ?? 0,
+      newCustomers: totals?.new ?? 0,
+      followUpNeeded: totals?.followUp ?? 0,
+      wonCustomers: statusChanges?.won ?? 0,
+      lostCustomers: statusChanges?.lost ?? 0,
+      pipeline: await this.pipeline(actor, scopes),
+      sources: [...CUSTOMER_SOURCES, null].map((source) => ({
+        source,
+        count: sourceCounts.get(source) ?? 0,
+      })),
+      activities: ACTIVITY_TYPES.map((type) => ({ type, count: activityCounts.get(type) ?? 0 })),
+    };
+  }
+
+  /**
+   * SQL thô trên `customer_activities ca` của khách trong `ids` (truy vấn khách xem được, đã có điều kiện
+   * công ty), hoạt động trong kỳ `[from, to)`.
+   */
+  private inPeriod(
+    ids: SelectQueryBuilder<Customer>,
+    select: string,
+    tail: string,
+    from: Date,
+    to: Date,
+  ): [string, unknown[]] {
+    const [idsSql, idsParams] = ids.getQueryAndParameters();
+    const next = idsParams.length;
+    return [
+      `${select}
+        WHERE ca.customer_id IN (${idsSql})
+          AND ca.occurred_at >= $${next + 1} AND ca.occurred_at < $${next + 2}
+        ${tail}`,
+      [...idsParams, from, to],
+    ];
   }
 
   /**

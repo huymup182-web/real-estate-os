@@ -550,3 +550,10 @@ Giá trị trong `src/appointments/appointment-values.ts`: trạng thái `SCHEDU
 - `outcome` chỉ gửi kèm `COMPLETED` (trạng thái khác → 400) và không bắt buộc (Huy Lê chọn ngày 2026-10-09, cờ `OUTCOME_REQUIRED`). Rời `COMPLETED` thì xoá kết quả. Gửi lại đúng trạng thái và kết quả hiện có thì không ghi gì.
 - Mỗi lần đổi ghi `appointment.change_status` vào `audit_logs`. `COMPLETED`, `NO_SHOW` ghi thêm một dòng `VIEWING` lên timeline của khách (BĐS của lịch, `metadata {appointmentId, status, outcome}`).
 - `GET /api/v1/appointments?status=` lọc một hoặc nhiều trạng thái (phân cách bằng dấu phẩy hoặc lặp tham số).
+
+## Dashboard khách hàng (TASK-085)
+
+`GET /api/v1/customers/dashboard?from&to` (`customer.view`) → số liệu trên khách trong phạm vi xem. Kỳ `[from, to)` mặc định 30 ngày gần nhất, dài nhất 366 ngày; `from` ≥ `to` hoặc kỳ quá dài → 400. Hằng số trong `src/customers/customer-values.ts`.
+
+- Theo hiện trạng: `totalCustomers`, `pipeline` (8 bước), `sources` (mọi nguồn, `null` = chưa ghi nguồn), `followUpNeeded` (khách chưa WON/LOST không có hoạt động nào, tính cả lúc tạo, trong `FOLLOW_UP_AFTER_DAYS` = 14 ngày tới bây giờ).
+- Trong kỳ: `newCustomers` (tạo trong kỳ), `activities` (số hoạt động theo loại, theo `occurredAt`), `wonCustomers` / `lostCustomers` (số khách được chuyển sang WON / LOST).
