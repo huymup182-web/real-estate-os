@@ -578,3 +578,12 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 - Chỉ xét nhu cầu đang bật, chưa xoá, cùng loại giao dịch với BĐS, của khách chưa xoá và chưa WON/LOST.
 - Chấm bằng `scoreMatch` (TASK-086); mỗi khách lấy nhu cầu điểm cao nhất. Giữ khách đạt `minScore` (mặc định `MIN_MATCH_SCORE` = 50), điểm cao trước, cùng điểm thì khách cập nhật gần đây trước; tối đa `limit` (mặc định 20, tối đa 100).
 - Mỗi kết quả: `customer {id, fullName, status, agentId}`, `preferenceId`, `score`, `criteria`.
+
+## Matching khách hàng → BĐS (TASK-088)
+
+`MatchingService.propertiesForCustomer(actor, customerId, {property, customer}, {minScore?, limit?})` → danh sách BĐS phù hợp, chưa có API (TASK-090).
+
+- Khách phải trong phạm vi `customer.view` (không có, công ty khác, ngoài phạm vi → 404). Khách không có nhu cầu đang bật → danh sách rỗng.
+- Chỉ xét BĐS user xem được (`PropertiesService.visible`), chưa xoá, đang `AVAILABLE` (`MATCHABLE_PROPERTY_STATUS`), cùng loại giao dịch với một nhu cầu đang bật của khách.
+- Mỗi BĐS lấy nhu cầu cho điểm cao nhất; lọc, xếp và cắt như TASK-087 (điểm ≥ 50, điểm cao trước, cùng điểm thì BĐS cập nhật gần đây trước, mặc định 20, tối đa 100).
+- Mỗi kết quả: `property {id, code, title, propertyType, transactionType, price, area}`, `preferenceId`, `score`, `criteria`.
