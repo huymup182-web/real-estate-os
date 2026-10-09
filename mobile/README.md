@@ -59,7 +59,6 @@ lib/
 - Điều hướng: `go_router`, thanh dưới 5 tab (Trang chủ, BĐS, Khách hàng, Thông báo, Tài khoản), mỗi tab giữ lịch sử
   riêng. Các tab đang là màn hình tạm, làm dần ở TASK-117..131.
 - Riverpod 3 mặc định tự thử lại provider bị lỗi; provider nào cần người dùng bấm "Thử lại" thì đặt `retry: (_, _) => null`.
-- Chưa có: form đăng nhập, đăng xuất (TASK-116).
 
 ## Splash và phiên đăng nhập (TASK-115)
 
@@ -71,6 +70,17 @@ lib/
 - `ApiClient` tự làm mới token: access token hết hạn (`TOKEN_EXPIRED`) thì gọi `POST /auth/refresh` một lần (nhiều
   request cùng lúc dùng chung một lần làm mới, vì backend thu hồi phiên nếu refresh song song), lưu cặp token mới
   rồi gọi lại. Refresh token hết hiệu lực thì xoá token và báo `UNAUTHENTICATED`.
+
+## Đăng nhập, đăng xuất (TASK-116)
+
+- `/login`: email hoặc số điện thoại và mật khẩu (`POST /auth/login`). Số điện thoại gõ kiểu `0901 234 567` được đổi
+  sang `+84901234567` như backend lưu (`features/auth/domain/login_identifier.dart`). Ô trống, sai dạng báo ngay dưới
+  ô; sai mật khẩu, tài khoản bị khoá hiện câu của backend.
+- Thành công: lưu token, đọc quyền từ `GET /auth/me`, router chuyển vào trang chủ. Hỗ trợ tự điền mật khẩu
+  (`AutofillGroup`), nút hiện/ẩn mật khẩu, nhấn "Xong" trên bàn phím để gửi.
+- Đăng xuất ở tab Tài khoản (hỏi lại trước): `POST /auth/logout` rồi xoá token; mất mạng vẫn xoá token trên máy.
+- Phiên hết hạn giữa chừng (`ApiClient.sessionExpired`, làm mới token thất bại) thì app tự về màn đăng nhập.
+- Chưa có: quên mật khẩu trên app (backend đã có `forgot-password`, `reset-password`).
 
 ## Theme (TASK-114)
 

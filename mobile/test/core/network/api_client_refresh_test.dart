@@ -87,7 +87,10 @@ void main() {
     expect(paths().where((path) => path == '/auth/refresh'), hasLength(1));
   });
 
-  test('refresh token hết hiệu lực: xoá token, báo chưa đăng nhập', () async {
+  test('refresh token hết hiệu lực: xoá token, báo chưa đăng nhập, phát sessionExpired', () async {
+    var expiredEvents = 0;
+    final subscription = client.sessionExpired.listen((_) => expiredEvents++);
+    addTearDown(subscription.cancel);
     refreshResponse = () => (
       401,
       {
