@@ -509,3 +509,10 @@ Bảng `customer_preferences` (đầu vào matching Phase 7). Một khách có n
 - `POST …/preferences` (`customer.edit` với khách, xem được mà ngoài phạm vi sửa → 403) → 201. Body: `transactionType` (`SALE` mặc định | `RENT`), `isActive` (mặc định `true`) và các tiêu chí `propertyTypes[]`, `budgetMin/Max` (đồng), `areaMin/Max` (m²), `bedroomsMin`, `provinceIds[]`, `districtIds[]`, `wardIds[]` (tối đa 50 mỗi loại, phải tồn tại và đang dùng), `directions[]`, `legalStatuses[]`, `minRoadAccess`. Giá trị theo đúng danh sách của BĐS. Cần ít nhất một tiêu chí; min ≤ max; mảng bỏ trùng, mảng rỗng = không đặt. Tối đa 20 nhu cầu mỗi khách → 422.
 - `PATCH …/preferences/:id` chỉ đổi trường được gửi, `null` để bỏ tiêu chí, `expectedUpdatedAt` lệch → 409. `DELETE …/preferences/:id` → 204, xoá mềm. Nhu cầu không thuộc khách trong đường dẫn → 404.
 - Thêm, sửa, xoá nhu cầu ghi `audit_logs` của khách (`customer.add_preference`, `customer.update_preference`, `customer.remove_preference`).
+
+## Ghi chú khách hàng (TASK-080)
+
+Ghi chú là dòng `type = 'NOTE'` trong `customer_activities` (timeline của khách, chỉ thêm: không sửa, không xoá). Khác với trường `notes` của khách (một đoạn mô tả chung, sửa qua `PATCH /customers/:id`).
+
+- `POST /api/v1/customers/:customerId/notes` (`customer.edit` với khách) `{content, occurredAt?}` → 201 `{id, content, user: {id, fullName}, occurredAt, createdAt}`. `content` 1..5000 ký tự, không HTML. `occurredAt` là lúc việc xảy ra (mặc định lúc ghi), không được ở tương lai. Khách ngoài phạm vi xem → 404, xem được nhưng ngoài phạm vi sửa → 403.
+- `GET /api/v1/customers/:customerId/notes?page&pageSize` (`customer.view`) → ghi chú của khách, xảy ra gần đây trước. Khách đã xoá → 404; ghi chú vẫn giữ trong database.
