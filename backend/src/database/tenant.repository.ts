@@ -19,7 +19,7 @@ export class MissingTenantError extends Error {
   }
 }
 
-function assertTenant(tenantId: string): void {
+export function assertTenant(tenantId: string): void {
   if (typeof tenantId !== 'string' || !UUID_PATTERN.test(tenantId)) {
     throw new MissingTenantError();
   }
