@@ -30,3 +30,31 @@ export const TRANSACTION_TYPES = ['SALE', 'RENT'] as const;
 
 /** Số nhu cầu tối đa của một khách (mặc định Claude chọn ở TASK-078, đổi được khi có yêu cầu). */
 export const MAX_PREFERENCES_PER_CUSTOMER = 20;
+
+/** Loại hoạt động trên timeline của khách, khớp CHECK của `customer_activities.type`. */
+export const ACTIVITY_TYPES = [
+  'CALL',
+  'MESSAGE',
+  'PROPERTY_SENT',
+  'VIEWING',
+  'NEGOTIATION',
+  'DEPOSIT',
+  'NOTE',
+  'STATUS_CHANGE',
+  'ASSIGNMENT',
+] as const;
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+/** Loại người dùng tự ghi được (TASK-081). STATUS_CHANGE, ASSIGNMENT do hệ thống ghi khi đổi trạng thái/giao khách. */
+export const USER_ACTIVITY_TYPES = [
+  'CALL',
+  'MESSAGE',
+  'PROPERTY_SENT',
+  'VIEWING',
+  'NEGOTIATION',
+  'DEPOSIT',
+  'NOTE',
+] as const satisfies readonly ActivityType[];
+
+/** Số BĐS tối đa gắn vào một hoạt động. */
+export const MAX_ACTIVITY_PROPERTIES = 20;
