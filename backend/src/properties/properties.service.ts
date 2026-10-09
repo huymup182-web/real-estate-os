@@ -25,7 +25,7 @@ import type { CreatePropertyDto } from './dto/create-property.dto.js';
 import type { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
 import type { VerifyPropertyDto } from './dto/verify-property.dto.js';
 import { EDITABLE_PROPERTY_FIELDS, type UpdatePropertyDto } from './dto/update-property.dto.js';
-import { PropertyEvents } from './property-events.js';
+import { type ExpiredVerification, PropertyEvents } from './property-events.js';
 import { Property } from './property.entity.js';
 import {
   type PropertyDetailResponse,
@@ -599,7 +599,7 @@ export class PropertiesService {
    * (TASK-063). Trả về số BĐS vừa chuyển.
    */
   async markOverdueForVerification(): Promise<number> {
-    const [row] = (await this.dataSource.query(
+    const marked = (await this.dataSource.query(
       `WITH marked AS (
        UPDATE properties p
           SET status = 'VERIFY_REQUIRED', verification_status = 'EXPIRED'
@@ -612,7 +612,7 @@ export class PropertiesService {
                        AND (c.settings ->> 'verify_interval_days')::int BETWEEN 1 AND $2
                      THEN (c.settings ->> 'verify_interval_days')::int
                      ELSE $1 END)
-       RETURNING p.tenant_id, p.id, old.status AS old_status,
+       RETURNING p.tenant_id, p.id, p.agent_id, p.code, p.title, old.status AS old_status,
                  old.verification_status AS old_verification_status
        ), logged AS (
          INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, changes)
@@ -622,10 +622,14 @@ export class PropertiesService {
                   'verificationStatus', jsonb_build_array(old_verification_status, 'EXPIRED'))
            FROM marked
        )
-       SELECT COUNT(*)::int AS count FROM marked`,
+       SELECT tenant_id AS "tenantId", id AS "propertyId", agent_id AS "agentId", code, title
+         FROM marked`,
       [DEFAULT_VERIFY_INTERVAL_DAYS, MAX_VERIFY_INTERVAL_DAYS],
-    )) as { count: number }[];
-    return row?.count ?? 0;
+    )) as ExpiredVerification[];
+    if (marked.length > 0) {
+      void this.events.emitVerificationExpired(marked);
+    }
+    return marked.length;
   }
 
   /**

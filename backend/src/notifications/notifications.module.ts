@@ -15,6 +15,7 @@ import { NotificationsService } from './notifications.service.js';
 import { PushSender } from './push-sender.js';
 import { SavedSearchesController } from './saved-searches.controller.js';
 import { SavedSearchesService } from './saved-searches.service.js';
+import { VerifyReminderNotifier } from './verify-reminder-notifier.js';
 
 /**
  * Module thông báo (phase0/02-ARCHITECTURE.md mục 2.1: notifications, device_tokens, saved_searches).
@@ -23,7 +24,8 @@ import { SavedSearchesService } from './saved-searches.service.js';
  * bảng `device_tokens`, API `/device-tokens` (TASK-094).
  * `NewPropertyNotifier` báo BĐS mới khớp tìm kiếm đã lưu (TASK-095),
  * `MatchingNotifier` báo môi giới khi BĐS mới phù hợp khách của họ (TASK-096),
- * `AppointmentReminderJob` nhắc lịch hẹn (TASK-097).
+ * `AppointmentReminderJob` nhắc lịch hẹn (TASK-097),
+ * `VerifyReminderNotifier` báo BĐS quá hạn xác minh (TASK-098).
  */
 @Module({
   imports: [PropertiesModule, AuthModule, MatchingModule],
@@ -34,6 +36,7 @@ import { SavedSearchesService } from './saved-searches.service.js';
     NewPropertyNotifier,
     MatchingNotifier,
     AppointmentReminderJob,
+    VerifyReminderNotifier,
     DeviceTokensService,
     { provide: DeviceTokenStore, useExisting: DeviceTokensService },
     {
