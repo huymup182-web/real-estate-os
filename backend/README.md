@@ -587,3 +587,10 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 - Chỉ xét BĐS user xem được (`PropertiesService.visible`), chưa xoá, đang `AVAILABLE` (`MATCHABLE_PROPERTY_STATUS`), cùng loại giao dịch với một nhu cầu đang bật của khách.
 - Mỗi BĐS lấy nhu cầu cho điểm cao nhất; lọc, xếp và cắt như TASK-087 (điểm ≥ 50, điểm cao trước, cùng điểm thì BĐS cập nhật gần đây trước, mặc định 20, tối đa 100).
 - Mỗi kết quả: `property {id, code, title, propertyType, transactionType, price, area}`, `preferenceId`, `score`, `criteria`.
+
+## Giải thích kết quả matching (TASK-089)
+
+`src/matching/match-explanation.ts`: `explainMatch(score, criteria)` → `{summary, matched, partial, unmatched}`, dựng từ điểm từng tiêu chí (không gọi AI). Mỗi kết quả của `customersForProperty` và `propertiesForCustomer` có thêm `explanation`.
+
+- Tiêu chí mức đạt 1 vào `matched`, giữa 0 và 1 vào `partial`, 0 vào `unmatched`, theo thứ tự trọng số. Tên hiển thị trong `CRITERION_LABELS`.
+- Ví dụ `summary`: "92% phù hợp vì đúng khu vực, ngân sách và số phòng ngủ.", "70% phù hợp vì đúng khu vực và diện tích; gần đúng ngân sách; chưa đúng loại BĐS và pháp lý.", khách chưa nêu tiêu chí: "100% phù hợp: khách chưa nêu tiêu chí cụ thể."

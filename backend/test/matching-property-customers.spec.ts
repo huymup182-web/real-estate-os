@@ -229,6 +229,10 @@ describe('MatchingService.customersForProperty (TASK-087)', () => {
       ['price', 'location', 'bedrooms'],
     );
     assert.equal(
+      matches.find((match) => match.customer.id === overBudget)?.explanation.summary,
+      '70% phù hợp vì đúng khu vực; gần đúng ngân sách.',
+    );
+    assert.equal(
       (await matching.customersForProperty(admin(), property, company, { minScore: 90, limit: 1 }))
         .length,
       1,

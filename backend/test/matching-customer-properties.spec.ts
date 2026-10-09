@@ -230,6 +230,14 @@ describe('MatchingService.propertiesForCustomer (TASK-088)', () => {
       ['price', 'location', 'bedrooms'],
     );
     assert.equal(
+      top?.explanation.summary,
+      '100% phù hợp vì đúng ngân sách, khu vực và số phòng ngủ.',
+    );
+    assert.equal(
+      matches.find((match) => match.property.id === pricey)?.explanation.summary,
+      '77% phù hợp vì đúng khu vực và số phòng ngủ; gần đúng ngân sách.',
+    );
+    assert.equal(
       (await matching.propertiesForCustomer(admin(), customer, company, { limit: 1 })).length,
       1,
     );
