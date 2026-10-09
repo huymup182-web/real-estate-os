@@ -25,6 +25,7 @@ import type { CreatePropertyDto } from './dto/create-property.dto.js';
 import type { SetPropertyOwnerDto } from './dto/set-property-owner.dto.js';
 import type { VerifyPropertyDto } from './dto/verify-property.dto.js';
 import { EDITABLE_PROPERTY_FIELDS, type UpdatePropertyDto } from './dto/update-property.dto.js';
+import { PropertyEvents } from './property-events.js';
 import { Property } from './property.entity.js';
 import {
   type PropertyDetailResponse,
@@ -149,13 +150,15 @@ export class PropertiesService {
     @InjectRepository(Property) repository: Repository<Property>,
     private readonly dataSource: DataSource,
     private readonly audit: AuditService,
+    private readonly events: PropertyEvents,
   ) {
     this.properties = new TenantRepository(repository);
   }
 
   /**
    * Tạo BĐS (TASK-049): người tạo là môi giới phụ trách, trạng thái AVAILABLE, chưa xác minh.
-   * Mã BĐS cấp theo bộ đếm của công ty trong cùng transaction với lệnh tạo.
+   * Mã BĐS cấp theo bộ đếm của công ty trong cùng transaction với lệnh tạo. Sau khi commit phát
+   * `PropertyEvents.created` (thông báo BĐS mới, TASK-095).
    */
   async create(actor: Actor, dto: CreatePropertyDto): Promise<PropertyResponse> {
     if (dto.commissionType === 'PERCENT' && (dto.commissionValue ?? 0) > 100) {
@@ -194,6 +197,11 @@ export class PropertiesService {
       });
       await this.recordActivity(manager, actor, created.id, 'property.create');
       return created;
+    });
+    void this.events.emitCreated({
+      tenantId: actor.tenantId,
+      propertyId: property.id,
+      createdBy: actor.userId,
     });
     return toPropertyResponse(property);
   }
@@ -321,6 +329,62 @@ export class PropertiesService {
     search?: PropertySearchQueryDto,
   ): Promise<Paginated<PropertyListItem>> {
     const keyword = search?.q;
+    let base = this.searched(actor, scopes, search);
+    if (favoritesOnly) {
+      base = base.innerJoin(
+        'property_favorites',
+        'f',
+        'f.property_id = p.id AND f.tenant_id = p.tenant_id AND f.user_id = :scopeUserId',
+      );
+    }
+
+    const total = await base.clone().getCount();
+    let page = base
+      .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
+      .addSelect(IS_FAVORITE, 'is_favorite');
+    if (favoritesOnly) {
+      page = page.orderBy('f.created_at', 'DESC');
+    } else {
+      page = this.applySort(page, search?.sort ?? (keyword ? 'relevance' : 'newest'), keyword);
+    }
+    page = page.addOrderBy('p.createdAt', 'DESC').addOrderBy('p.id', 'DESC');
+    const { entities, raw } = await page
+      .offset(query.offset)
+      .limit(query.pageSize)
+      .getRawAndEntities<ViewerFlagsRow & { p_id: string }>();
+
+    const flagsById = new Map(raw.map((row) => [row.p_id, viewerFlags(row)]));
+    const items = entities.map((property) =>
+      toPropertyListItem(
+        property,
+        flagsById.get(property.id) ?? { ownerContactVisible: false, isFavorite: false },
+      ),
+    );
+    return new Paginated(items, query.page, query.pageSize, total);
+  }
+
+  /**
+   * BĐS mới tạo có khớp bộ lọc tìm kiếm `search` theo quyền xem của `actor` không (thông báo BĐS mới
+   * cho tìm kiếm đã lưu, TASK-095). Cùng điều kiện lọc với `GET /properties`.
+   */
+  async matchesSearch(
+    actor: Actor,
+    propertyId: string,
+    search: PropertySearchQueryDto,
+    scopes: PropertyScopes,
+  ): Promise<boolean> {
+    return this.searched(actor, scopes, search)
+      .andWhere('p.id = :matchPropertyId', { matchPropertyId: propertyId })
+      .getExists();
+  }
+
+  /** BĐS trong phạm vi xem, lọc theo tham số tìm kiếm (Phase 5). */
+  private searched(
+    actor: Actor,
+    scopes: PropertyScopes,
+    search?: PropertySearchQueryDto,
+  ): SelectQueryBuilder<Property> {
+    const keyword = search?.q;
     let base = this.visible(actor, scopes);
     if (keyword) {
       base = base.andWhere(this.keywordCondition(keyword, scopes), {
@@ -388,37 +452,7 @@ export class PropertiesService {
     if (search?.roadWidthMax !== undefined) {
       base = base.andWhere('p.roadWidth <= :roadWidthMax', { roadWidthMax: search.roadWidthMax });
     }
-    if (favoritesOnly) {
-      base = base.innerJoin(
-        'property_favorites',
-        'f',
-        'f.property_id = p.id AND f.tenant_id = p.tenant_id AND f.user_id = :scopeUserId',
-      );
-    }
-
-    const total = await base.clone().getCount();
-    let page = base
-      .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
-      .addSelect(IS_FAVORITE, 'is_favorite');
-    if (favoritesOnly) {
-      page = page.orderBy('f.created_at', 'DESC');
-    } else {
-      page = this.applySort(page, search?.sort ?? (keyword ? 'relevance' : 'newest'), keyword);
-    }
-    page = page.addOrderBy('p.createdAt', 'DESC').addOrderBy('p.id', 'DESC');
-    const { entities, raw } = await page
-      .offset(query.offset)
-      .limit(query.pageSize)
-      .getRawAndEntities<ViewerFlagsRow & { p_id: string }>();
-
-    const flagsById = new Map(raw.map((row) => [row.p_id, viewerFlags(row)]));
-    const items = entities.map((property) =>
-      toPropertyListItem(
-        property,
-        flagsById.get(property.id) ?? { ownerContactVisible: false, isFavorite: false },
-      ),
-    );
-    return new Paginated(items, query.page, query.pageSize, total);
+    return base;
   }
 
   /**

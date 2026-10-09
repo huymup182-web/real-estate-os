@@ -8,6 +8,7 @@ import { PropertiesService } from './properties.service.js';
 import { Property } from './property.entity.js';
 import { PropertyDocumentsController } from './property-documents.controller.js';
 import { PropertyDocumentsService } from './property-documents.service.js';
+import { PropertyEvents } from './property-events.js';
 import { PropertyImagesController } from './property-images.controller.js';
 import { PropertyImagesService } from './property-images.service.js';
 import {
@@ -29,11 +30,12 @@ import { PropertyVerificationJob } from './property-verification.job.js';
   ],
   providers: [
     PropertiesService,
+    PropertyEvents,
     PropertyImagesService,
     PropertyDocumentsService,
     PropertyShareLinksService,
     PropertyVerificationJob,
   ],
-  exports: [PropertiesService],
+  exports: [PropertiesService, PropertyEvents],
 })
 export class PropertiesModule {}
