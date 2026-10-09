@@ -25,6 +25,7 @@ function serviceWith(storage: StorageConfig | null): StorageService {
     jwtSecret: 'khoa-test-du-dai-it-nhat-32-ky-tu-abc',
     mail: null,
     storage,
+    fcm: null,
   } satisfies AppConfig);
 }
 

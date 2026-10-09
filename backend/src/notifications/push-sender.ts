@@ -12,7 +12,7 @@ export interface PushMessage {
 
 /**
  * Kênh đẩy thông báo (TASK-092). `send` trả true khi đã đẩy được ít nhất tới một thiết bị; lỗi thì ném ra,
- * `NotificationsService` ghi log và bỏ qua. Bản FCM làm ở TASK-093.
+ * `NotificationsService` ghi log và bỏ qua. Bản FCM: `FcmPushSender` (TASK-093).
  */
 export abstract class PushSender {
   abstract send(message: PushMessage): Promise<boolean>;

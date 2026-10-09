@@ -16,7 +16,21 @@ export interface AppConfig {
   mail: MailConfig | null;
   /** null khi chưa cấu hình object storage (chỉ cho phép ngoài production): không upload ảnh được. */
   storage: StorageConfig | null;
+  /** null khi chưa đặt FCM_CONFIG: thông báo chỉ lưu hộp thư, không đẩy tới thiết bị. */
+  fcm: FcmConfig | null;
 }
+
+/** Service account Firebase dùng gọi FCM HTTP v1 (TASK-093). */
+export interface FcmConfig {
+  projectId: string;
+  clientEmail: string;
+  /** Khoá riêng PEM của service account. Là secret, không bao giờ ghi log. */
+  privateKey: string;
+  /** Địa chỉ đổi JWT lấy access token OAuth2. */
+  tokenUri: string;
+}
+
+const DEFAULT_FCM_TOKEN_URI = 'https://oauth2.googleapis.com/token';
 
 /** Object storage S3 / Cloudflare R2 / MinIO lưu ảnh BĐS (TASK-057). */
 export interface StorageConfig {
@@ -128,6 +142,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jwtSecret,
     mail: loadMailConfig(env, nodeEnv),
     storage: loadStorageConfig(env, nodeEnv),
+    fcm: loadFcmConfig(env),
   };
 }
 
@@ -214,4 +229,46 @@ function loadStorageConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): StorageCon
     forcePathStyle: rawPathStyle === 'true',
     publicUrl: publicUrl?.replace(/\/+$/, '') ?? null,
   };
+}
+
+/**
+ * FCM_CONFIG là file JSON service account Firebase mã hoá base64. Không bắt buộc ở môi trường nào: để trống
+ * thì không đẩy thông báo; đặt mà sai thì dừng ngay khi khởi động.
+ */
+function loadFcmConfig(env: NodeJS.ProcessEnv): FcmConfig | null {
+  const raw = env['FCM_CONFIG'];
+  if (!raw) {
+    return null;
+  }
+
+  let json: unknown;
+  try {
+    json = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+  } catch {
+    throw new Error('FCM_CONFIG không hợp lệ: cần JSON service account Firebase mã hoá base64');
+  }
+  const account = (typeof json === 'object' && json !== null ? json : {}) as Record<
+    string,
+    unknown
+  >;
+  const field = (name: string): string | null => {
+    const value = account[name];
+    return typeof value === 'string' && value.trim() !== '' ? value : null;
+  };
+
+  const projectId = field('project_id');
+  const clientEmail = field('client_email');
+  const privateKey = field('private_key');
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error('FCM_CONFIG thiếu project_id, client_email hoặc private_key');
+  }
+  if (!privateKey.includes('PRIVATE KEY')) {
+    throw new Error('FCM_CONFIG: private_key không phải khoá PEM');
+  }
+  const tokenUri = field('token_uri') ?? DEFAULT_FCM_TOKEN_URI;
+  if (!isHttpUrl(tokenUri)) {
+    throw new Error(`FCM_CONFIG: token_uri không hợp lệ: "${tokenUri}"`);
+  }
+
+  return { projectId, clientEmail, privateKey, tokenUri };
 }

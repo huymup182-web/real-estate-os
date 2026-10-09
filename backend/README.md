@@ -608,4 +608,13 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 
 - Ghi một dòng `notifications` cho mỗi người nhận; chỉ user ACTIVE, chưa xoá, cùng công ty `tenantId` (id khác bị bỏ qua, id trùng gửi một lần). Gọi sau khi transaction nghiệp vụ đã commit.
 - `type` thuộc `NOTIFICATION_TYPES`; tiêu đề 1..255 và nội dung 1..2000 ký tự (đã trim); `data` là object, JSON ≤ 4000 ký tự; tối đa 1000 người nhận. Sai là lỗi lập trình → ném Error, không ghi gì.
-- Sau khi ghi, đẩy từng thông báo qua `PushSender`. Đẩy được thì ghi `push_sent_at`; lỗi chỉ ghi log, thông báo vẫn nằm trong hộp thư. Mặc định `NoopPushSender` (không đẩy); FCM ở TASK-093.
+- Sau khi ghi, đẩy từng thông báo qua `PushSender`. Đẩy được thì ghi `push_sent_at`; lỗi chỉ ghi log, thông báo vẫn nằm trong hộp thư. Không đặt `FCM_CONFIG` thì dùng `NoopPushSender` (không đẩy); có thì đẩy qua FCM (TASK-093).
+
+## Tích hợp FCM (TASK-093)
+
+Đặt `FCM_CONFIG` (JSON service account Firebase mã hoá base64, xem `docs/environment.md`) thì `PushSender` là `FcmPushSender`; để trống thì thông báo chỉ lưu hộp thư. Cấu hình sai (không phải base64 JSON, thiếu `project_id` / `client_email` / `private_key`) làm backend dừng khi khởi động.
+
+- Gọi thẳng FCM HTTP v1 (`src/notifications/fcm.client.ts`), không dùng SDK `firebase-admin`: ký JWT RS256 bằng khoá service account, đổi lấy access token OAuth2 ở `token_uri` (cache tới 1 phút trước khi hết hạn), rồi `POST /v1/projects/{project_id}/messages:send` cho từng token thiết bị, timeout 10 giây.
+- Tin gồm `notification {title, body}` và `data` dạng chuỗi: dữ liệu của thông báo (giá trị khác chuỗi đổi sang JSON, bỏ khoá FCM cấm như `from`, `google*`, `gcm*`) cộng `type` và `notificationId`.
+- Token trả 404 `UNREGISTERED` hoặc 400 `INVALID_ARGUMENT` bị xoá khỏi kho token. Gửi được ít nhất một thiết bị → `push_sent_at` được ghi; người nhận chưa có thiết bị → không ghi; mọi lần gửi đều lỗi → ghi log cảnh báo.
+- Token thiết bị lấy từ `DeviceTokenStore`. Bảng `device_tokens` và API đăng ký token làm ở TASK-094; tới lúc đó kho token rỗng nên chưa thiết bị nào nhận tin.
