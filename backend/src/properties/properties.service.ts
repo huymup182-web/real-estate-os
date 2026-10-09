@@ -245,6 +245,7 @@ export class PropertiesService {
     for (const [min, max] of [
       ['bedroomsMin', 'bedroomsMax'],
       ['bathroomsMin', 'bathroomsMax'],
+      ['roadWidthMin', 'roadWidthMax'],
     ] as const) {
       const low = query[min];
       const high = query[max];
@@ -397,6 +398,13 @@ export class PropertiesService {
     // Lọc hướng nhà (TASK-071): khớp một trong các hướng đã chọn; BĐS chưa ghi hướng không khớp.
     if (search?.direction) {
       base = base.andWhere('p.direction IN (:...directions)', { directions: search.direction });
+    }
+    // Lọc độ rộng đường (TASK-072): BĐS chưa ghi độ rộng (NULL) không khớp.
+    if (search?.roadWidthMin !== undefined) {
+      base = base.andWhere('p.roadWidth >= :roadWidthMin', { roadWidthMin: search.roadWidthMin });
+    }
+    if (search?.roadWidthMax !== undefined) {
+      base = base.andWhere('p.roadWidth <= :roadWidthMax', { roadWidthMax: search.roadWidthMax });
     }
     if (favoritesOnly) {
       base = base.innerJoin(

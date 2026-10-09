@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng, độ rộng đường)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -614,6 +614,47 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
       const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
       assert.ok(
         error.details.some((detail) => detail.field.startsWith('direction')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('lọc độ rộng đường (m, số lẻ) gồm cả hai đầu; BĐS chưa ghi độ rộng không khớp', async () => {
+    const word = tag();
+    const alley = await createProperty({ title: `Nhà ${word}`, roadWidth: 2.5 });
+    const car = await createProperty({
+      title: `Nhà ${word}`,
+      roadWidth: 6,
+      price: 1_500_000_000,
+    });
+    const avenue = await createProperty({ title: `Nhà ${word}`, roadWidth: 12.75 });
+    const unknown = await createProperty({ title: `Nhà ${word}` });
+    assert.deepEqual((await search(word)).ids, [unknown.id, avenue.id, car.id, alley.id]);
+    assert.deepEqual((await search(word, 'agent1', '&roadWidthMin=6')).ids, [avenue.id, car.id]);
+    assert.deepEqual((await search(word, 'agent1', '&roadWidthMax=2.5')).ids, [alley.id]);
+    assert.deepEqual((await search(word, 'agent1', '&roadWidthMin=2.51&roadWidthMax=12.75')).ids, [
+      avenue.id,
+      car.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&roadWidthMin=4&priceMax=2000000000')).ids, [
+      car.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&roadWidthMin=12.76')).ids, []);
+  });
+
+  it('độ rộng đường sai: âm, không phải số, quá 2 chữ số thập phân, quá lớn, min > max → 400', async () => {
+    for (const query of [
+      'roadWidthMin=-1',
+      'roadWidthMax=abc',
+      'roadWidthMin=1.234',
+      'roadWidthMax=10000',
+      'roadWidthMin=8&roadWidthMax=7.99',
+    ]) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('roadWidth')),
         `${query}: ${JSON.stringify(error)}`,
       );
     }
