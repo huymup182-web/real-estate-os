@@ -82,6 +82,17 @@ lib/
 - Phiên hết hạn giữa chừng (`ApiClient.sessionExpired`, làm mới token thất bại) thì app tự về màn đăng nhập.
 - Chưa có: quên mật khẩu trên app (backend đã có `forgot-password`, `reset-password`).
 
+## Trang chủ (TASK-117)
+
+- Lời chào theo giờ Việt Nam và tên gọi (chữ cuối của họ tên), tên công ty.
+- "30 ngày gần nhất" (`GET /reports/dashboard`, cần `report.view`): BĐS đang bán, khách mới, lịch xem nhà, giao
+  dịch thành công, trong phạm vi xem của người dùng.
+- "Lịch hẹn sắp tới" (`GET /appointments?from=<bây giờ>&status=SCHEDULED&pageSize=5`, cần `appointment.view`):
+  giờ, ngày (Hôm nay / Ngày mai / Thứ…), khách, BĐS, địa điểm.
+- Không có quyền thì ẩn phần đó, không gọi API. Mỗi phần lỗi riêng có nút "Thử lại"; kéo xuống để tải lại.
+- Ngày giờ, số tiền hiện theo giờ Việt Nam bằng `core/format/vn_format.dart` (UTC+7 cố định, như web admin).
+  Giờ hiện tại lấy qua `clockProvider` để test được.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

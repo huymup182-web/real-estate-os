@@ -1,0 +1,82 @@
+/// Định dạng ngày giờ, số theo kiểu Việt Nam. Backend trả thời điểm UTC; app hiện theo giờ Việt Nam (UTC+7, không
+/// đổi giờ theo mùa) dù điện thoại đặt múi giờ nào, giống web admin.
+const _vnOffset = Duration(hours: 7);
+
+/// Thời điểm [at] đổi sang "đồng hồ" Việt Nam (đọc year/month/day/hour... là giờ Việt Nam).
+DateTime toVn(DateTime at) => at.toUtc().add(_vnOffset);
+
+String _two(int value) => value.toString().padLeft(2, '0');
+
+/// `08:30`.
+String vnTime(DateTime at) {
+  final vn = toVn(at);
+  return '${_two(vn.hour)}:${_two(vn.minute)}';
+}
+
+/// `09/10/2026`.
+String vnDate(DateTime at) {
+  final vn = toVn(at);
+  return '${_two(vn.day)}/${_two(vn.month)}/${vn.year}';
+}
+
+const _weekdays = [
+  'Thứ 2',
+  'Thứ 3',
+  'Thứ 4',
+  'Thứ 5',
+  'Thứ 6',
+  'Thứ 7',
+  'Chủ nhật',
+];
+
+/// Ngày của [at] so với [now] theo giờ Việt Nam: `Hôm nay`, `Ngày mai`, `Hôm qua`, còn lại `Thứ 6, 16/10`
+/// (khác năm thì thêm năm).
+String vnDayLabel(DateTime at, DateTime now) {
+  final day = toVn(at);
+  final today = toVn(now);
+  final diff = DateTime.utc(
+    day.year,
+    day.month,
+    day.day,
+  ).difference(DateTime.utc(today.year, today.month, today.day)).inDays;
+  switch (diff) {
+    case 0:
+      return 'Hôm nay';
+    case 1:
+      return 'Ngày mai';
+    case -1:
+      return 'Hôm qua';
+  }
+  final label =
+      '${_weekdays[day.weekday - 1]}, ${_two(day.day)}/${_two(day.month)}';
+  return day.year == today.year ? label : '$label/${day.year}';
+}
+
+/// Số nguyên có dấu chấm phân cách nghìn: `1.234.567`.
+String vnNumber(int value) {
+  final digits = value.abs().toString();
+  final buffer = StringBuffer(value < 0 ? '-' : '');
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) {
+      buffer.write('.');
+    }
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
+}
+
+/// Số tiền đồng viết gọn: `3,5 tỷ`, `850 triệu`, `12.000 đ`.
+String vnMoneyShort(int value) {
+  String trim(double number) {
+    final text = number.toStringAsFixed(number >= 100 ? 0 : 1);
+    return text.endsWith('.0') ? text.substring(0, text.length - 2) : text;
+  }
+
+  if (value.abs() >= 1000000000) {
+    return '${trim(value / 1000000000).replaceAll('.', ',')} tỷ';
+  }
+  if (value.abs() >= 1000000) {
+    return '${trim(value / 1000000).replaceAll('.', ',')} triệu';
+  }
+  return '${vnNumber(value)} đ';
+}
