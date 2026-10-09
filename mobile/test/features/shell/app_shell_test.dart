@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:real_estate_os/app.dart';
 import 'package:real_estate_os/core/theme/app_theme.dart';
 import 'package:real_estate_os/features/auth/presentation/session_controller.dart';
+import 'package:real_estate_os/features/customers/presentation/customer_list_controller.dart';
 import 'package:real_estate_os/features/properties/presentation/property_list_controller.dart';
 
 import '../../support/fake_auth.dart';
+import '../../support/fake_customers.dart';
 import '../../support/fake_properties.dart';
 
 void main() {
@@ -18,6 +20,7 @@ void main() {
       propertiesRepositoryProvider.overrideWithValue(
         FakePropertiesRepository(),
       ),
+      customersRepositoryProvider.overrideWithValue(FakeCustomersRepository()),
     ],
     child: const App(),
   );

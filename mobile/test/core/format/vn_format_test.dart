@@ -34,4 +34,11 @@ void main() {
     expect(vnDecimal(1250.25), '1.250,25');
     expect(vnDecimal(3.999), '4');
   });
+
+  test('số điện thoại Việt Nam hiện kiểu trong nước', () {
+    expect(vnPhone('+84901234567'), '0901 234 567');
+    expect(vnPhone('+84281234567'), '0281 234 567');
+    expect(vnPhone('+6591234567'), '+6591234567');
+    expect(vnPhone('+8490123'), '+8490123');
+  });
 }

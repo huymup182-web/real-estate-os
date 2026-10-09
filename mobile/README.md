@@ -172,6 +172,16 @@ lib/
 - Tab "BĐS" có nút tim trên thanh tiêu đề → `/properties/favorites` (`GET /properties/favorites`, mới lưu trước,
   cuộn để tải thêm, kéo để tải lại). Bỏ tim ở đây thì thẻ ẩn ngay, snackbar có "Hoàn tác".
 
+## Danh sách khách hàng (TASK-126)
+
+- Tab "Khách hàng": `GET /customers` (khách trong phạm vi `customer.view`, mới tạo trước), 20 khách mỗi trang, cuộn
+  để tải thêm, kéo để tải lại. Thẻ khách: tên, số điện thoại (`+849…` hiện `09xx xxx xxx`), bước pipeline có màu,
+  mục đích, thời gian mua, nguồn, ngày tạo.
+- Ô tìm theo tên, số điện thoại, email (`q`, tối đa 100 ký tự, chờ ngừng gõ 400ms). Hàng nút lọc theo bước
+  (chọn nhiều, gửi `status=A,B`); "Tất cả" bỏ lọc.
+- Ô tìm dùng chung `core/widgets/debounced_search_field.dart`; cuối danh sách dùng chung
+  `core/widgets/load_more_footer.dart`. Chạm thẻ để xem chi tiết làm ở TASK-127.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

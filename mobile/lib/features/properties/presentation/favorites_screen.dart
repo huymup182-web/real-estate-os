@@ -7,9 +7,9 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../../../core/widgets/load_more_footer.dart';
 import '../domain/property_summary.dart';
 import 'favorites_controller.dart';
-import 'properties_screen.dart';
 import 'property_card.dart';
 import 'property_list_controller.dart';
 
@@ -132,7 +132,7 @@ class _List extends StatelessWidget {
                   state.loadMoreError == null) {
                 Future.microtask(controller.loadMore);
               }
-              return PropertyListFooter(
+              return LoadMoreFooter(
                 loading: state.loadingMore || state.hasMore,
                 error: state.loadMoreError,
                 onRetry: controller.loadMore,

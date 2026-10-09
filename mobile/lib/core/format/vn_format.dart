@@ -89,3 +89,14 @@ String vnMoneyShort(int value) {
   }
   return '${vnNumber(value)} đ';
 }
+
+/// Số điện thoại Việt Nam dạng quốc tế (`+84901234567`) hiện theo kiểu trong nước: `0901 234 567`. Số nước khác
+/// hoặc không đúng dạng thì giữ nguyên.
+String vnPhone(String phone) {
+  final match = RegExp(r'^\+84(\d{9})$').firstMatch(phone);
+  if (match == null) {
+    return phone;
+  }
+  final digits = '0${match[1]}';
+  return '${digits.substring(0, 4)} ${digits.substring(4, 7)} ${digits.substring(7)}';
+}
