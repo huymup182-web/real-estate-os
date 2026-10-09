@@ -11,6 +11,7 @@ export function hasPermission(me: Pick<CurrentUser, 'permissions'>, code: string
 /** Mục menu chính của admin, mục nào cần quyền thì chỉ hiện khi có quyền đó. */
 export const NAV_ITEMS: readonly { href: string; label: string; permission?: string }[] = [
   { href: '/', label: 'Tổng quan' },
+  { href: '/notifications', label: 'Thông báo' },
   { href: '/properties', label: 'Bất động sản', permission: 'property.view' },
   { href: '/customers', label: 'Khách hàng', permission: 'customer.view' },
   { href: '/appointments', label: 'Lịch hẹn', permission: 'appointment.view' },
