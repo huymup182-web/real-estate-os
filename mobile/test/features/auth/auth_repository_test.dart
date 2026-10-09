@@ -11,6 +11,8 @@ import '../../support/fixtures.dart';
 void main() {
   late MemoryTokenStorage tokens;
   late (int, Object?) Function() me;
+  late (int, Object?) Function() login;
+  late (int, Object?) Function() logout;
   late FakeAdapter adapter;
   late AuthRepository repository;
 
@@ -19,7 +21,27 @@ void main() {
       const AuthTokens(accessToken: 'a', refreshToken: 'r'),
     );
     me = () => (200, meResponse);
-    adapter = FakeAdapter((options) => me());
+    login = () => (
+      200,
+      {
+        'success': true,
+        'data': {
+          'accessToken': 'access-new',
+          'refreshToken': 'refresh-new',
+          'expiresIn': 900,
+          'user': {'id': 'u1'},
+        },
+        'message': null,
+      },
+    );
+    logout = () => (204, null);
+    adapter = FakeAdapter(
+      (options) => switch (options.path) {
+        '/auth/login' => login(),
+        '/auth/logout' => logout(),
+        _ => me(),
+      },
+    );
     repository = AuthRepository(
       ApiClient(
         baseUrl: 'https://api.example.vn/api/v1',
@@ -70,4 +92,69 @@ void main() {
     await expectLater(repository.restore(), throwsA(isA<ApiException>()));
     expect(await tokens.read(), isNotNull);
   });
+
+  test('đăng nhập: gửi identifier, mật khẩu không kèm token; lưu token rồi đọc /auth/me', () async {
+    await tokens.clear();
+    final user = await repository.signIn(
+      identifier: '+84901234567',
+      password: 'mat-khau',
+    );
+    expect(user.fullName, 'Nguyễn Văn An');
+    final loginRequest = adapter.requests.first;
+    expect(loginRequest.options.path, '/auth/login');
+    expect(loginRequest.body, {
+      'identifier': '+84901234567',
+      'password': 'mat-khau',
+    });
+    expect(loginRequest.options.headers['authorization'], isNull);
+    expect(
+      adapter.requests.last.options.headers['authorization'],
+      'Bearer access-new',
+    );
+    expect((await tokens.read())?.refreshToken, 'refresh-new');
+  });
+
+  test('đăng nhập sai: ném lỗi của backend, không lưu token', () async {
+    await tokens.clear();
+    login = () =>
+        (401, errorBody('UNAUTHENTICATED', 'Sai thông tin đăng nhập'));
+    await expectLater(
+      repository.signIn(identifier: 'a@b.vn', password: 'x'),
+      throwsA(
+        isA<ApiException>().having(
+          (e) => e.message,
+          'message',
+          'Sai thông tin đăng nhập',
+        ),
+      ),
+    );
+    expect(await tokens.read(), isNull);
+  });
+
+  test('đăng nhập được nhưng /auth/me lỗi: xoá token vừa lưu', () async {
+    me = () => (0, null);
+    await expectLater(
+      repository.signIn(identifier: 'a@b.vn', password: 'x'),
+      throwsA(isA<ApiException>()),
+    );
+    expect(await tokens.read(), isNull);
+  });
+
+  test(
+    'đăng xuất: gọi /auth/logout rồi xoá token, kể cả khi mất mạng',
+    () async {
+      await repository.signOut();
+      expect(adapter.requests.single.options.path, '/auth/logout');
+      expect(
+        adapter.requests.single.options.headers['authorization'],
+        'Bearer a',
+      );
+      expect(await tokens.read(), isNull);
+
+      await tokens.save(const AuthTokens(accessToken: 'a', refreshToken: 'r'));
+      logout = () => (0, null);
+      await repository.signOut();
+      expect(await tokens.read(), isNull);
+    },
+  );
 }

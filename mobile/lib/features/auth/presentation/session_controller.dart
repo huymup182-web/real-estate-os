@@ -29,11 +29,33 @@ final sessionProvider = AsyncNotifierProvider<SessionController, Session>(
 
 class SessionController extends AsyncNotifier<Session> {
   @override
-  Future<Session> build() async =>
-      Session(await ref.read(authRepositoryProvider).restore());
+  Future<Session> build() async {
+    final auth = ref.read(authRepositoryProvider);
+    final subscription = auth.sessionExpired.listen(
+      (_) => state = const AsyncData(Session(null)),
+    );
+    ref.onDispose(subscription.cancel);
+    return Session(await auth.restore());
+  }
 
   Future<void> retry() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(build);
+  }
+
+  /// Đăng nhập; lỗi ném cho form hiện, phiên giữ nguyên (không quay về splash).
+  Future<void> signIn({
+    required String identifier,
+    required String password,
+  }) async {
+    final user = await ref
+        .read(authRepositoryProvider)
+        .signIn(identifier: identifier, password: password);
+    state = AsyncData(Session(user));
+  }
+
+  Future<void> signOut() async {
+    await ref.read(authRepositoryProvider).signOut();
+    state = const AsyncData(Session(null));
   }
 }

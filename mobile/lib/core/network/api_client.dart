@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 
 import '../error/api_exception.dart';
@@ -33,6 +35,10 @@ class ApiClient {
 
   final Dio _dio;
   final TokenStorage _tokens;
+  final _sessionExpired = StreamController<void>.broadcast();
+
+  /// Phát khi phiên đăng nhập hết hạn hẳn (làm mới token thất bại, token đã bị xoá), để app về màn đăng nhập.
+  Stream<void> get sessionExpired => _sessionExpired.stream;
 
   /// `auth: false` cho API không cần đăng nhập (đăng nhập, quên mật khẩu).
   Future<ApiResponse> get(
@@ -112,6 +118,7 @@ class ApiClient {
     } on ApiException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await _tokens.clear();
+        _sessionExpired.add(null);
         throw ApiException(
           code: ErrorCodes.unauthenticated,
           message: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại',

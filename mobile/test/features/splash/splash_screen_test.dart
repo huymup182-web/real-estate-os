@@ -39,7 +39,7 @@ void main() {
   testWidgets('chưa đăng nhập: vào màn đăng nhập', (tester) async {
     await tester.pumpWidget(app(FakeAuthRepository(() async => null)));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(AppBar, 'Đăng nhập'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Đăng nhập'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
   });
 
