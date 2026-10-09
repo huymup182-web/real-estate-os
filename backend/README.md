@@ -637,3 +637,11 @@ Tạo BĐS xong (sau khi commit), `PropertiesService` phát `PropertyEvents.crea
 - BĐS phải khớp bộ lọc đã lưu theo quyền xem BĐS hiện tại của người đó, đúng điều kiện của `GET /properties` (`PropertiesService.matchesSearch`). Không có `property.view` thì không nhận. Bộ lọc không còn hợp lệ thì bỏ qua tìm kiếm đó (ghi log cảnh báo).
 - Mỗi người nhận một thông báo `NEW_PROPERTY` dù khớp nhiều tìm kiếm: tiêu đề "BĐS mới khớp tìm kiếm đã lưu", nội dung `<mã> · <tiêu đề>. Khớp: "<tên tìm kiếm>", ...`, `data` = `{propertyId, savedSearchIds}`. Các tìm kiếm khớp được ghi `last_notified_at`.
 - Chỉ khi tạo BĐS mới; sửa BĐS hoặc mở bán lại không báo.
+
+## Thông báo matching (TASK-096)
+
+Cùng sự kiện tạo BĐS như TASK-095, `MatchingNotifier` (`src/notifications`) chạy nền:
+
+- Xét môi giới ACTIVE đang phụ trách (`customers.agent_id`) khách chưa WON/LOST có nhu cầu đang bật cùng loại giao dịch với BĐS.
+- Với mỗi môi giới, ghép bằng `MatchingService.customersForProperty` theo quyền xem BĐS và khách của chính họ (điểm ≥ 50, tối đa 100 khách), rồi chỉ giữ khách họ phụ trách. Không xem được BĐS thì bỏ qua; lỗi với một môi giới chỉ ghi log, vẫn báo người khác.
+- Mỗi môi giới nhận một thông báo `MATCHED_PROPERTY`, kể cả người tạo BĐS: tiêu đề "BĐS mới phù hợp với khách của bạn", nội dung `<mã> · <tiêu đề>. Phù hợp: <khách> (<điểm>%), ... và N khách khác` (nêu tên 3 khách điểm cao nhất), `data` = `{propertyId, matchCount, customers: [{customerId, score}]}` (tối đa 20 khách).
