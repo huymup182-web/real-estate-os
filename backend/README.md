@@ -489,3 +489,13 @@ Module `src/notifications` (bảng `saved_searches`, phase0/02-ARCHITECTURE.md m
 - `GET /api/v1/saved-searches/:id/properties?page=&pageSize=` chạy lại tìm kiếm: kết quả như `GET /properties` với bộ lọc đã lưu, theo quyền xem hiện tại.
 - Tối đa 50 tìm kiếm mỗi người → 422 khi vượt.
 - `src/search`: `PropertySearchQueryDto` (bộ lọc dùng chung cho saved search, các bộ lọc khác thêm ở TASK-065..072), `keywordTsQuery()`.
+
+## Khách hàng (TASK-077)
+
+Module `src/customers` (bảng `customers`, docs/database.md mục 4.5). Phạm vi quyền xét theo môi giới phụ trách hoặc người tạo, như BĐS.
+
+- `POST /api/v1/customers` (`customer.create`) `{fullName, phone, email?, purpose?, purchaseTimeline?, source?, notes?}` → 201. `phone` dạng quốc tế (`+84901234567`), không bắt buộc duy nhất. Người tạo là môi giới phụ trách, trạng thái `NEW`. Không nhận `agentId`, `status`, `lostReason` (TASK-079, TASK-082).
+- `GET /api/v1/customers?page&pageSize` (`customer.view`): khách trong phạm vi xem, mới tạo trước. `GET /:id`: ngoài phạm vi, đã xoá hoặc công ty khác → 404.
+- `PATCH /api/v1/customers/:id` (`customer.edit`): chỉ đổi trường được gửi, trường tuỳ chọn gửi `null` hoặc chuỗi rỗng để xoá; body rỗng → 400. Xem được nhưng ngoài phạm vi sửa → 403; `expectedUpdatedAt` lệch → 409.
+- `DELETE /api/v1/customers/:id` (`customer.delete`) → 204, xoá mềm, ghi người xoá vào `updated_by`.
+- Tạo, sửa (kèm `{field: [cũ, mới]}`), xoá đều ghi `audit_logs` (`entity_type = 'customer'`).
