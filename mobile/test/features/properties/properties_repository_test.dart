@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:real_estate_os/core/network/api_client.dart';
 import 'package:real_estate_os/core/storage/token_storage.dart';
 import 'package:real_estate_os/features/properties/data/properties_repository.dart';
+import 'package:real_estate_os/features/properties/domain/property_draft.dart';
 import 'package:real_estate_os/features/properties/domain/property_query.dart';
 
 import '../../support/fake_adapter.dart';
@@ -207,5 +208,77 @@ void main() {
     expect(adapter.requests.last.options.path, '/properties/p1/images');
     expect(image.isCover, isTrue);
     expect(image.thumbnailUrl, isNull);
+  });
+
+  test('tạo: POST /properties; sửa: PATCH kèm expectedUpdatedAt', () async {
+    final adapter = FakeAdapter((options) {
+      if (options.method == 'POST') {
+        return (
+          201,
+          {
+            'success': true,
+            'message': null,
+            'data': {'id': 'n1', 'code': 'BDS-000009'},
+          },
+        );
+      }
+      return (
+        200,
+        {
+          'success': true,
+          'message': null,
+          'data': {
+            'id': 'p1',
+            'code': 'BDS-000001',
+            'title': 'Sửa',
+            'propertyType': 'LAND',
+            'price': 1,
+            'area': 1,
+            'status': 'AVAILABLE',
+            'verificationStatus': 'UNVERIFIED',
+            'provinceId': 'p',
+            'wardId': 'w',
+            'canEdit': true,
+            'updatedAt': '2026-10-09T00:00:00.000Z',
+          },
+        },
+      );
+    });
+    final repository = PropertiesRepository(
+      ApiClient(
+        baseUrl: 'https://api.example.vn/api/v1',
+        tokens: MemoryTokenStorage(),
+        dio: Dio()..httpClientAdapter = adapter,
+      ),
+    );
+    const draft = PropertyDraft(
+      title: 'A',
+      propertyType: 'LAND',
+      price: 1,
+      area: 1,
+      provinceId: 'p',
+      wardId: 'w',
+    );
+
+    final created = await repository.create(draft);
+    expect(created, (id: 'n1', code: 'BDS-000009'));
+    final updated = await repository.update(
+      'p1',
+      draft,
+      expectedUpdatedAt: DateTime.utc(2026, 10, 8, 2, 30),
+      withStreetAddress: false,
+    );
+    expect(updated.canEdit, isTrue);
+    final [post, patch] = adapter.requests;
+    expect((post.options.method, post.options.path), ('POST', '/properties'));
+    expect(
+      (patch.options.method, patch.options.path),
+      ('PATCH', '/properties/p1'),
+    );
+    final body = patch.options.data as Map<String, Object?>;
+    expect(body['expectedUpdatedAt'], '2026-10-08T02:30:00.000Z');
+    expect(body['description'], isNull);
+    expect(body.containsKey('description'), isTrue);
+    expect(body.containsKey('streetAddress'), isFalse);
   });
 }

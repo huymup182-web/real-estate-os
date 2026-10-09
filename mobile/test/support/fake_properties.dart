@@ -21,8 +21,13 @@ class FakePropertiesRepository implements PropertiesRepository {
   Future<({String id, String code})> Function(PropertyDraft draft) onCreate = (
     draft,
   ) async => (id: 'new-id', code: 'BDS-000099');
+  Future<PropertyDetail> Function(String id, PropertyDraft draft) onUpdate = (
+    id,
+    draft,
+  ) async => propertyDetail(id, title: draft.title);
   final detailCalls = <String>[];
   final created = <PropertyDraft>[];
+  final updated = <({String id, Map<String, Object?> body})>[];
   final listedPages = <int>[];
   final listedQueries = <PropertyQuery>[];
 
@@ -44,6 +49,23 @@ class FakePropertiesRepository implements PropertiesRepository {
 
   @override
   Future<List<PropertyImage>> images(String id) => onImages(id);
+
+  @override
+  Future<PropertyDetail> update(
+    String id,
+    PropertyDraft draft, {
+    required DateTime expectedUpdatedAt,
+    required bool withStreetAddress,
+  }) {
+    updated.add((
+      id: id,
+      body: draft.toUpdateJson(
+        expectedUpdatedAt: expectedUpdatedAt,
+        withStreetAddress: withStreetAddress,
+      ),
+    ));
+    return onUpdate(id, draft);
+  }
 
   @override
   Future<({String id, String code})> create(PropertyDraft draft) {
@@ -84,7 +106,9 @@ PropertySummary property(int n, {String status = 'AVAILABLE'}) =>
 
 PropertyDetail propertyDetail(
   String id, {
+  String title = 'Nhà phố 2 tầng gần biển',
   bool ownerContactVisible = true,
+  bool canEdit = true,
   PropertyOwner? owner = const PropertyOwner(
     fullName: 'Chủ nhà A',
     phone: '+84901234567',
@@ -93,7 +117,7 @@ PropertyDetail propertyDetail(
 }) => PropertyDetail(
   id: id,
   code: 'BDS-000001',
-  title: 'Nhà phố 2 tầng gần biển',
+  title: title,
   description: 'Nhà mới xây, hẻm ô tô.',
   propertyType: 'HOUSE',
   price: 3500000000,
@@ -109,8 +133,11 @@ PropertyDetail propertyDetail(
   status: 'AVAILABLE',
   verificationStatus: 'VERIFIED',
   lastVerifiedAt: DateTime.utc(2026, 10, 1, 3),
+  provinceId: 'kh',
+  wardId: 'kh-vh',
   provinceName: 'Khánh Hòa',
   wardName: 'Vĩnh Hải',
+  canEdit: canEdit,
   streetAddress: ownerContactVisible ? '12 Đường 2/4' : null,
   ownerContactVisible: ownerContactVisible,
   owner: ownerContactVisible ? owner : null,

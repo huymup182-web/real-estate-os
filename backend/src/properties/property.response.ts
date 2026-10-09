@@ -100,10 +100,12 @@ export interface PropertyDetailResponse extends PropertyResponse {
   isFavorite: boolean;
 }
 
-/** `GET /properties/:id` (và các API trả lại chi tiết): thêm tên tỉnh, phường/xã cho app (TASK-121). */
+/** `GET /properties/:id` (và các API trả lại chi tiết): thêm tên tỉnh, phường/xã (TASK-121), quyền sửa (TASK-123). */
 export interface PropertyDetailView extends PropertyDetailResponse {
   provinceName: string;
   wardName: string;
+  /** BĐS nằm trong phạm vi `property.edit` của người xem (để app hiện nút sửa, TASK-123). */
+  canEdit: boolean;
 }
 
 /** Cờ riêng theo người xem của một BĐS. */

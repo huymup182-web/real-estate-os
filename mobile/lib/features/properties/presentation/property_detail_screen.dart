@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/error/api_exception.dart';
 import '../../../core/format/vn_format.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
@@ -12,7 +14,8 @@ import 'property_card.dart';
 import 'property_detail_providers.dart';
 import 'property_gallery.dart';
 
-/// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Sửa ở TASK-123.
+/// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Sửa được (`canEdit`)
+/// thì có nút sửa trên thanh tiêu đề.
 class PropertyDetailScreen extends ConsumerWidget {
   const PropertyDetailScreen({super.key, required this.propertyId});
 
@@ -38,7 +41,17 @@ class PropertyDetailScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(detail.value?.code ?? 'Chi tiết BĐS')),
+      appBar: AppBar(
+        title: Text(detail.value?.code ?? 'Chi tiết BĐS'),
+        actions: [
+          if (detail.value?.canEdit ?? false)
+            IconButton(
+              tooltip: 'Sửa BĐS',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => context.push(AppRoutes.propertyEdit(propertyId)),
+            ),
+        ],
+      ),
       body: switch (detail) {
         AsyncValue(:final value?) => RefreshIndicator(
           onRefresh: refresh,
