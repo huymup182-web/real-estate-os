@@ -281,4 +281,48 @@ void main() {
     expect(body.containsKey('description'), isTrue);
     expect(body.containsKey('streetAddress'), isFalse);
   });
+
+  test('yêu thích: GET trang, PUT lưu, DELETE bỏ', () async {
+    final adapter = FakeAdapter(
+      (options) => options.method == 'GET'
+          ? (
+              200,
+              {
+                'success': true,
+                'message': null,
+                'data': <Object>[],
+                'meta': {
+                  'page': 3,
+                  'pageSize': 20,
+                  'total': 41,
+                  'totalPages': 3,
+                },
+              },
+            )
+          : (204, null),
+    );
+    final repository = PropertiesRepository(
+      ApiClient(
+        baseUrl: 'https://api.example.vn/api/v1',
+        tokens: MemoryTokenStorage(),
+        dio: Dio()..httpClientAdapter = adapter,
+      ),
+    );
+
+    final page = await repository.favorites(page: 3);
+    await repository.setFavorite('p1', favorite: true);
+    await repository.setFavorite('p2', favorite: false);
+    expect(page.meta.total, 41);
+    final [list, add, remove] = adapter.requests;
+    expect(list.options.path, '/properties/favorites');
+    expect(list.options.queryParameters, {'page': 3, 'pageSize': 20});
+    expect(
+      '${add.options.method} ${add.options.path}',
+      'PUT /properties/p1/favorite',
+    );
+    expect(
+      '${remove.options.method} ${remove.options.path}',
+      'DELETE /properties/p2/favorite',
+    );
+  });
 }

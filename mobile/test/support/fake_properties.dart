@@ -25,6 +25,14 @@ class FakePropertiesRepository implements PropertiesRepository {
     id,
     draft,
   ) async => propertyDetail(id, title: draft.title);
+  Future<Page<PropertySummary>> Function(int page) onFavorites = (_) async =>
+      pageOf(const [], total: 0);
+  Future<void> Function(String id, bool favorite) onSetFavorite = (
+    id,
+    favorite,
+  ) async {};
+  final favoritePages = <int>[];
+  final favoriteCalls = <({String id, bool favorite})>[];
   final detailCalls = <String>[];
   final created = <PropertyDraft>[];
   final updated = <({String id, Map<String, Object?> body})>[];
@@ -39,6 +47,18 @@ class FakePropertiesRepository implements PropertiesRepository {
     listedPages.add(page);
     listedQueries.add(query);
     return onList(page);
+  }
+
+  @override
+  Future<Page<PropertySummary>> favorites({required int page}) {
+    favoritePages.add(page);
+    return onFavorites(page);
+  }
+
+  @override
+  Future<void> setFavorite(String id, {required bool favorite}) {
+    favoriteCalls.add((id: id, favorite: favorite));
+    return onSetFavorite(id, favorite);
   }
 
   @override
@@ -89,26 +109,31 @@ Page<PropertySummary> pageOf(
   ),
 );
 
-PropertySummary property(int n, {String status = 'AVAILABLE'}) =>
-    PropertySummary(
-      id: 'p$n',
-      code: 'BDS-${n.toString().padLeft(6, '0')}',
-      title: 'Nhà phố số $n',
-      propertyType: 'HOUSE',
-      price: 3500000000,
-      area: 70.5,
-      status: status,
-      provinceName: 'Khánh Hòa',
-      wardName: 'Vĩnh Hải',
-      bedrooms: 3,
-      bathrooms: 2,
-    );
+PropertySummary property(
+  int n, {
+  String status = 'AVAILABLE',
+  bool isFavorite = false,
+}) => PropertySummary(
+  id: 'p$n',
+  code: 'BDS-${n.toString().padLeft(6, '0')}',
+  title: 'Nhà phố số $n',
+  propertyType: 'HOUSE',
+  price: 3500000000,
+  area: 70.5,
+  status: status,
+  provinceName: 'Khánh Hòa',
+  wardName: 'Vĩnh Hải',
+  bedrooms: 3,
+  bathrooms: 2,
+  isFavorite: isFavorite,
+);
 
 PropertyDetail propertyDetail(
   String id, {
   String title = 'Nhà phố 2 tầng gần biển',
   bool ownerContactVisible = true,
   bool canEdit = true,
+  bool isFavorite = false,
   PropertyOwner? owner = const PropertyOwner(
     fullName: 'Chủ nhà A',
     phone: '+84901234567',
@@ -138,6 +163,7 @@ PropertyDetail propertyDetail(
   provinceName: 'Khánh Hòa',
   wardName: 'Vĩnh Hải',
   canEdit: canEdit,
+  isFavorite: isFavorite,
   streetAddress: ownerContactVisible ? '12 Đường 2/4' : null,
   ownerContactVisible: ownerContactVisible,
   owner: ownerContactVisible ? owner : null,

@@ -8,6 +8,7 @@ import '../../features/customers/presentation/customers_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/properties/presentation/favorites_screen.dart';
 import '../../features/properties/presentation/properties_screen.dart';
 import '../../features/properties/presentation/property_create_screen.dart';
 import '../../features/properties/presentation/property_detail_screen.dart';
@@ -27,6 +28,7 @@ abstract final class AppRoutes {
   static const profile = '/profile';
 
   static const propertyCreate = '$properties/new';
+  static const propertyFavorites = '$properties/favorites';
 
   /// Chi tiết BĐS, nằm trong tab "BĐS" (thanh tab dưới vẫn hiện).
   static String propertyDetail(String id) => '$properties/$id';
@@ -64,10 +66,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             AppRoutes.properties,
             const PropertiesScreen(),
             routes: [
-              // Trước ':id' để "new" không bị hiểu là id.
+              // Trước ':id' để "new", "favorites" không bị hiểu là id.
               GoRoute(
                 path: 'new',
                 builder: (context, state) => const PropertyCreateScreen(),
+              ),
+              GoRoute(
+                path: 'favorites',
+                builder: (context, state) => const FavoritesScreen(),
               ),
               GoRoute(
                 path: ':id',

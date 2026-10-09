@@ -10,12 +10,13 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
 import '../domain/property_detail.dart';
 import '../domain/property_labels.dart';
+import 'favorite_button.dart';
 import 'property_card.dart';
 import 'property_detail_providers.dart';
 import 'property_gallery.dart';
 
-/// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Sửa được (`canEdit`)
-/// thì có nút quản lý ảnh và nút sửa trên thanh tiêu đề.
+/// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Thanh tiêu đề có nút
+/// yêu thích; sửa được (`canEdit`) thì có thêm nút quản lý ảnh và nút sửa.
 class PropertyDetailScreen extends ConsumerWidget {
   const PropertyDetailScreen({super.key, required this.propertyId});
 
@@ -44,6 +45,8 @@ class PropertyDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(detail.value?.code ?? 'Chi tiết BĐS'),
         actions: [
+          if (detail.value case final value?)
+            FavoriteButton(propertyId: propertyId, loaded: value.isFavorite),
           if (detail.value?.canEdit ?? false) ...[
             IconButton(
               tooltip: 'Quản lý ảnh',

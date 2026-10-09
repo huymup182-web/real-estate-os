@@ -164,6 +164,14 @@ lib/
   Android không cần khai báo thêm (trình chọn ảnh hệ thống).
 - Backend cần cấu hình storage (`STORAGE_*`); chưa cấu hình thì bước xin link báo lỗi.
 
+## BĐS yêu thích (TASK-125)
+
+- Thẻ BĐS và thanh tiêu đề chi tiết có nút tim: bấm là đổi ngay rồi gọi `PUT`/`DELETE /properties/:id/favorite`;
+  lỗi thì trả lại như cũ và báo snackbar, đang gửi thì bấm thêm không gửi lại. Trạng thái vừa đổi giữ ở
+  `favoriteOverridesProvider` nên danh sách, chi tiết đã tải không cần tải lại.
+- Tab "BĐS" có nút tim trên thanh tiêu đề → `/properties/favorites` (`GET /properties/favorites`, mới lưu trước,
+  cuộn để tải thêm, kéo để tải lại). Bỏ tim ở đây thì thẻ ẩn ngay, snackbar có "Hoàn tác".
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):
