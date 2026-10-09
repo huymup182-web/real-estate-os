@@ -108,8 +108,18 @@ lib/
   (có dấu hay không đều được, từ cuối tìm theo tiền tố). Có từ khoá thì khớp nhiều hơn đứng trước.
 - Gõ xong 400 ms mới tìm, bấm tìm trên bàn phím thì tìm ngay. Bỏ khoảng trắng thừa, tối đa 200 ký tự; chỉ khác
   khoảng trắng thì không gọi lại. Nút ✕ xoá từ khoá về danh sách đủ. Không có kết quả thì báo kèm từ khoá.
-- Điều kiện tìm nằm trong `propertyQueryProvider` (`PropertyQuery`, lọc thêm ở TASK-120); đổi thì danh sách tải lại
-  từ trang đầu, trang cũ về muộn bị bỏ.
+- Điều kiện tìm nằm trong `propertyQueryProvider` (`PropertyQuery`); đổi thì danh sách tải lại từ trang đầu, trang
+  cũ về muộn bị bỏ.
+
+## Bộ lọc BĐS (TASK-120)
+
+- Nút "Bộ lọc" cạnh ô tìm kiếm (số trên nút = số nhóm đang dùng) mở bảng lọc: sắp xếp (mặc định: mới nhất, có từ
+  khoá thì phù hợp nhất), loại BĐS, giá (tỷ đồng, tối đa 3 chữ số thập phân), diện tích (m², 2 chữ số), tỉnh/thành →
+  phường/xã (`GET /locations/...`), phòng ngủ tối thiểu, pháp lý, hướng nhà. Gõ "3,5" hay "3.5" đều được.
+- "Áp dụng" gửi tham số lên `GET /properties` (danh sách nối dấu phẩy), giữ từ khoá. Giá/diện tích sai dạng hoặc
+  "đến" nhỏ hơn "từ" thì báo lỗi tại ô và cuộn tới đó. Đổi tỉnh thì bỏ phường. "Xoá lọc" trong bảng đưa về mặc định;
+  lọc không ra BĐS nào thì danh sách có nút "Xoá bộ lọc". Đóng bảng không áp dụng thì không đổi gì.
+- Chưa lọc số WC, độ rộng đường (API có sẵn `bathroomsMin/Max`, `roadWidthMin/Max`).
 
 ## Theme (TASK-114)
 

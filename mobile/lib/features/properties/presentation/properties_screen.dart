@@ -5,12 +5,14 @@ import '../../../core/format/vn_format.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../domain/property_query.dart';
 import 'property_card.dart';
+import 'property_filter_sheet.dart';
 import 'property_list_controller.dart';
 import 'property_search_field.dart';
 
 /// Tab "BĐS": ô tìm kiếm và danh sách BĐS trong phạm vi xem (mới tạo trước, có từ khoá thì khớp nhiều hơn trước).
-/// Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Lọc thêm ở TASK-120; chi tiết ở TASK-121.
+/// Nút "Bộ lọc" mở bộ lọc, sắp xếp. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chi tiết ở TASK-121.
 class PropertiesScreen extends ConsumerWidget {
   const PropertiesScreen({super.key});
 
@@ -38,7 +40,13 @@ class PropertiesScreen extends ConsumerWidget {
               AppSpacing.gutter,
               AppSpacing.s8,
             ),
-            child: PropertySearchField(),
+            child: Row(
+              children: [
+                Expanded(child: PropertySearchField()),
+                SizedBox(width: AppSpacing.s8),
+                _FilterButton(),
+              ],
+            ),
           ),
           Expanded(child: _body(context, ref, list, controller, refresh)),
         ],
@@ -62,7 +70,12 @@ class PropertiesScreen extends ConsumerWidget {
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 children: [
                   const SizedBox(height: AppSpacing.s48),
-                  _Empty(keyword: value.query.keyword),
+                  _Empty(
+                    query: value.query,
+                    onClearFilters: ref
+                        .read(propertyQueryProvider.notifier)
+                        .clearFilters,
+                  ),
                 ],
               )
             : NotificationListener<ScrollNotification>(
@@ -130,32 +143,67 @@ class PropertiesScreen extends ConsumerWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty({required this.keyword});
+  const _Empty({required this.query, required this.onClearFilters});
 
-  final String keyword;
+  final PropertyQuery query;
+  final VoidCallback onClearFilters;
 
   @override
   Widget build(BuildContext context) {
     final muted = context.appColors.mutedForeground;
+    final message = query.keyword.isNotEmpty
+        ? 'Không tìm thấy BĐS khớp "${query.keyword}".'
+        : query.hasFilters
+        ? 'Không có BĐS nào khớp bộ lọc.'
+        : 'Chưa có BĐS nào.';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
       child: Column(
         children: [
           Icon(
-            keyword.isEmpty ? Icons.apartment : Icons.search_off,
+            query.isEmpty ? Icons.apartment : Icons.search_off,
             size: 48,
             color: muted,
           ),
           const SizedBox(height: AppSpacing.s8),
           Text(
-            keyword.isEmpty
-                ? 'Chưa có BĐS nào.'
-                : 'Không tìm thấy BĐS khớp "$keyword".',
+            message,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge
                 ?.copyWith(color: muted),
           ),
+          if (query.hasFilters) ...[
+            const SizedBox(height: AppSpacing.s8),
+            TextButton(
+              onPressed: onClearFilters,
+              child: const Text('Xoá bộ lọc'),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Mở bộ lọc; số trên nút là số nhóm lọc/sắp xếp đang dùng.
+class _FilterButton extends ConsumerWidget {
+  const _FilterButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(propertyQueryProvider);
+    return Badge(
+      isLabelVisible: query.hasFilters,
+      label: Text('${query.filterCount}'),
+      child: IconButton.outlined(
+        tooltip: 'Bộ lọc',
+        icon: const Icon(Icons.tune),
+        onPressed: () async {
+          final filters = await showPropertyFilterSheet(context, query);
+          if (filters != null && context.mounted) {
+            ref.read(propertyQueryProvider.notifier).applyFilters(filters);
+          }
+        },
       ),
     );
   }
