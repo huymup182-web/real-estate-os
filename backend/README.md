@@ -604,7 +604,7 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 
 ## Notification service (TASK-092)
 
-`NotificationsService` (`src/notifications`, export từ `NotificationsModule`) là API nội bộ, chưa có route (hộp thư cho người dùng ở TASK-099). `notify({tenantId, userIds, type, title, body, data?})` → `[{id, userId}]`:
+`NotificationsService` (`src/notifications`, export từ `NotificationsModule`) là API nội bộ, chưa có route (hộp thư cho người dùng: `/notifications`, TASK-099). `notify({tenantId, userIds, type, title, body, data?})` → `[{id, userId}]`:
 
 - Ghi một dòng `notifications` cho mỗi người nhận; chỉ user ACTIVE, chưa xoá, cùng công ty `tenantId` (id khác bị bỏ qua, id trùng gửi một lần). Gọi sau khi transaction nghiệp vụ đã commit.
 - `type` thuộc `NOTIFICATION_TYPES`; tiêu đề 1..255 và nội dung 1..2000 ký tự (đã trim); `data` là object, JSON ≤ 4000 ký tự; tối đa 1000 người nhận. Sai là lỗi lập trình → ném Error, không ghi gì.
@@ -660,3 +660,12 @@ Khi job xác minh (TASK-062) chuyển BĐS quá hạn sang `VERIFY_REQUIRED`, `P
 
 - Mỗi môi giới phụ trách nhận một thông báo `VERIFY_REQUIRED` gộp các BĐS của mình trong lần chạy đó: tiêu đề "BĐS cần xác minh lại"; một BĐS thì `<mã> <tiêu đề> đã quá hạn xác minh, cần xác minh lại để tiếp tục bán.`, nhiều BĐS thì nêu 3 mã đầu và "và N BĐS khác". `data` = `{count, propertyIds}` (tối đa 50 id).
 - BĐS chỉ chuyển trạng thái một lần cho tới khi được xác minh lại, nên mỗi lần quá hạn chỉ nhắc một lần. Môi giới bị khoá hoặc đã xoá thì không nhận.
+
+## Trung tâm thông báo (TASK-099)
+
+Hộp thư của người đang đăng nhập. Chỉ cần đăng nhập, không cần permission; mỗi người chỉ thấy thông báo gửi cho chính mình (của người khác → 404):
+
+- `GET /notifications?unread=true|false&type=A,B&page&pageSize` → mới nhất trước, phân trang như các danh sách khác. Mỗi mục `{id, type, title, body, data, readAt, createdAt}`; `data` cho app mở đúng màn hình (vd `propertyId`, `appointmentId`).
+- `GET /notifications/unread-count` → `{count}` cho badge.
+- `POST /notifications/:id/read` → thông báo đã đánh dấu đọc; đọc lại giữ thời điểm đọc đầu tiên.
+- `POST /notifications/read-all` → `{count}` số thông báo vừa đánh dấu.
