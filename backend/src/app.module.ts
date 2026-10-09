@@ -6,6 +6,7 @@ import { CommonModule } from './common/common.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
 
 /**
@@ -21,6 +22,7 @@ import { PropertiesModule } from './properties/properties.module.js';
     HealthModule,
     AuthModule,
     PropertiesModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

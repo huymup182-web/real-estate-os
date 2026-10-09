@@ -16,6 +16,7 @@ import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
 import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { keywordTsQuery } from '../search/keyword.js';
+import { searchRangeErrors } from '../search/search-filters.js';
 import type { PropertySearchQueryDto, PropertySort } from '../search/property-search-query.dto.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { AssignPropertyDto } from './dto/assign-property.dto.js';
@@ -234,30 +235,9 @@ export class PropertiesService {
     query: PropertySearchQueryDto,
     scopes: PropertyScopes,
   ): Promise<Paginated<PropertyListItem>> {
-    if (
-      query.priceMin !== undefined &&
-      query.priceMax !== undefined &&
-      query.priceMin > query.priceMax
-    ) {
-      throw invalid([{ field: 'priceMax', message: 'priceMax phải lớn hơn hoặc bằng priceMin' }]);
-    }
-    if (
-      query.areaMin !== undefined &&
-      query.areaMax !== undefined &&
-      query.areaMin > query.areaMax
-    ) {
-      throw invalid([{ field: 'areaMax', message: 'areaMax phải lớn hơn hoặc bằng areaMin' }]);
-    }
-    for (const [min, max] of [
-      ['bedroomsMin', 'bedroomsMax'],
-      ['bathroomsMin', 'bathroomsMax'],
-      ['roadWidthMin', 'roadWidthMax'],
-    ] as const) {
-      const low = query[min];
-      const high = query[max];
-      if (low !== undefined && high !== undefined && low > high) {
-        throw invalid([{ field: max, message: `${max} phải lớn hơn hoặc bằng ${min}` }]);
-      }
+    const rangeErrors = searchRangeErrors(query);
+    if (rangeErrors.length > 0) {
+      throw invalid(rangeErrors);
     }
     return this.list(actor, query, scopes, false, query);
   }
