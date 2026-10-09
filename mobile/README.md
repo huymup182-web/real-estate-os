@@ -100,7 +100,16 @@ lib/
 - Cuộn gần cuối thì tải trang sau, bỏ dòng trùng giữa các trang. Lỗi tải thêm thì giữ danh sách, hiện "Thử lại" ở
   cuối (không tự gọi lại khi cuộn). Kéo xuống để tải lại; lỗi thì giữ danh sách cũ và báo snackbar.
 - `core/network/page.dart`: `Page<T>` = danh sách + `meta` phân trang, dùng chung cho các danh sách sau.
-- Tìm kiếm, lọc, chi tiết làm ở TASK-119..121.
+- Lọc, chi tiết làm ở TASK-120, TASK-121.
+
+## Tìm BĐS (TASK-119)
+
+- Ô tìm kiếm trên tab "BĐS" gửi `q` lên `GET /properties`: đúng mã BĐS, hoặc có mọi từ trong tiêu đề, mô tả, địa chỉ
+  (có dấu hay không đều được, từ cuối tìm theo tiền tố). Có từ khoá thì khớp nhiều hơn đứng trước.
+- Gõ xong 400 ms mới tìm, bấm tìm trên bàn phím thì tìm ngay. Bỏ khoảng trắng thừa, tối đa 200 ký tự; chỉ khác
+  khoảng trắng thì không gọi lại. Nút ✕ xoá từ khoá về danh sách đủ. Không có kết quả thì báo kèm từ khoá.
+- Điều kiện tìm nằm trong `propertyQueryProvider` (`PropertyQuery`, lọc thêm ở TASK-120); đổi thì danh sách tải lại
+  từ trang đầu, trang cũ về muộn bị bỏ.
 
 ## Theme (TASK-114)
 

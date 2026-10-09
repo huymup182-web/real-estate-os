@@ -7,9 +7,10 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
 import 'property_card.dart';
 import 'property_list_controller.dart';
+import 'property_search_field.dart';
 
-/// Tab "BĐS": danh sách BĐS trong phạm vi xem, mới tạo trước. Cuộn gần cuối thì tải thêm, kéo xuống để tải
-/// lại. Tìm kiếm, lọc thêm ở TASK-119, TASK-120; chi tiết ở TASK-121.
+/// Tab "BĐS": ô tìm kiếm và danh sách BĐS trong phạm vi xem (mới tạo trước, có từ khoá thì khớp nhiều hơn trước).
+/// Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Lọc thêm ở TASK-120; chi tiết ở TASK-121.
 class PropertiesScreen extends ConsumerWidget {
   const PropertiesScreen({super.key});
 
@@ -28,88 +29,134 @@ class PropertiesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bất động sản')),
-      body: switch (list) {
-        AsyncData(:final value) => RefreshIndicator(
-          onRefresh: refresh,
-          child: value.items.isEmpty
-              ? ListView(
-                  children: const [
-                    SizedBox(height: AppSpacing.s48),
-                    _Empty(),
-                  ],
-                )
-              : NotificationListener<ScrollNotification>(
-                  onNotification: (notification) {
-                    // Đang lỗi tải thêm thì chờ người dùng bấm "Thử lại", không gọi lại theo mỗi lần cuộn.
-                    if (notification.metrics.extentAfter < 600 &&
-                        value.loadMoreError == null) {
-                      controller.loadMore();
-                    }
-                    return false;
-                  },
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.gutter),
-                    itemCount: value.items.length + 2,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: AppSpacing.s12),
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return Text(
-                          '${vnNumber(value.total)} BĐS',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: context.appColors.mutedForeground,
-                              ),
-                        );
-                      }
-                      if (index == value.items.length + 1) {
-                        // Cuối danh sách đã hiện mà còn trang sau (danh sách ngắn không cuộn được) thì tải luôn.
-                        if (value.hasMore &&
-                            !value.loadingMore &&
-                            value.loadMoreError == null) {
-                          Future.microtask(controller.loadMore);
-                        }
-                        return _Footer(
-                          loading: value.loadingMore || value.hasMore,
-                          error: value.loadMoreError,
-                          onRetry: controller.loadMore,
-                        );
-                      }
-                      return PropertyCard(property: value.items[index - 1]);
-                    },
-                  ),
-                ),
-        ),
-        AsyncError(:final error) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.gutter),
-            child: ErrorRetry(
-              error: error,
-              onRetry: () => ref.invalidate(propertyListProvider),
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.gutter,
+              AppSpacing.s8,
+              AppSpacing.gutter,
+              AppSpacing.s8,
             ),
+            child: PropertySearchField(),
+          ),
+          Expanded(child: _body(context, ref, list, controller, refresh)),
+        ],
+      ),
+    );
+  }
+
+  Widget _body(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<PropertyListState> list,
+    PropertyListController controller,
+    Future<void> Function() refresh,
+  ) {
+    return switch (list) {
+      AsyncData(:final value) => RefreshIndicator(
+        onRefresh: refresh,
+        child: value.items.isEmpty
+            ? ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                children: [
+                  const SizedBox(height: AppSpacing.s48),
+                  _Empty(keyword: value.query.keyword),
+                ],
+              )
+            : NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // Đang lỗi tải thêm thì chờ người dùng bấm "Thử lại", không gọi lại theo mỗi lần cuộn.
+                  if (notification.metrics.extentAfter < 600 &&
+                      value.loadMoreError == null) {
+                    controller.loadMore();
+                  }
+                  return false;
+                },
+                child: ListView.separated(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    AppSpacing.s8,
+                    AppSpacing.gutter,
+                    AppSpacing.gutter,
+                  ),
+                  itemCount: value.items.length + 2,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: AppSpacing.s12),
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return Text(
+                        value.query.isEmpty
+                            ? '${vnNumber(value.total)} BĐS'
+                            : '${vnNumber(value.total)} kết quả',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: context.appColors.mutedForeground,
+                        ),
+                      );
+                    }
+                    if (index == value.items.length + 1) {
+                      // Cuối danh sách đã hiện mà còn trang sau (danh sách ngắn không cuộn được) thì tải luôn.
+                      if (value.hasMore &&
+                          !value.loadingMore &&
+                          value.loadMoreError == null) {
+                        Future.microtask(controller.loadMore);
+                      }
+                      return _Footer(
+                        loading: value.loadingMore || value.hasMore,
+                        error: value.loadMoreError,
+                        onRetry: controller.loadMore,
+                      );
+                    }
+                    return PropertyCard(property: value.items[index - 1]);
+                  },
+                ),
+              ),
+      ),
+      AsyncError(:final error) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.gutter),
+          child: ErrorRetry(
+            error: error,
+            onRetry: () => ref.invalidate(propertyListProvider),
           ),
         ),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
-    );
+      ),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
   }
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty();
+  const _Empty({required this.keyword});
+
+  final String keyword;
 
   @override
   Widget build(BuildContext context) {
     final muted = context.appColors.mutedForeground;
-    return Column(
-      children: [
-        Icon(Icons.apartment, size: 48, color: muted),
-        const SizedBox(height: AppSpacing.s8),
-        Text(
-          'Chưa có BĐS nào.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: muted),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+      child: Column(
+        children: [
+          Icon(
+            keyword.isEmpty ? Icons.apartment : Icons.search_off,
+            size: 48,
+            color: muted,
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          Text(
+            keyword.isEmpty
+                ? 'Chưa có BĐS nào.'
+                : 'Không tìm thấy BĐS khớp "$keyword".',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge
+                ?.copyWith(color: muted),
+          ),
+        ],
+      ),
     );
   }
 }

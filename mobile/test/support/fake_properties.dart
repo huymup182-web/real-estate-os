@@ -1,9 +1,11 @@
 import 'package:real_estate_os/core/network/api_response.dart';
 import 'package:real_estate_os/core/network/page.dart';
 import 'package:real_estate_os/features/properties/data/properties_repository.dart';
+import 'package:real_estate_os/features/properties/domain/property_query.dart';
 import 'package:real_estate_os/features/properties/domain/property_summary.dart';
 
-/// PropertiesRepository giả: [onList] trả từng trang (mặc định danh sách rỗng).
+/// PropertiesRepository giả: [onList] trả từng trang (mặc định danh sách rỗng). Điều kiện tìm của lần gọi đang
+/// chạy là `listedQueries.last`.
 class FakePropertiesRepository implements PropertiesRepository {
   FakePropertiesRepository([
     Future<Page<PropertySummary>> Function(int page)? onList,
@@ -11,10 +13,15 @@ class FakePropertiesRepository implements PropertiesRepository {
 
   Future<Page<PropertySummary>> Function(int page) onList;
   final listedPages = <int>[];
+  final listedQueries = <PropertyQuery>[];
 
   @override
-  Future<Page<PropertySummary>> list({required int page}) {
+  Future<Page<PropertySummary>> list({
+    required int page,
+    PropertyQuery query = const PropertyQuery(),
+  }) {
     listedPages.add(page);
+    listedQueries.add(query);
     return onList(page);
   }
 }
