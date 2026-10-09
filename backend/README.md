@@ -569,3 +569,12 @@ Giá trị trong `src/appointments/appointment-values.ts`: trạng thái `SCHEDU
 - Phòng ngủ: đủ → 1, thiếu đúng 1 → 0.5, thiếu hơn hoặc BĐS chưa ghi → 0.
 - Loại BĐS, pháp lý: thuộc danh sách → 1, không thì 0. Đường vào: ô tô > xe máy > đi bộ, đạt yêu cầu → 1 (yêu cầu đi bộ coi như không nêu).
 - Hướng nhà chưa có trọng số trong roadmap nên chưa tính.
+
+## Matching BĐS → khách hàng (TASK-087)
+
+Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `PropertiesService`). `MatchingService.customersForProperty(actor, propertyId, {property, customer}, {minScore?, limit?})` → danh sách khách phù hợp, chưa có API (TASK-090).
+
+- BĐS phải trong phạm vi xem của user (không có, công ty khác, ngoài phạm vi → 404). Chỉ xét khách trong phạm vi `customer.view` (`CustomersService.visible`).
+- Chỉ xét nhu cầu đang bật, chưa xoá, cùng loại giao dịch với BĐS, của khách chưa xoá và chưa WON/LOST.
+- Chấm bằng `scoreMatch` (TASK-086); mỗi khách lấy nhu cầu điểm cao nhất. Giữ khách đạt `minScore` (mặc định `MIN_MATCH_SCORE` = 50), điểm cao trước, cùng điểm thì khách cập nhật gần đây trước; tối đa `limit` (mặc định 20, tối đa 100).
+- Mỗi kết quả: `customer {id, fullName, status, agentId}`, `preferenceId`, `score`, `criteria`.
