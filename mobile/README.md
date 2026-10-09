@@ -58,4 +58,18 @@ lib/
 - Token đăng nhập lưu bằng `flutter_secure_storage` (Keychain / Keystore), không lưu ở chỗ khác.
 - Điều hướng: `go_router`, thanh dưới 5 tab (Trang chủ, BĐS, Khách hàng, Thông báo, Tài khoản), mỗi tab giữ lịch sử
   riêng. Các tab đang là màn hình tạm, làm dần ở TASK-117..131.
-- Chưa có: theme đầy đủ (TASK-114), splash (TASK-115), đăng nhập và làm mới token (TASK-116).
+- Chưa có: splash (TASK-115), đăng nhập và làm mới token (TASK-116).
+
+## Theme (TASK-114)
+
+`lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):
+
+- `AppTheme.light` / `AppTheme.dark`, app đổi theo cài đặt sáng/tối của máy (`ThemeMode.system`).
+- Màu theo vai trò: `Theme.of(context).colorScheme` (primary, error, surface, outline...) và `context.appColors`
+  (success, warning, info, mutedForeground, border). Không viết mã màu trong widget.
+- `AppSpacing` (bội số 4, lề màn hình 16, vùng chạm tối thiểu 48), `AppRadius`, `AppDurations` trong `app_tokens.dart`.
+- Cỡ chữ: `bodyLarge` 16 là cỡ thường, `bodyMedium` 14, `titleLarge` 18 đậm vừa, `headlineMedium` 24.
+- Nút, ô nhập, thẻ, thanh dưới, snackbar đã có style chung; màn hình chỉ dùng widget Material có sẵn.
+- Test kiểm độ tương phản WCAG AA cho mọi cặp chữ/nền ở cả hai theme.
+- Font: font hệ thống (Roboto trên Android, SF Pro trên iOS). Font Be Vietnam Pro trong đề xuất design system chưa
+  thêm vì cần đóng gói file font.

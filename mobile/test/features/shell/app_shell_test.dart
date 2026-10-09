@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:real_estate_os/app.dart';
 import 'package:real_estate_os/core/providers.dart';
 import 'package:real_estate_os/core/storage/token_storage.dart';
+import 'package:real_estate_os/core/theme/app_theme.dart';
 
 void main() {
   Widget app() => ProviderScope(
@@ -18,6 +19,24 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationDestination), findsNWidgets(5));
     expect(find.widgetWithText(AppBar, 'Trang chủ'), findsOneWidget);
+  });
+
+  testWidgets('dùng theme của app, đổi sáng/tối theo hệ thống', (tester) async {
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    final context = tester.element(find.byType(NavigationBar));
+    expect(
+      Theme.of(context).colorScheme.primary,
+      AppTheme.light.colorScheme.primary,
+    );
+
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await tester.pumpAndSettle();
+    expect(
+      Theme.of(tester.element(find.byType(NavigationBar))).colorScheme.primary,
+      AppTheme.dark.colorScheme.primary,
+    );
   });
 
   testWidgets('bấm tab chuyển màn hình', (tester) async {
