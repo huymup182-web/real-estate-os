@@ -653,3 +653,10 @@ Cùng sự kiện tạo BĐS như TASK-095, `MatchingNotifier` (`src/notificatio
 - Lịch hẹn SCHEDULED, chưa xoá, chưa nhắc, diễn ra trong 60 phút tới (`APPOINTMENT_REMINDER_LEAD_MINUTES`, Huy Lê chọn) → môi giới phụ trách nhận thông báo `VIEWING_REMINDER`: tiêu đề "Sắp tới giờ hẹn dẫn khách", nội dung `14:30 ngày 09/10 · <khách> xem <mã BĐS> <tiêu đề>. Địa điểm: ...` (giờ Việt Nam), `data` = `{appointmentId}`.
 - Ghi `reminder_sent_at` bằng một lệnh `UPDATE ... RETURNING` trước khi gửi, nên nhiều instance cùng chạy không nhắc trùng; gửi lỗi thì chỉ ghi log, không thử lại.
 - Lịch đã qua giờ mà chưa nhắc (server tắt) thì bỏ qua. Đổi `scheduledAt` qua `PATCH /appointments/:id` thì xoá `reminder_sent_at` để nhắc lại theo giờ mới.
+
+## Nhắc xác minh BĐS (TASK-098)
+
+Khi job xác minh (TASK-062) chuyển BĐS quá hạn sang `VERIFY_REQUIRED`, `PropertiesService` phát `PropertyEvents.verificationExpired` với các BĐS vừa chuyển; `VerifyReminderNotifier` (`src/notifications`) chạy nền:
+
+- Mỗi môi giới phụ trách nhận một thông báo `VERIFY_REQUIRED` gộp các BĐS của mình trong lần chạy đó: tiêu đề "BĐS cần xác minh lại"; một BĐS thì `<mã> <tiêu đề> đã quá hạn xác minh, cần xác minh lại để tiếp tục bán.`, nhiều BĐS thì nêu 3 mã đầu và "và N BĐS khác". `data` = `{count, propertyIds}` (tối đa 50 id).
+- BĐS chỉ chuyển trạng thái một lần cho tới khi được xác minh lại, nên mỗi lần quá hạn chỉ nhắc một lần. Môi giới bị khoá hoặc đã xoá thì không nhận.

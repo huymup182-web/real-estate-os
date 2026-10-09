@@ -8,7 +8,7 @@ export const PROPERTY_VERIFICATION_JOB = 'property-verification';
 /**
  * Job định kỳ (phase0/02-ARCHITECTURE.md mục 4, TASK-062): mỗi giờ chuyển BĐS quá hạn xác minh sang
  * VERIFY_REQUIRED. Lệnh UPDATE chạy lại an toàn nên nhiều instance cùng chạy không sai dữ liệu; khoá
- * advisory để Phase 18. Báo cho môi giới (thông báo VERIFY_REQUIRED) làm ở Phase 8.
+ * advisory để Phase 18. Môi giới phụ trách được báo qua `PropertyEvents.verificationExpired` (TASK-098).
  */
 @Injectable()
 export class PropertyVerificationJob {
