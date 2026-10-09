@@ -58,7 +58,19 @@ lib/
 - Token đăng nhập lưu bằng `flutter_secure_storage` (Keychain / Keystore), không lưu ở chỗ khác.
 - Điều hướng: `go_router`, thanh dưới 5 tab (Trang chủ, BĐS, Khách hàng, Thông báo, Tài khoản), mỗi tab giữ lịch sử
   riêng. Các tab đang là màn hình tạm, làm dần ở TASK-117..131.
-- Chưa có: splash (TASK-115), đăng nhập và làm mới token (TASK-116).
+- Riverpod 3 mặc định tự thử lại provider bị lỗi; provider nào cần người dùng bấm "Thử lại" thì đặt `retry: (_, _) => null`.
+- Chưa có: form đăng nhập, đăng xuất (TASK-116).
+
+## Splash và phiên đăng nhập (TASK-115)
+
+- Mở app vào `/splash` (logo, tên app, vòng chờ) trong lúc kiểm phiên: có token đã lưu thì gọi `GET /auth/me`.
+- Router chuyển theo `sessionProvider` (`features/auth/presentation/session_controller.dart`): đã đăng nhập → trang
+  chủ; chưa đăng nhập, hoặc token không còn dùng được (401, tài khoản bị khoá 403; token bị xoá) → `/login`.
+  Mở thẳng một trang khi chưa đăng nhập cũng về `/login`.
+- Mất mạng hoặc máy chủ lỗi: splash hiện lỗi và nút "Thử lại", giữ token.
+- `ApiClient` tự làm mới token: access token hết hạn (`TOKEN_EXPIRED`) thì gọi `POST /auth/refresh` một lần (nhiều
+  request cùng lúc dùng chung một lần làm mới, vì backend thu hồi phiên nếu refresh song song), lưu cặp token mới
+  rồi gọi lại. Refresh token hết hiệu lực thì xoá token và báo `UNAUTHENTICATED`.
 
 ## Theme (TASK-114)
 
