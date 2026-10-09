@@ -15,13 +15,14 @@ import type { RequestUser } from '../auth/jwt-auth.guard.js';
 import { RequirePermission } from '../auth/permission.guard.js';
 import { TenantId } from '../auth/tenant.guard.js';
 import type { Paginated } from '../common/response/paginated.js';
-import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
 import { actorOf } from '../properties/properties.controller.js';
 import type { CustomerResponse } from './customer.response.js';
 import { type CustomerScopes, CustomersService } from './customers.service.js';
 import { AssignCustomerDto } from './dto/assign-customer.dto.js';
+import { ChangeCustomerStatusDto } from './dto/change-customer-status.dto.js';
 import { CreateCustomerDto } from './dto/create-customer.dto.js';
+import { CustomerListQueryDto } from './dto/customer-list-query.dto.js';
 import { UpdateCustomerDto } from './dto/update-customer.dto.js';
 
 /** Phạm vi các quyền khách hàng của user (route đã có @RequirePermission nên quyền của route chắc chắn có). */
@@ -50,15 +51,31 @@ export class CustomersController {
     return this.customers.create(actorOf(tenantId, req.user), dto);
   }
 
-  /** `GET /api/v1/customers?page=1&pageSize=20` → khách xem được, mới tạo trước. */
+  /**
+   * `GET /api/v1/customers?status=NEW,CONTACTED&page=1&pageSize=20` → khách xem được, mới tạo trước;
+   * `status` lọc theo bước pipeline (TASK-082).
+   */
   @Get()
   @RequirePermission('customer.view')
   findAll(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
-    @Query() query: PaginationQueryDto,
+    @Query() query: CustomerListQueryDto,
   ): Promise<Paginated<CustomerResponse>> {
     return this.customers.findAll(actorOf(tenantId, req.user), query, customerScopesOf(req.user));
+  }
+
+  /**
+   * `GET /api/v1/customers/pipeline` → `[{status, count}]` số khách xem được ở từng bước, theo thứ tự
+   * pipeline (TASK-082). Khai báo trước `:id` để không bị hiểu là id.
+   */
+  @Get('pipeline')
+  @RequirePermission('customer.view')
+  pipeline(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+  ): Promise<{ status: string; count: number }[]> {
+    return this.customers.pipeline(actorOf(tenantId, req.user), customerScopesOf(req.user));
   }
 
   /** `GET /api/v1/customers/:id`; không xem được → 404. */
@@ -82,6 +99,27 @@ export class CustomersController {
     @Body() dto: UpdateCustomerDto,
   ): Promise<CustomerResponse> {
     return this.customers.update(actorOf(tenantId, req.user), id, dto, customerScopesOf(req.user));
+  }
+
+  /**
+   * `POST /api/v1/customers/:id/status` {status, lostReason?, expectedUpdatedAt?} → khách sau khi chuyển
+   * bước pipeline (TASK-082). Cần `customer.edit`; sang LOST bắt buộc `lostReason`.
+   */
+  @Post(':id/status')
+  @HttpCode(200)
+  @RequirePermission('customer.edit')
+  changeStatus(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: ChangeCustomerStatusDto,
+  ): Promise<CustomerResponse> {
+    return this.customers.changeStatus(
+      actorOf(tenantId, req.user),
+      id,
+      dto,
+      customerScopesOf(req.user),
+    );
   }
 
   /**
