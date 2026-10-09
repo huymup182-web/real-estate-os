@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { accessToken } from '../../../../lib/auth/server-session.ts';
 import { getPermissionCatalog, getRole, roleFormValues } from '../../../../lib/roles.ts';
 import { deleteRoleAction, updateRoleAction } from '../actions.ts';
-import { DeleteRole } from '../delete-role.tsx';
+import { DeleteButton } from '../../delete-button.tsx';
 import { RoleForm } from '../role-form.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -72,9 +72,10 @@ export default async function RolePage({
             <section className="card">
               <h2>Xoá vai trò</h2>
               <p className="muted">Chỉ xoá được khi không còn người dùng nào giữ vai trò này.</p>
-              <DeleteRole
+              <DeleteButton
                 action={deleteRoleAction.bind(null, role.data.id)}
-                name={role.data.name}
+                label="Xoá vai trò"
+                confirmText={`Xoá vai trò "${role.data.name}"?`}
               />
             </section>
           )}

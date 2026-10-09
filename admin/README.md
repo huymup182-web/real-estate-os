@@ -48,6 +48,13 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - Quyền của vai trò quản trị công ty bị khoá, form chỉ cho đổi tên và mô tả.
 - Vai trò tự tạo xoá được khi không còn người dùng; backend báo lỗi nếu còn.
 
+## Công ty (TASK-105)
+
+- Menu "Công ty" hiện khi có `admin.manage`.
+- `/company` sửa tên công ty và chu kỳ xác minh lại BĐS (1–365 ngày), xem số người dùng, phòng ban, team, và liệt kê phòng ban.
+- `/company/departments/new` và `/company/departments/[id]` tạo, sửa phòng ban (tên, trưởng phòng) và xoá phòng ban trống.
+- Nút xoá có hỏi xác nhận dùng chung ở `src/app/(app)/delete-button.tsx`.
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |

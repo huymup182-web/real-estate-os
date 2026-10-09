@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppointmentsModule } from './appointments/appointments.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CommonModule } from './common/common.module.js';
+import { CompanyModule } from './company/company.module.js';
 import { CustomersModule } from './customers/customers.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module.js';
     ReportsModule,
     UsersModule,
     RolesModule,
+    CompanyModule,
   ],
 })
 export class AppModule {}
