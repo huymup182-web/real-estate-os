@@ -557,3 +557,15 @@ Giá trị trong `src/appointments/appointment-values.ts`: trạng thái `SCHEDU
 
 - Theo hiện trạng: `totalCustomers`, `pipeline` (8 bước), `sources` (mọi nguồn, `null` = chưa ghi nguồn), `followUpNeeded` (khách chưa WON/LOST không có hoạt động nào, tính cả lúc tạo, trong `FOLLOW_UP_AFTER_DAYS` = 14 ngày tới bây giờ).
 - Trong kỳ: `newCustomers` (tạo trong kỳ), `activities` (số hoạt động theo loại, theo `occurredAt`), `wonCustomers` / `lostCustomers` (số khách được chuyển sang WON / LOST).
+
+## Luật chấm điểm matching (TASK-086)
+
+`src/matching/match-score.ts`: hàm thuần `scoreMatch(preference, property)` → `{eligible, score, criteria}`, chưa có API (TASK-087..090 dùng lại).
+
+- Khác loại giao dịch (bán/thuê) → `eligible = false`, 0 điểm.
+- Trọng số `MATCH_WEIGHTS`: giá 30, khu vực 25, diện tích 15, phòng ngủ 10, loại BĐS 10, đường vào 5, pháp lý 5. Mỗi tiêu chí có mức đạt `ratio` 0..1; `score` = tổng trọng số × mức đạt chia tổng trọng số các tiêu chí khách đã nêu, làm tròn 0..100. Tiêu chí khách không nêu không tính (`SKIP_UNSTATED_CRITERIA`); không nêu gì → 100.
+- Giá, diện tích: trong khoảng (gồm biên) → 1; lệch ra ngoài giảm tuyến tính, lệch từ 20% (`RANGE_TOLERANCE`) → 0.
+- Khu vực: BĐS nằm trong bất kỳ tỉnh, quận/huyện hoặc phường/xã khách nêu → 1, không thì 0.
+- Phòng ngủ: đủ → 1, thiếu đúng 1 → 0.5, thiếu hơn hoặc BĐS chưa ghi → 0.
+- Loại BĐS, pháp lý: thuộc danh sách → 1, không thì 0. Đường vào: ô tô > xe máy > đi bộ, đạt yêu cầu → 1 (yêu cầu đi bộ coi như không nêu).
+- Hướng nhà chưa có trọng số trong roadmap nên chưa tính.
