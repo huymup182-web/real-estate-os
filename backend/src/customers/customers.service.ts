@@ -256,12 +256,7 @@ export class CustomersService {
         { field: 'from', message: `Kỳ thống kê dài nhất ${DASHBOARD_MAX_DAYS} ngày` },
       ]);
     }
-    const visible = (): SelectQueryBuilder<Customer> =>
-      this.customers
-        .createQueryBuilder(actor.tenantId, 'c', (builder) =>
-          builder.where(this.scopeOrFalse(scopes.view)),
-        )
-        .setParameter('scopeUserId', actor.userId);
+    const visible = (): SelectQueryBuilder<Customer> => this.visible(actor, scopes);
 
     const [totals] = await visible()
       .select('count(*)::int', 'total')
@@ -322,6 +317,18 @@ export class CustomersService {
       })),
       activities: ACTIVITY_TYPES.map((type) => ({ type, count: activityCounts.get(type) ?? 0 })),
     };
+  }
+
+  /**
+   * Truy vấn khách (alias `c`) trong phạm vi `customer.view`, đã có điều kiện công ty và bỏ khách đã xoá;
+   * thêm điều kiện bằng andWhere. Dùng cho dashboard và matching (TASK-087).
+   */
+  visible(actor: Actor, scopes: CustomerScopes): SelectQueryBuilder<Customer> {
+    return this.customers
+      .createQueryBuilder(actor.tenantId, 'c', (builder) =>
+        builder.where(this.scopeOrFalse(scopes.view)),
+      )
+      .setParameter('scopeUserId', actor.userId);
   }
 
   /**

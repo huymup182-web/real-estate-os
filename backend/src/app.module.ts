@@ -8,6 +8,7 @@ import { CustomersModule } from './customers/customers.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
+import { MatchingModule } from './matching/matching.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
 
@@ -27,6 +28,7 @@ import { PropertiesModule } from './properties/properties.module.js';
     NotificationsModule,
     CustomersModule,
     AppointmentsModule,
+    MatchingModule,
   ],
 })
 export class AppModule {}
