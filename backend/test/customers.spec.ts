@@ -370,6 +370,31 @@ describe('/api/v1/customers', () => {
       assert.equal((await as('admin', 'GET', '/customers?page=0')).status, 400);
       assert.equal((await request('GET', '/customers')).status, 401);
     });
+
+    it('tìm theo tên, email, số điện thoại (bỏ số 0 đầu); vẫn theo phạm vi xem', async () => {
+      const response = await as('agent4', 'POST', '/customers', {
+        fullName: 'Trương Thị Tìm Kiếm',
+        phone: '+84987650001',
+        email: 'tim.kiem@khach.vn',
+      });
+      assert.equal(response.status, 201);
+      const created = ((await response.json()) as { data: Customer }).data;
+      const search = async (user: string, q: string): Promise<string[]> => {
+        const response = await as(
+          user,
+          'GET',
+          `/customers?pageSize=100&q=${encodeURIComponent(q)}`,
+        );
+        assert.equal(response.status, 200, q);
+        return ((await response.json()) as { data: Customer[] }).data.map((item) => item.id);
+      };
+      for (const q of ['tìm kiếm', 'TRƯƠNG THỊ', 'tim.kiem@', '0987 650 001', '98765']) {
+        assert.deepEqual(await search('admin', q), [created.id], q);
+      }
+      assert.deepEqual(await search('admin', '100%_'), []);
+      assert.deepEqual(await search('agent2', 'Tìm Kiếm'), []);
+      assert.equal((await as('admin', 'GET', `/customers?q=${'x'.repeat(101)}`)).status, 400);
+    });
   });
 
   describe('PATCH /customers/:id', () => {

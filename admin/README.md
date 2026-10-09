@@ -71,6 +71,15 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - Sửa và các thao tác gửi kèm `expectedUpdatedAt`: ai khác đã sửa BĐS trước thì form báo tải lại trang thay vì ghi đè.
 - Chưa có trên admin: lọc theo trạng thái, quản lý ảnh, giấy tờ và chủ nhà (vẫn làm trên app).
 
+## Khách hàng (TASK-108)
+
+- Menu "Khách hàng" hiện khi có `customer.view`; nút "Thêm khách hàng" khi có `customer.create`.
+- `/customers` hiện số khách ở từng bước pipeline (bấm để lọc), tìm theo tên, số điện thoại (gõ `0901 234 567` hay `+84901234567` đều được), email; lọc theo bước; phân trang.
+- `/customers/[id]` hiện thông tin, nhu cầu, timeline hoạt động. Có thao tác chuyển bước (sang "Mất khách" bắt buộc lý do), giao cho môi giới khác, thêm ghi chú và xoá, mỗi nút chỉ hiện khi có quyền tương ứng.
+- `/customers/new` và `/customers/[id]/edit` dùng chung form; số điện thoại `0xxx` được đổi sang `+84xxx` trước khi gửi.
+- Sửa và các thao tác gửi kèm `expectedUpdatedAt`: ai khác đã sửa khách trước thì form báo tải lại trang.
+- Chưa có trên admin: sửa nhu cầu và ghi các loại hoạt động khác ngoài ghi chú (vẫn làm trên app).
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |
