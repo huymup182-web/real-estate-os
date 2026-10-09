@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module.js';
 import { APP_CONFIG } from '../config/app-config.module.js';
 import { MatchingModule } from '../matching/matching.module.js';
 import { PropertiesModule } from '../properties/properties.module.js';
+import { AppointmentReminderJob } from './appointment-reminder.job.js';
 import { DeviceTokenStore } from './device-token-store.js';
 import { DeviceTokensController } from './device-tokens.controller.js';
 import { DeviceTokensService } from './device-tokens.service.js';
@@ -21,7 +22,8 @@ import { SavedSearchesService } from './saved-searches.service.js';
  * `NoopPushSender`). Có FCM_CONFIG thì đẩy qua FCM (TASK-093); token thiết bị ở
  * bảng `device_tokens`, API `/device-tokens` (TASK-094).
  * `NewPropertyNotifier` báo BĐS mới khớp tìm kiếm đã lưu (TASK-095),
- * `MatchingNotifier` báo môi giới khi BĐS mới phù hợp khách của họ (TASK-096).
+ * `MatchingNotifier` báo môi giới khi BĐS mới phù hợp khách của họ (TASK-096),
+ * `AppointmentReminderJob` nhắc lịch hẹn (TASK-097).
  */
 @Module({
   imports: [PropertiesModule, AuthModule, MatchingModule],
@@ -31,6 +33,7 @@ import { SavedSearchesService } from './saved-searches.service.js';
     NotificationsService,
     NewPropertyNotifier,
     MatchingNotifier,
+    AppointmentReminderJob,
     DeviceTokensService,
     { provide: DeviceTokenStore, useExisting: DeviceTokensService },
     {

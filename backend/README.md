@@ -645,3 +645,11 @@ Cùng sự kiện tạo BĐS như TASK-095, `MatchingNotifier` (`src/notificatio
 - Xét môi giới ACTIVE đang phụ trách (`customers.agent_id`) khách chưa WON/LOST có nhu cầu đang bật cùng loại giao dịch với BĐS.
 - Với mỗi môi giới, ghép bằng `MatchingService.customersForProperty` theo quyền xem BĐS và khách của chính họ (điểm ≥ 50, tối đa 100 khách), rồi chỉ giữ khách họ phụ trách. Không xem được BĐS thì bỏ qua; lỗi với một môi giới chỉ ghi log, vẫn báo người khác.
 - Mỗi môi giới nhận một thông báo `MATCHED_PROPERTY`, kể cả người tạo BĐS: tiêu đề "BĐS mới phù hợp với khách của bạn", nội dung `<mã> · <tiêu đề>. Phù hợp: <khách> (<điểm>%), ... và N khách khác` (nêu tên 3 khách điểm cao nhất), `data` = `{propertyId, matchCount, customers: [{customerId, score}]}` (tối đa 20 khách).
+
+## Nhắc lịch hẹn (TASK-097)
+
+`AppointmentReminderJob` (`src/notifications`) chạy mỗi 5 phút:
+
+- Lịch hẹn SCHEDULED, chưa xoá, chưa nhắc, diễn ra trong 60 phút tới (`APPOINTMENT_REMINDER_LEAD_MINUTES`, Huy Lê chọn) → môi giới phụ trách nhận thông báo `VIEWING_REMINDER`: tiêu đề "Sắp tới giờ hẹn dẫn khách", nội dung `14:30 ngày 09/10 · <khách> xem <mã BĐS> <tiêu đề>. Địa điểm: ...` (giờ Việt Nam), `data` = `{appointmentId}`.
+- Ghi `reminder_sent_at` bằng một lệnh `UPDATE ... RETURNING` trước khi gửi, nên nhiều instance cùng chạy không nhắc trùng; gửi lỗi thì chỉ ghi log, không thử lại.
+- Lịch đã qua giờ mà chưa nhắc (server tắt) thì bỏ qua. Đổi `scheduledAt` qua `PATCH /appointments/:id` thì xoá `reminder_sent_at` để nhắc lại theo giờ mới.
