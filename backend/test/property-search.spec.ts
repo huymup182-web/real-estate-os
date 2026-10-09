@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng, độ rộng đường, sắp xếp)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng, độ rộng đường, sắp xếp, phân trang)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -759,5 +759,59 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
         `${query}: ${JSON.stringify(error)}`,
       );
     }
+  });
+
+  it('phân trang kết quả lọc + sắp xếp: meta đúng, không trùng không sót, quá trang cuối thì rỗng', async () => {
+    const word = tag();
+    const created = [];
+    for (let index = 0; index < 5; index += 1) {
+      created.push(
+        await createProperty({
+          title: `Nhà ${word}`,
+          price: (index % 2) * 1_000_000_000 + 500_000_000,
+        }),
+      );
+    }
+    const pageOf = async (page: number) => {
+      const response = await request(
+        'GET',
+        `/properties?q=${word}&priceMax=2000000000&sort=price_asc&pageSize=2&page=${page}`,
+        undefined,
+        tokens['agent1'],
+      );
+      assert.equal(response.status, 200);
+      return (await response.json()) as {
+        data: { id: string }[];
+        meta: { page: number; pageSize: number; total: number; totalPages: number };
+      };
+    };
+    const pages = [await pageOf(1), await pageOf(2), await pageOf(3)];
+    assert.deepEqual(
+      pages.map((page) => page.meta),
+      [1, 2, 3].map((page) => ({ page, pageSize: 2, total: 5, totalPages: 3 })),
+    );
+    const ids = pages.flatMap((page) => page.data.map((item) => item.id));
+    // Giá 0,5 tỷ (index chẵn) trước, cùng giá thì mới hơn trước.
+    const [p0, p1, p2, p3, p4] = created.map((property) => property.id);
+    assert.deepEqual(ids, [p4, p2, p0, p3, p1]);
+    const beyond = await pageOf(4);
+    assert.deepEqual(beyond.data, []);
+    assert.deepEqual(beyond.meta, { page: 4, pageSize: 2, total: 5, totalPages: 3 });
+  });
+
+  it('số trang quá lớn → 400 kèm thông báo, không lỗi hệ thống', async () => {
+    for (const query of ['page=10001', 'page=1e20', 'page=99999999999999999999']) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = (
+        (await response.json()) as { error: { details: { field: string; message: string }[] } }
+      ).error;
+      assert.ok(
+        error.details.some((detail) => detail.field === 'page' && detail.message.includes('10000')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+    const last = await request('GET', '/properties?page=10000', undefined, tokens['agent1']);
+    assert.equal(last.status, 200);
   });
 });

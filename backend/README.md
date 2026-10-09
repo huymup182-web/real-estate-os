@@ -474,4 +474,5 @@ Luật:
 - Lọc hướng nhà (TASK-071): `direction=E,SE` hoặc lặp tham số; khớp một trong các hướng (`N`, `S`, `E`, `W`, `NE`, `NW`, `SE`, `SW`). BĐS chưa ghi hướng không khớp. Hướng lạ hoặc để trống → 400.
 - Lọc độ rộng đường (TASK-072): `roadWidthMin`, `roadWidthMax` (mét, ≥ 0, tối đa 2 chữ số thập phân, gồm cả hai đầu). BĐS chưa ghi độ rộng đường không khớp. Sai dạng hoặc min > max → 400.
 - Sắp xếp (TASK-073): `sort=newest|price_asc|price_desc|area_asc|area_desc|relevance`. Mặc định `relevance` khi có `q` (đúng mã BĐS lên đầu, rồi khớp tiêu đề + mô tả nhiều hơn lên trước; không tính địa chỉ), không có `q` thì `newest`. Cùng giá trị thì BĐS mới hơn đứng trước. Giá trị khác → 400.
+- Phân trang (TASK-074): `page` (1..10000), `pageSize` (1..100, mặc định 20); `meta` có `page`, `pageSize`, `total`, `totalPages`. Thứ tự luôn có mốc phụ (mới hơn trước, rồi id) nên chuyển trang không trùng, không sót. Quá trang cuối → `data` rỗng. Số trang ngoài khoảng → 400 (trước đây `page=1e20` gây lỗi 500).
 - `src/search`: `PropertySearchQueryDto` (bộ lọc dùng chung cho saved search, các bộ lọc khác thêm ở TASK-065..072), `keywordTsQuery()`.

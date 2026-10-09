@@ -133,8 +133,18 @@ describe('Định dạng response thành công', () => {
     assert.deepEqual(meta, { page: 1, pageSize: 20, total: 45, totalPages: 3 });
   });
 
-  it('pageSize tối đa 100, page tối thiểu 1', async () => {
-    for (const query of ['pageSize=101', 'page=0', 'pageSize=0', 'page=abc']) {
+  it('pageSize tối đa 100, page từ 1 đến 10.000', async () => {
+    for (const query of [
+      'pageSize=101',
+      'page=0',
+      'pageSize=0',
+      'page=abc',
+      'page=1.5',
+      'page=10001',
+      'page=1e20',
+      'page=99999999999999999999',
+      'page=1&page=2',
+    ]) {
       const [status, body] = await getJson(`/list?${query}`);
       assert.equal(status, 400, query);
       assert.equal((body as { error: { code: string } }).error.code, 'VALIDATION_ERROR');
