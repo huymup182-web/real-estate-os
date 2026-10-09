@@ -498,6 +498,7 @@ Module `src/customers` (bảng `customers`, docs/database.md mục 4.5). Phạm 
 - `GET /api/v1/customers?page&pageSize` (`customer.view`): khách trong phạm vi xem, mới tạo trước. `GET /:id`: ngoài phạm vi, đã xoá hoặc công ty khác → 404.
 - `PATCH /api/v1/customers/:id` (`customer.edit`): chỉ đổi trường được gửi, trường tuỳ chọn gửi `null` hoặc chuỗi rỗng để xoá; body rỗng → 400. Xem được nhưng ngoài phạm vi sửa → 403; `expectedUpdatedAt` lệch → 409.
 - `DELETE /api/v1/customers/:id` (`customer.delete`) → 204, xoá mềm, ghi người xoá vào `updated_by`.
+- `POST /api/v1/customers/:id/assign` (`customer.assign`, TASK-079) `{agentId, expectedUpdatedAt?}` → 200 khách sau khi giao. Cùng luật với phân BĐS: khách ngoài phạm vi xem → 404, ngoài phạm vi `customer.assign` → 403; người nhận phải là user đang hoạt động của công ty (không thì 400 `agentId`) và trong phạm vi đó (TEAM cùng nhóm, DEPARTMENT cùng phòng, COMPANY cả công ty), không thì 403. Giao lại đúng người đang phụ trách thì không đổi gì. Người tạo khách vẫn xem được khách (phạm vi OWN gồm người tạo). Ghi `customer.assign` vào `audit_logs`.
 - Tạo, sửa (kèm `{field: [cũ, mới]}`), xoá đều ghi `audit_logs` (`entity_type = 'customer'`).
 
 ## Nhu cầu của khách (TASK-078)

@@ -31,7 +31,7 @@ const oneOf = (values: readonly string[]): string => values.join(', ');
 
 /**
  * Tạo khách hàng (TASK-077). Không nhận: tenantId, môi giới phụ trách, trạng thái, lý do mất khách:
- * backend tự gán (người tạo phụ trách, trạng thái NEW) hoặc làm ở task sau (TASK-079 phân khách,
+ * backend tự gán (người tạo phụ trách, trạng thái NEW) hoặc qua route riêng (TASK-079 `POST /customers/:id/assign`,
  * TASK-082 pipeline). Số điện thoại không bắt buộc duy nhất (docs/database.md mục 4.5).
  */
 export class CreateCustomerDto {

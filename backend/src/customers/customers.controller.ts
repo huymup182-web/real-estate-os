@@ -20,6 +20,7 @@ import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
 import { actorOf } from '../properties/properties.controller.js';
 import type { CustomerResponse } from './customer.response.js';
 import { type CustomerScopes, CustomersService } from './customers.service.js';
+import { AssignCustomerDto } from './dto/assign-customer.dto.js';
 import { CreateCustomerDto } from './dto/create-customer.dto.js';
 import { UpdateCustomerDto } from './dto/update-customer.dto.js';
 
@@ -29,6 +30,7 @@ export function customerScopesOf(user: RequestUser): CustomerScopes {
     view: user.permissions['customer.view'],
     edit: user.permissions['customer.edit'],
     delete: user.permissions['customer.delete'],
+    assign: user.permissions['customer.assign'],
   };
 }
 
@@ -80,6 +82,22 @@ export class CustomersController {
     @Body() dto: UpdateCustomerDto,
   ): Promise<CustomerResponse> {
     return this.customers.update(actorOf(tenantId, req.user), id, dto, customerScopesOf(req.user));
+  }
+
+  /**
+   * `POST /api/v1/customers/:id/assign` {agentId, expectedUpdatedAt?} → khách sau khi đổi môi giới phụ
+   * trách (TASK-079). Cần `customer.assign` với khách đó và với người nhận.
+   */
+  @Post(':id/assign')
+  @HttpCode(200)
+  @RequirePermission('customer.assign')
+  assign(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: AssignCustomerDto,
+  ): Promise<CustomerResponse> {
+    return this.customers.assign(actorOf(tenantId, req.user), id, dto, customerScopesOf(req.user));
   }
 
   /** `DELETE /api/v1/customers/:id` → 204, xoá mềm. Cần `customer.delete`. */
