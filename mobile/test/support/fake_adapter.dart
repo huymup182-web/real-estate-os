@@ -11,7 +11,8 @@ class RecordedRequest {
   final Object? body;
 }
 
-/// Adapter giả cho Dio: ghi lại request, trả response theo [respond] (status, body JSON) hoặc ném lỗi mạng.
+/// Adapter giả cho Dio: ghi lại request, trả response theo [respond] (status, body JSON). Status 0 hoặc
+/// [offline] thì ném lỗi mạng.
 class FakeAdapter implements HttpClientAdapter {
   FakeAdapter(this.respond);
 
@@ -26,13 +27,13 @@ class FakeAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(RecordedRequest(options, options.data));
-    if (offline) {
+    final (status, body) = respond(options);
+    if (offline || status == 0) {
       throw DioException.connectionError(
         requestOptions: options,
         reason: 'offline',
       );
     }
-    final (status, body) = respond(options);
     if (body == null) {
       return ResponseBody.fromString('', status);
     }

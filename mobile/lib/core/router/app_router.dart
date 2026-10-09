@@ -2,15 +2,20 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/session_controller.dart';
 import '../../features/customers/presentation/customers_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/properties/presentation/properties_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
+import '../../features/splash/presentation/splash_screen.dart';
 
 /// Đường dẫn các màn hình; màn hình mới thêm vào đây.
 abstract final class AppRoutes {
+  static const splash = '/splash';
+  static const login = '/login';
   static const home = '/home';
   static const properties = '/properties';
   static const customers = '/customers';
@@ -18,11 +23,25 @@ abstract final class AppRoutes {
   static const profile = '/profile';
 }
 
-/// Router của app. Splash, đăng nhập và chặn khi chưa đăng nhập thêm ở TASK-115, TASK-116.
+/// Router của app. Chuyển màn hình theo phiên đăng nhập ([sessionProvider]): đang kiểm hoặc lỗi → splash, chưa
+/// đăng nhập → đăng nhập, đã đăng nhập mà đang ở splash/đăng nhập → trang chủ.
 final routerProvider = Provider<GoRouter>((ref) {
+  final sessionChanged = ValueNotifier<int>(0);
+  ref.listen(sessionProvider, (_, _) => sessionChanged.value++);
   final router = GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.splash,
+    refreshListenable: sessionChanged,
+    redirect: (context, state) =>
+        redirectFor(ref.read(sessionProvider), state.matchedLocation),
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),
@@ -36,9 +55,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
-  ref.onDispose(router.dispose);
+  ref.onDispose(() {
+    router.dispose();
+    sessionChanged.dispose();
+  });
   return router;
 });
+
+/// Đường dẫn cần chuyển tới theo phiên đăng nhập, hoặc null để ở lại [location].
+String? redirectFor(AsyncValue<Session> session, String location) {
+  final value = session.isLoading || session.hasError ? null : session.value;
+  if (value == null) {
+    return location == AppRoutes.splash ? null : AppRoutes.splash;
+  }
+  if (!value.isAuthenticated) {
+    return location == AppRoutes.login ? null : AppRoutes.login;
+  }
+  return location == AppRoutes.splash || location == AppRoutes.login
+      ? AppRoutes.home
+      : null;
+}
 
 StatefulShellBranch _branch(String path, Widget screen) => StatefulShellBranch(
   routes: [GoRoute(path: path, builder: (context, state) => screen)],

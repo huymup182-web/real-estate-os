@@ -4,11 +4,12 @@ import '../error/api_exception.dart';
 import '../storage/token_storage.dart';
 import 'api_response.dart';
 
-/// Gọi Backend API (`<API_BASE_URL>/api/v1`): gắn access token, bóc body `{success, data, meta}`, đổi mọi lỗi
-/// thành [ApiException]. Feature chỉ gọi qua lớp này, không dùng Dio trực tiếp.
+/// Gọi Backend API (`<API_BASE_URL>/api/v1`): gắn access token (hết hạn thì tự làm mới một lần), bóc body
+/// `{success, data, meta}`, đổi mọi lỗi thành [ApiException]. Feature chỉ gọi qua lớp này, không dùng Dio trực tiếp.
 class ApiClient {
   ApiClient({required String baseUrl, required TokenStorage tokens, Dio? dio})
-    : _dio = dio ?? Dio() {
+    : _dio = dio ?? Dio(),
+      _tokens = tokens {
     _dio.options
       ..baseUrl = baseUrl
       ..connectTimeout = const Duration(seconds: 15)
@@ -31,6 +32,7 @@ class ApiClient {
   }
 
   final Dio _dio;
+  final TokenStorage _tokens;
 
   /// `auth: false` cho API không cần đăng nhập (đăng nhập, quên mật khẩu).
   Future<ApiResponse> get(
@@ -53,6 +55,7 @@ class ApiClient {
     Map<String, Object?>? query,
     Object? body,
     bool auth = true,
+    bool retried = false,
   }) async {
     try {
       final response = await _dio.request<Object?>(
@@ -63,8 +66,68 @@ class ApiClient {
       );
       return _parseSuccess(response);
     } on DioException catch (error) {
-      throw _toApiException(error);
+      final exception = _toApiException(error);
+      // Access token sống 15 phút: hết hạn thì làm mới một lần rồi gọi lại.
+      if (auth && !retried && exception.code == ErrorCodes.tokenExpired) {
+        await _refreshTokens();
+        return _send(
+          method,
+          path,
+          query: query,
+          body: body,
+          auth: auth,
+          retried: true,
+        );
+      }
+      throw exception;
     }
+  }
+
+  /// Đang làm mới token (nếu có). Nhiều request cùng hết hạn thì chỉ gọi `/auth/refresh` một lần, vì backend
+  /// coi hai lần refresh song song cùng một token là dùng lại token và thu hồi cả phiên.
+  Future<void>? _refreshing;
+
+  Future<void> _refreshTokens() =>
+      _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
+
+  /// `POST /auth/refresh`, lưu cặp token mới. Refresh token không còn dùng được (401/403) thì xoá token đã lưu
+  /// và ném lỗi [ErrorCodes.unauthenticated] để app quay về màn đăng nhập.
+  Future<void> _doRefresh() async {
+    final saved = await _tokens.read();
+    if (saved == null) {
+      throw const ApiException(
+        code: ErrorCodes.unauthenticated,
+        message: 'Phiên đăng nhập đã hết hạn',
+        statusCode: 401,
+      );
+    }
+    final ApiResponse response;
+    try {
+      response = await _send(
+        'POST',
+        '/auth/refresh',
+        body: {'refreshToken': saved.refreshToken},
+        auth: false,
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode == 401 || error.statusCode == 403) {
+        await _tokens.clear();
+        throw ApiException(
+          code: ErrorCodes.unauthenticated,
+          message: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại',
+          statusCode: 401,
+          requestId: error.requestId,
+        );
+      }
+      rethrow;
+    }
+    final data = response.object;
+    await _tokens.save(
+      AuthTokens(
+        accessToken: data['accessToken'] as String,
+        refreshToken: data['refreshToken'] as String,
+      ),
+    );
   }
 }
 

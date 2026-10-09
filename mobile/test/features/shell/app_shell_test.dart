@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:real_estate_os/app.dart';
-import 'package:real_estate_os/core/providers.dart';
-import 'package:real_estate_os/core/storage/token_storage.dart';
 import 'package:real_estate_os/core/theme/app_theme.dart';
+import 'package:real_estate_os/features/auth/presentation/session_controller.dart';
+
+import '../../support/fake_auth.dart';
 
 void main() {
   Widget app() => ProviderScope(
-    overrides: [tokenStorageProvider.overrideWithValue(MemoryTokenStorage())],
+    overrides: [
+      authRepositoryProvider.overrideWithValue(
+        FakeAuthRepository(() async => testUser),
+      ),
+    ],
     child: const App(),
   );
 
