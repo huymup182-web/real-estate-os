@@ -11,6 +11,7 @@ import { Paginated } from '../common/response/paginated.js';
 import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { Actor } from '../properties/properties.service.js';
+import { insertCustomerActivity } from './customer-activity.record.js';
 import { Customer } from './customer.entity.js';
 import { type CustomerResponse, toCustomerResponse } from './customer.response.js';
 import type { AssignCustomerDto } from './dto/assign-customer.dto.js';
@@ -212,6 +213,14 @@ export class CustomersService {
       });
       await this.recordActivity(manager, actor, id, 'customer.assign', {
         agentId: [current.agentId, dto.agentId],
+      });
+      // Timeline của khách (TASK-081).
+      await insertCustomerActivity(manager, {
+        tenantId: actor.tenantId,
+        customerId: id,
+        userId: actor.userId,
+        type: 'ASSIGNMENT',
+        metadata: { fromAgentId: current.agentId, toAgentId: dto.agentId },
       });
     });
     return this.findOne(actor, id, scopes);

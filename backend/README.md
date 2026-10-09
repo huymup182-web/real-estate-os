@@ -516,3 +516,11 @@ Ghi chú là dòng `type = 'NOTE'` trong `customer_activities` (timeline của k
 
 - `POST /api/v1/customers/:customerId/notes` (`customer.edit` với khách) `{content, occurredAt?}` → 201 `{id, content, user: {id, fullName}, occurredAt, createdAt}`. `content` 1..5000 ký tự, không HTML. `occurredAt` là lúc việc xảy ra (mặc định lúc ghi), không được ở tương lai. Khách ngoài phạm vi xem → 404, xem được nhưng ngoài phạm vi sửa → 403.
 - `GET /api/v1/customers/:customerId/notes?page&pageSize` (`customer.view`) → ghi chú của khách, xảy ra gần đây trước. Khách đã xoá → 404; ghi chú vẫn giữ trong database.
+
+## Timeline khách hàng (TASK-081)
+
+Mọi hoạt động chăm sóc khách nằm ở `customer_activities` (chỉ thêm, không sửa, không xoá). Code: `CustomerActivitiesService`, ghi dòng mới qua `insertCustomerActivity()` (`src/customers/customer-activity.record.ts`) trong transaction của thao tác.
+
+- `POST /api/v1/customers/:customerId/activities` (`customer.edit` với khách) `{type, content?, propertyIds?, occurredAt?}` → 201 `{id, type, content, propertyIds, metadata, user: {id, fullName}, occurredAt, createdAt}`. `type` người dùng ghi được: `CALL`, `MESSAGE`, `PROPERTY_SENT`, `VIEWING`, `NEGOTIATION`, `DEPOSIT`, `NOTE`. `NOTE` bắt buộc `content`; `PROPERTY_SENT` bắt buộc `propertyIds` (1..20, bỏ trùng). BĐS gắn kèm phải là BĐS người ghi xem được, không thì 400 `propertyIds`. `occurredAt` không được ở tương lai.
+- `STATUS_CHANGE`, `ASSIGNMENT` chỉ hệ thống ghi: giao khách (`POST /customers/:id/assign`) ghi `ASSIGNMENT` với `metadata {fromAgentId, toAgentId}`; đổi trạng thái ghi `STATUS_CHANGE` ở TASK-082.
+- `GET /api/v1/customers/:customerId/activities?type=CALL,NOTE&page&pageSize` (`customer.view`) → timeline, xảy ra gần đây trước; `type` lọc theo loại. Ghi chú (TASK-080) là `type = NOTE` của cùng timeline và trả cùng dạng.
