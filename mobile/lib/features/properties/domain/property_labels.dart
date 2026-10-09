@@ -21,5 +21,34 @@ const propertyStatusLabels = {
   'VERIFY_REQUIRED': 'Cần xác minh',
 };
 
+const legalStatusLabels = {
+  'PRIVATE_BOOK': 'Sổ riêng',
+  'SHARED_BOOK': 'Sổ chung',
+  'PENDING_BOOK': 'Chờ cấp sổ',
+  'SALE_CONTRACT': 'HĐ mua bán, góp vốn',
+  'HANDWRITTEN': 'Giấy tay, vi bằng',
+  'OTHER': 'Khác',
+};
+
+const directionLabels = {
+  'N': 'Bắc',
+  'S': 'Nam',
+  'E': 'Đông',
+  'W': 'Tây',
+  'NE': 'Đông Bắc',
+  'NW': 'Tây Bắc',
+  'SE': 'Đông Nam',
+  'SW': 'Tây Nam',
+};
+
+/// Cách sắp xếp `GET /properties?sort=` (không gồm `relevance`: đó là mặc định khi có từ khoá).
+const propertySortLabels = {
+  'newest': 'Mới nhất',
+  'price_asc': 'Giá tăng dần',
+  'price_desc': 'Giá giảm dần',
+  'area_asc': 'Diện tích tăng dần',
+  'area_desc': 'Diện tích giảm dần',
+};
+
 String labelOf(Map<String, String> labels, String value) =>
     labels[value] ?? value;

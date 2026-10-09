@@ -20,8 +20,14 @@ class PropertyQueryController extends Notifier<PropertyQuery> {
   PropertyQuery build() => const PropertyQuery();
 
   /// Đặt từ khoá; chỉ khác khoảng trắng thì không tìm lại.
-  void setKeyword(String text) {
-    final next = state.withKeyword(text);
+  void setKeyword(String text) => _set(state.withKeyword(text));
+
+  /// Áp bộ lọc, sắp xếp của [filters] (giữ từ khoá).
+  void applyFilters(PropertyQuery filters) => _set(state.withFilters(filters));
+
+  void clearFilters() => _set(state.withoutFilters());
+
+  void _set(PropertyQuery next) {
     if (next != state) {
       state = next;
     }
