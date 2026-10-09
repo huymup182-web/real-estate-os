@@ -7,6 +7,7 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../../auth/presentation/session_controller.dart';
 import '../domain/property_query.dart';
 import 'property_card.dart';
 import 'property_filter_sheet.dart';
@@ -14,7 +15,7 @@ import 'property_list_controller.dart';
 import 'property_search_field.dart';
 
 /// Tab "BĐS": ô tìm kiếm và danh sách BĐS trong phạm vi xem (mới tạo trước, có từ khoá thì khớp nhiều hơn trước).
-/// Nút "Bộ lọc" mở bộ lọc, sắp xếp. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
+/// Nút "Bộ lọc" mở bộ lọc, sắp xếp. Có `property.create` thì có nút "Thêm BĐS". Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
 class PropertiesScreen extends ConsumerWidget {
   const PropertiesScreen({super.key});
 
@@ -31,8 +32,18 @@ class PropertiesScreen extends ConsumerWidget {
       }
     }
 
+    final canCreate =
+        ref.watch(sessionProvider).value?.user?.can('property.create') ?? false;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Bất động sản')),
+      floatingActionButton: canCreate
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push(AppRoutes.propertyCreate),
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm BĐS'),
+            )
+          : null,
       body: Column(
         children: [
           const Padding(
@@ -92,11 +103,12 @@ class PropertiesScreen extends ConsumerWidget {
                 child: ListView.separated(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
+                  // Đáy chừa chỗ cho nút "Thêm BĐS" để không che thẻ cuối.
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.gutter,
                     AppSpacing.s8,
                     AppSpacing.gutter,
-                    AppSpacing.gutter,
+                    96,
                   ),
                   itemCount: value.items.length + 2,
                   separatorBuilder: (context, index) =>

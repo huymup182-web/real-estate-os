@@ -2,6 +2,7 @@ import 'package:real_estate_os/core/network/api_response.dart';
 import 'package:real_estate_os/core/network/page.dart';
 import 'package:real_estate_os/features/properties/data/properties_repository.dart';
 import 'package:real_estate_os/features/properties/domain/property_detail.dart';
+import 'package:real_estate_os/features/properties/domain/property_draft.dart';
 import 'package:real_estate_os/features/properties/domain/property_query.dart';
 import 'package:real_estate_os/features/properties/domain/property_summary.dart';
 
@@ -17,7 +18,11 @@ class FakePropertiesRepository implements PropertiesRepository {
       propertyDetail(id);
   Future<List<PropertyImage>> Function(String id) onImages = (id) async =>
       const [];
+  Future<({String id, String code})> Function(PropertyDraft draft) onCreate = (
+    draft,
+  ) async => (id: 'new-id', code: 'BDS-000099');
   final detailCalls = <String>[];
+  final created = <PropertyDraft>[];
   final listedPages = <int>[];
   final listedQueries = <PropertyQuery>[];
 
@@ -39,6 +44,12 @@ class FakePropertiesRepository implements PropertiesRepository {
 
   @override
   Future<List<PropertyImage>> images(String id) => onImages(id);
+
+  @override
+  Future<({String id, String code})> create(PropertyDraft draft) {
+    created.add(draft);
+    return onCreate(draft);
+  }
 }
 
 Page<PropertySummary> pageOf(
