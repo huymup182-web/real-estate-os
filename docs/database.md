@@ -486,7 +486,7 @@ Trigger chặn `UPDATE`, `DELETE`, `TRUNCATE` trên `audit_logs`, nên công ty 
 
 **password_reset_tokens** (mã OTP 6 số gửi email, TASK-042): `id` PK · `user_id` FK users (xoá user thì xoá mã) · `code_hash` varchar(64) NOT NULL (SHA-256, **không** UQ vì mã 6 số có thể trùng giữa các user) · `attempts` smallint NOT NULL DEFAULT 0 (số lần nhập sai) · `expires_at` NOT NULL (> `created_at`) · `used_at` NULL (đã dùng hoặc đã huỷ) · `created_at`. Index (`user_id`, `created_at` DESC).
 
-**device_tokens** (FCM): `id` PK · `user_id` FK users · `tenant_id` NULL · `fcm_token` text NOT NULL UQ · `platform` `ANDROID` \| `IOS` \| `WEB` · `last_seen_at` · `created_at`.
+**device_tokens** (FCM, TASK-094): `id` PK · `user_id` FK users (xoá user thì xoá token) · `tenant_id` NULL · `fcm_token` text NOT NULL UQ (không rỗng, ≤ 4096 ký tự; một thiết bị chỉ thuộc người đăng nhập gần nhất) · `platform` `ANDROID` \| `IOS` \| `WEB` · `last_seen_at` NOT NULL (lần đăng ký/làm mới gần nhất) · `created_at`. Index (`user_id`, `last_seen_at` DESC). Trigger đảm bảo `tenant_id` trùng công ty của user.
 
 ## 5. Quan hệ chính
 
