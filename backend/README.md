@@ -476,6 +476,10 @@ Luật:
 - Sắp xếp (TASK-073): `sort=newest|price_asc|price_desc|area_asc|area_desc|relevance`. Mặc định `relevance` khi có `q` (đúng mã BĐS lên đầu, rồi khớp tiêu đề + mô tả nhiều hơn lên trước; không tính địa chỉ), không có `q` thì `newest`. Cùng giá trị thì BĐS mới hơn đứng trước. Giá trị khác → 400.
 - Phân trang (TASK-074): `page` (1..10000), `pageSize` (1..100, mặc định 20); `meta` có `page`, `pageSize`, `total`, `totalPages`. Thứ tự luôn có mốc phụ (mới hơn trước, rồi id) nên chuyển trang không trùng, không sót. Quá trang cuối → `data` rỗng. Số trang ngoài khoảng → 400 (trước đây `page=1e20` gây lỗi 500).
 
+## Hiệu năng tìm kiếm (TASK-076)
+
+`npm run perf:search` sinh 100.000 BĐS cho một công ty (database riêng `<db>_backend_perf`) và đo các kiểu tìm kiếm qua HTTP. Truy vấn nào có p95 ≥ 1 giây thì báo lỗi. Cách đo và kết quả: [docs/search-performance.md](../docs/search-performance.md).
+
 ## Tìm kiếm đã lưu (TASK-075)
 
 Module `src/notifications` (bảng `saved_searches`, phase0/02-ARCHITECTURE.md mục 2.1). Mọi route cần `property.view`; mỗi người chỉ thấy và sửa tìm kiếm của mình (người khác, cấp trên, công ty khác → 404).

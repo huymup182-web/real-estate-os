@@ -3,17 +3,17 @@ import { resolve } from 'node:path';
 import { DataSource } from 'typeorm';
 
 /**
- * Database riêng cho test backend: `<tên database>_backend_test`, tách khỏi database dev và
+ * Database riêng cho test backend: `<tên database>_backend_test` (hoặc `_<suffix>`), tách khỏi database dev và
  * database test của thư mục database/ (hai bộ test chạy song song không giẫm nhau).
  * Mỗi lần gọi xoá schema rồi chạy toàn bộ migration của database/ (Node ≥ 22.18 chạy trực tiếp file .ts).
  */
-export async function prepareTestDatabase(): Promise<string> {
+export async function prepareTestDatabase(suffix = 'backend_test'): Promise<string> {
   const base = process.env['DATABASE_URL'];
   if (!base) {
     throw new Error('Cần DATABASE_URL để chạy test backend (xem docs/environment.md)');
   }
   const url = new URL(base);
-  const name = `${decodeURIComponent(url.pathname.slice(1))}_backend_test`;
+  const name = `${decodeURIComponent(url.pathname.slice(1))}_${suffix}`;
   url.pathname = `/${name}`;
 
   const admin = new URL(base);
