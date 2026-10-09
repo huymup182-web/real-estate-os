@@ -40,6 +40,14 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - `/users/[id]` sửa thông tin, phòng ban, vai trò và đổi trạng thái (kích hoạt, ngừng hoạt động, khoá). Người không có `user.manage` chỉ xem.
 - Thao tác ghi là Server Action (`users/actions.ts`). Lỗi theo trường từ backend (`error.details`) hiện ngay dưới ô nhập.
 
+## Vai trò (TASK-104)
+
+- Menu "Vai trò" hiện khi có `admin.manage`.
+- `/roles` liệt kê vai trò với số người dùng và số quyền; vai trò mặc định có nhãn "Mặc định".
+- `/roles/new` và `/roles/[id]` dùng chung form: tên, mô tả và bảng quyền gom theo module, mỗi quyền chọn "Không có" hoặc một phạm vi (của mình, nhóm, phòng ban, toàn công ty).
+- Quyền của vai trò quản trị công ty bị khoá, form chỉ cho đổi tên và mô tả.
+- Vai trò tự tạo xoá được khi không còn người dùng; backend báo lỗi nếu còn.
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |
