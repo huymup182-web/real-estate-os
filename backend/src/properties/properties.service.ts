@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, type EntityManager, Repository } from 'typeorm';
+import {
+  DataSource,
+  type EntityManager,
+  type ObjectLiteral,
+  Repository,
+  type SelectQueryBuilder,
+} from 'typeorm';
 
 import { AppException, type ErrorDetail } from '../common/errors/app.exception.js';
 import { type AuditChanges, AuditService } from '../audit/audit.service.js';
@@ -10,7 +16,7 @@ import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
 import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { keywordTsQuery } from '../search/keyword.js';
-import type { PropertySearchQueryDto } from '../search/property-search-query.dto.js';
+import type { PropertySearchQueryDto, PropertySort } from '../search/property-search-query.dto.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { AssignPropertyDto } from './dto/assign-property.dto.js';
 import type { ChangePropertyStatusDto } from './dto/change-property-status.dto.js';
@@ -418,9 +424,12 @@ export class PropertiesService {
     let page = base
       .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
       .addSelect(IS_FAVORITE, 'is_favorite');
-    page = favoritesOnly
-      ? page.orderBy('f.created_at', 'DESC').addOrderBy('p.id', 'DESC')
-      : page.orderBy('p.createdAt', 'DESC').addOrderBy('p.id', 'DESC');
+    if (favoritesOnly) {
+      page = page.orderBy('f.created_at', 'DESC');
+    } else {
+      page = this.applySort(page, search?.sort ?? (keyword ? 'relevance' : 'newest'), keyword);
+    }
+    page = page.addOrderBy('p.createdAt', 'DESC').addOrderBy('p.id', 'DESC');
     const { entities, raw } = await page
       .offset(query.offset)
       .limit(query.pageSize)
@@ -859,6 +868,44 @@ export class PropertiesService {
       createdAt: row.created_at,
     }));
     return new Paginated(items, query.page, query.pageSize, count?.total ?? 0);
+  }
+
+  /**
+   * Thứ tự danh sách (TASK-073); sau thứ tự này luôn là mới tạo trước rồi id để phân trang ổn định.
+   * `relevance`: đúng mã BĐS lên đầu, rồi theo mức khớp từ khoá với tiêu đề + mô tả (không tính địa chỉ,
+   * để thứ tự không lộ địa chỉ của BĐS ngoài phạm vi xem liên hệ). Không có từ khoá → như `newest`.
+   */
+  private applySort<T extends ObjectLiteral>(
+    page: SelectQueryBuilder<T>,
+    sort: PropertySort,
+    keyword: string | undefined,
+  ): SelectQueryBuilder<T> {
+    switch (sort) {
+      case 'price_asc':
+        return page.orderBy('p.price', 'ASC');
+      case 'price_desc':
+        return page.orderBy('p.price', 'DESC');
+      case 'area_asc':
+        return page.orderBy('p.area', 'ASC');
+      case 'area_desc':
+        return page.orderBy('p.area', 'DESC');
+      case 'relevance':
+        if (!keyword) {
+          return page;
+        }
+        page = page.orderBy('CASE WHEN p.code = :keywordCode THEN 0 ELSE 1 END', 'ASC');
+        if (keywordTsQuery(keyword) === null) {
+          return page;
+        }
+        return page.addOrderBy(
+          `ts_rank(to_tsvector('simple', immutable_unaccent(
+             coalesce(p.title, '') || ' ' || coalesce(p.description, ''))),
+           to_tsquery('simple', :keywordQuery))`,
+          'DESC',
+        );
+      case 'newest':
+        return page;
+    }
   }
 
   /**

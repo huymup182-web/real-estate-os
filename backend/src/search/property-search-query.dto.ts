@@ -21,6 +21,17 @@ import { MAX_KEYWORD_LENGTH } from './keyword.js';
 const MAX_AREA = 9_999_999_999.99;
 const AREA_NUMBER = { maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false };
 
+/** Cách sắp xếp danh sách (TASK-073, phase0/05-API-CONVENTIONS.md mục 5); không nhận tên cột tự do. */
+export const PROPERTY_SORTS = [
+  'newest',
+  'price_asc',
+  'price_desc',
+  'area_asc',
+  'area_desc',
+  'relevance',
+] as const;
+export type PropertySort = (typeof PROPERTY_SORTS)[number];
+
 /** Độ rộng đường lớn nhất cột `properties.road_width` nhận (numeric(6, 2)). */
 const MAX_ROAD_WIDTH = 9_999.99;
 
@@ -188,4 +199,12 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
   @Min(0, { message: 'roadWidthMax không được âm' })
   @Max(MAX_ROAD_WIDTH, { message: `roadWidthMax tối đa ${MAX_ROAD_WIDTH}` })
   roadWidthMax?: number;
+
+  /**
+   * Sắp xếp (TASK-073). Mặc định `relevance` khi có `q`, ngược lại `newest`. `relevance` không có `q`
+   * xếp như `newest`. Cùng giá trị thì BĐS mới hơn đứng trước.
+   */
+  @IsOptional()
+  @IsIn(PROPERTY_SORTS, { message: `sort phải là một trong: ${PROPERTY_SORTS.join(', ')}` })
+  sort?: PropertySort;
 }

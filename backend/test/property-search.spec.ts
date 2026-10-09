@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng, độ rộng đường)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng, độ rộng đường, sắp xếp)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -655,6 +655,107 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
       const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
       assert.ok(
         error.details.some((detail) => detail.field.startsWith('roadWidth')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('sắp xếp theo mới nhất, giá, diện tích; cùng giá trị thì mới hơn trước', async () => {
+    const word = tag();
+    const a = await createProperty({ title: `Nhà ${word}`, price: 3_000_000_000, area: 80 });
+    const b = await createProperty({ title: `Nhà ${word}`, price: 1_000_000_000, area: 120 });
+    const c = await createProperty({ title: `Nhà ${word}`, price: 3_000_000_000, area: 50 });
+    const d = await createProperty({ title: `Nhà ${word}`, price: 5_000_000_000, area: 80 });
+    assert.deepEqual((await search(word, 'agent1', '&sort=newest')).ids, [d.id, c.id, b.id, a.id]);
+    assert.deepEqual((await search(word, 'agent1', '&sort=price_asc')).ids, [
+      b.id,
+      c.id,
+      a.id,
+      d.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&sort=price_desc')).ids, [
+      d.id,
+      c.id,
+      a.id,
+      b.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&sort=area_asc')).ids, [
+      c.id,
+      d.id,
+      a.id,
+      b.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&sort=area_desc')).ids, [
+      b.id,
+      d.id,
+      a.id,
+      c.id,
+    ]);
+    // Phân trang giữ đúng thứ tự (cùng diện tích 80: d mới hơn a).
+    const response = await request(
+      'GET',
+      `/properties?q=${word}&sort=area_desc&pageSize=2&page=2`,
+      undefined,
+      tokens['agent1'],
+    );
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { data: { id: string }[]; meta: { total: number } };
+    assert.deepEqual(
+      body.data.map((item) => item.id),
+      [a.id, c.id],
+    );
+    assert.equal(body.meta.total, 4);
+  });
+
+  it('có từ khoá thì mặc định xếp theo độ khớp; đúng mã BĐS lên đầu', async () => {
+    const word = tag();
+    const strong = await createProperty({
+      title: `${word} ${word} gần biển`,
+      description: `Nhà ${word} hẻm xe hơi`,
+    });
+    const weak = await createProperty({ title: `Nhà ${word}`, description: 'Nhà đẹp, gần chợ' });
+    const middle = await createProperty({ title: `Nhà ${word} ${word}`, description: 'Gần chợ' });
+    assert.deepEqual((await search(word)).ids, [strong.id, middle.id, weak.id]);
+    assert.deepEqual((await search(word, 'agent1', '&sort=relevance')).ids, [
+      strong.id,
+      middle.id,
+      weak.id,
+    ]);
+    assert.deepEqual((await search(word, 'agent1', '&sort=newest')).ids, [
+      middle.id,
+      weak.id,
+      strong.id,
+    ]);
+    // Từ khoá là mã BĐS: chỉ BĐS đó khớp, vẫn trả về bình thường khi xếp theo độ khớp.
+    assert.deepEqual((await search(weak.code.toLowerCase())).ids, [weak.id]);
+    // relevance không có từ khoá → như newest.
+    const response = await request(
+      'GET',
+      `/properties?pageSize=100&sort=relevance&propertyType=HOUSE`,
+      undefined,
+      tokens['agent1'],
+    );
+    assert.equal(response.status, 200);
+    const ids = ((await response.json()) as { data: { id: string }[] }).data.map((item) => item.id);
+    assert.deepEqual(
+      ids.filter((id) => [strong.id, weak.id, middle.id].includes(id)),
+      [middle.id, weak.id, strong.id],
+    );
+  });
+
+  it('sort sai → 400', async () => {
+    for (const query of [
+      'sort=price',
+      'sort=PRICE_ASC',
+      'sort=p.price',
+      'sort=',
+      'sort=newest&sort=price_asc',
+    ]) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('sort')),
         `${query}: ${JSON.stringify(error)}`,
       );
     }
