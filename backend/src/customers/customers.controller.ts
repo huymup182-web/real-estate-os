@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 
 import type { RequestUser } from '../auth/jwt-auth.guard.js';
+import type { UserAccess } from '../auth/permission.service.js';
 import { RequirePermission } from '../auth/permission.guard.js';
 import { TenantId } from '../auth/tenant.guard.js';
 import type { Paginated } from '../common/response/paginated.js';
@@ -32,11 +33,16 @@ import { UpdateCustomerDto } from './dto/update-customer.dto.js';
 
 /** Phạm vi các quyền khách hàng của user (route đã có @RequirePermission nên quyền của route chắc chắn có). */
 export function customerScopesOf(user: RequestUser): CustomerScopes {
+  return customerScopesFrom(user.permissions);
+}
+
+/** Phạm vi quyền khách hàng từ bảng permission hiệu lực (`UserAccess.permissions`). */
+export function customerScopesFrom(permissions: UserAccess['permissions']): CustomerScopes {
   return {
-    view: user.permissions['customer.view'],
-    edit: user.permissions['customer.edit'],
-    delete: user.permissions['customer.delete'],
-    assign: user.permissions['customer.assign'],
+    view: permissions['customer.view'],
+    edit: permissions['customer.edit'],
+    delete: permissions['customer.delete'],
+    assign: permissions['customer.assign'],
   };
 }
 
