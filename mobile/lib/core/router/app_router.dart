@@ -12,6 +12,7 @@ import '../../features/properties/presentation/properties_screen.dart';
 import '../../features/properties/presentation/property_create_screen.dart';
 import '../../features/properties/presentation/property_detail_screen.dart';
 import '../../features/properties/presentation/property_edit_screen.dart';
+import '../../features/properties/presentation/property_images_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 
@@ -31,6 +32,8 @@ abstract final class AppRoutes {
   static String propertyDetail(String id) => '$properties/$id';
 
   static String propertyEdit(String id) => '$properties/$id/edit';
+
+  static String propertyImages(String id) => '$properties/$id/images';
 }
 
 /// Router của app. Chuyển màn hình theo phiên đăng nhập ([sessionProvider]): đang kiểm hoặc lỗi → splash, chưa
@@ -75,6 +78,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'edit',
                     builder: (context, state) => PropertyEditScreen(
+                      propertyId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'images',
+                    builder: (context, state) => PropertyImagesScreen(
                       propertyId: state.pathParameters['id']!,
                     ),
                   ),
