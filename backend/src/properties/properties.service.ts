@@ -219,8 +219,9 @@ export class PropertiesService {
       )
       .addSelect(`(${this.scopeOrFalse(scopes.contact)})`, 'owner_contact_visible')
       .addSelect(IS_FAVORITE, 'is_favorite')
+      .addSelect(`(${this.scopeOrFalse(scopes.edit)})`, 'can_edit')
       .setParameter('scopeUserId', actor.userId)
-      .getRawAndEntities<ViewerFlagsRow>();
+      .getRawAndEntities<ViewerFlagsRow & { can_edit: boolean }>();
 
     const property = entities[0];
     const row = raw[0];
@@ -237,6 +238,7 @@ export class PropertiesService {
       ...toPropertyDetailResponse(property, owner, flags),
       provinceName: names?.province_name ?? '',
       wardName: names?.ward_name ?? '',
+      canEdit: row.can_edit === true,
     };
   }
 

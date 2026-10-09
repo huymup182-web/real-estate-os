@@ -31,6 +31,8 @@ class PropertyDetail {
     required this.area,
     required this.status,
     required this.verificationStatus,
+    required this.provinceId,
+    required this.wardId,
     required this.provinceName,
     required this.wardName,
     required this.updatedAt,
@@ -48,6 +50,7 @@ class PropertyDetail {
     this.ownerContactVisible = false,
     this.owner,
     this.isFavorite = false,
+    this.canEdit = false,
   });
 
   factory PropertyDetail.fromJson(Map<String, dynamic> json) {
@@ -75,12 +78,15 @@ class PropertyDetail {
       lastVerifiedAt: lastVerifiedAt == null
           ? null
           : DateTime.parse(lastVerifiedAt),
+      provinceId: json['provinceId'] as String,
+      wardId: json['wardId'] as String,
       provinceName: json['provinceName'] as String? ?? '',
       wardName: json['wardName'] as String? ?? '',
       streetAddress: json['streetAddress'] as String?,
       ownerContactVisible: json['ownerContactVisible'] as bool? ?? false,
       owner: owner == null ? null : PropertyOwner.fromJson(owner),
       isFavorite: json['isFavorite'] as bool? ?? false,
+      canEdit: json['canEdit'] as bool? ?? false,
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
   }
@@ -111,6 +117,8 @@ class PropertyDetail {
   final String status;
   final String verificationStatus;
   final DateTime? lastVerifiedAt;
+  final String provinceId;
+  final String wardId;
   final String provinceName;
   final String wardName;
 
@@ -119,6 +127,11 @@ class PropertyDetail {
   final bool ownerContactVisible;
   final PropertyOwner? owner;
   final bool isFavorite;
+
+  /// BĐS trong phạm vi `property.edit` của người xem.
+  final bool canEdit;
+
+  /// Gửi lại khi sửa (`expectedUpdatedAt`) để không ghi đè bản người khác vừa lưu.
   final DateTime updatedAt;
 
   /// "12 Đường 2/4, Vĩnh Hải, Khánh Hòa" (thiếu phần nào thì bỏ phần đó).

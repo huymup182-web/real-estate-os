@@ -44,4 +44,21 @@ class PropertiesRepository {
     )).object;
     return (id: data['id'] as String, code: data['code'] as String);
   }
+
+  /// Sửa BĐS [id] (cần `property.edit` với BĐS). Người khác đã lưu sau [expectedUpdatedAt] → `ApiException`
+  /// `CONFLICT`. Trả chi tiết sau khi sửa.
+  Future<PropertyDetail> update(
+    String id,
+    PropertyDraft draft, {
+    required DateTime expectedUpdatedAt,
+    required bool withStreetAddress,
+  }) async => PropertyDetail.fromJson(
+    (await _api.patch(
+      '/properties/$id',
+      body: draft.toUpdateJson(
+        expectedUpdatedAt: expectedUpdatedAt,
+        withStreetAddress: withStreetAddress,
+      ),
+    )).object,
+  );
 }

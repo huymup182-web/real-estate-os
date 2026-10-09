@@ -285,6 +285,15 @@ describe('GET /api/v1/properties/:id', () => {
     }
   });
 
+  it('canEdit theo phạm vi property.edit: người phụ trách và cấp quản lý trong phạm vi', async () => {
+    for (const user of ['agent1', 'leader', 'manager', 'admin']) {
+      assert.equal((await detail(user))['canEdit'], true, user);
+    }
+    for (const user of ['agent2', 'agent3', 'agent4', 'collaborator', 'manager2']) {
+      assert.equal((await detail(user))['canEdit'], false, user);
+    }
+  });
+
   it('chủ nhà đã xoá mềm → owner null dù có quyền', async () => {
     await db.query('UPDATE owners SET deleted_at = now() WHERE id = $1', [ownerId]);
     try {

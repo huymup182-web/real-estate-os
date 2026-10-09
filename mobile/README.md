@@ -142,6 +142,15 @@ lib/
   Ô trống không gửi. API trả lỗi từng trường (`VALIDATION_ERROR`) thì hiện dưới ô đó.
 - Đã nhập mà bấm quay lại thì hỏi "Bỏ thay đổi?". Chưa nhập toạ độ, nguồn, hoa hồng (web admin cũng chưa có).
 
+## Sửa BĐS (TASK-123)
+
+- Chi tiết BĐS có nút sửa khi `canEdit` (phạm vi `property.edit`) → `/properties/:id/edit`, dùng lại `PropertyForm`
+  điền sẵn giá trị hiện tại → `PATCH /properties/:id` gửi mọi trường (ô trống là `null` để xoá) kèm
+  `expectedUpdatedAt`. Lưu xong quay về chi tiết đã tải lại, danh sách cũng tải lại.
+- Không xem được địa chỉ chi tiết thì không có ô số nhà và không gửi `streetAddress` (không xoá nhầm).
+- Người khác vừa lưu trước (409) thì báo "BĐS vừa được người khác sửa…", không ghi đè.
+- Đổi trạng thái, chủ nhà, phân môi giới, xác minh chưa làm trên app.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):
