@@ -7,6 +7,7 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../../../core/widgets/load_more_footer.dart';
 import '../../auth/presentation/session_controller.dart';
 import '../domain/property_query.dart';
 import 'property_card.dart';
@@ -140,7 +141,7 @@ class PropertiesScreen extends ConsumerWidget {
                           value.loadMoreError == null) {
                         Future.microtask(controller.loadMore);
                       }
-                      return PropertyListFooter(
+                      return LoadMoreFooter(
                         loading: value.loadingMore || value.hasMore,
                         error: value.loadMoreError,
                         onRetry: controller.loadMore,
@@ -234,33 +235,5 @@ class _FilterButton extends ConsumerWidget {
         },
       ),
     );
-  }
-}
-
-/// Cuối danh sách BĐS: đang tải thêm, lỗi tải thêm (nút thử lại), hoặc trống khi đã hết.
-class PropertyListFooter extends StatelessWidget {
-  const PropertyListFooter({
-    super.key,
-    required this.loading,
-    required this.error,
-    required this.onRetry,
-  });
-
-  final bool loading;
-  final Object? error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    if (error != null) {
-      return ErrorRetry(error: error!, onRetry: onRetry);
-    }
-    if (loading) {
-      return const Padding(
-        padding: EdgeInsets.all(AppSpacing.s16),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    return const SizedBox(height: AppSpacing.s16);
   }
 }
