@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { RolesModule } from './roles/roles.module.js';
+import { TeamsModule } from './teams/teams.module.js';
 import { UsersModule } from './users/users.module.js';
 
 /**
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module.js';
     UsersModule,
     RolesModule,
     CompanyModule,
+    TeamsModule,
   ],
 })
 export class AppModule {}

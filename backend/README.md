@@ -742,3 +742,28 @@ Quy tắc phòng ban:
 - Trưởng phòng phải là người dùng đang hoạt động của công ty → 400 (trường `managerId`).
 - Còn người dùng hoặc team trong phòng ban thì không xoá được → 422 (khoá `FOR UPDATE` khi kiểm). Xoá là xoá mềm; tên dùng lại được.
 - Ghi `audit_logs` `department.create`, `department.update`, `department.delete`.
+
+## Team (TASK-106)
+
+Module `src/teams`. Xem cần `team.view`, sửa cần `team.manage`, theo phạm vi:
+
+- OWN, TEAM: team mình làm trưởng nhóm hoặc là thành viên.
+- DEPARTMENT: thêm mọi team thuộc phòng ban của mình.
+- COMPANY: mọi team của công ty.
+
+API:
+
+- `GET /api/v1/teams?departmentId`: team trong phạm vi xem, kèm phòng ban, trưởng nhóm, số thành viên.
+- `GET /api/v1/teams/options` (`team.manage`): phòng ban tạo team được (COMPANY: mọi phòng ban, DEPARTMENT: phòng ban của mình) và người dùng đang hoạt động của các phòng ban đó.
+- `GET /api/v1/teams/:id`: kèm `members` và `canManage`. Ngoài phạm vi xem → 404.
+- `POST /api/v1/teams` `{ name, departmentId, leaderId?, memberIds? }` → 201.
+- `PATCH /api/v1/teams/:id`: chỉ sửa trường có gửi; `leaderId: null` bỏ trưởng nhóm; `memberIds` thay toàn bộ danh sách thành viên. Thấy nhưng ngoài phạm vi `team.manage` → 403.
+- `DELETE /api/v1/teams/:id` → 204, xoá mềm. Dòng thành viên được giữ làm lịch sử; mọi truy vấn phạm vi đã bỏ qua team đã xoá.
+
+Quy tắc:
+
+- Trưởng nhóm và thành viên phải thuộc phòng ban của team (Huy Lê chọn 2026-10-09) → 400 (trường `leaderId`, `memberIds`). Đổi phòng ban của team cũng phải thoả quy tắc này.
+- Người mới thêm vào team phải đang hoạt động; thành viên cũ đã ngừng hoạt động vẫn giữ được.
+- Phòng ban không tồn tại → 400; ngoài phạm vi `team.manage` → 403.
+- Tên team trùng trong cùng phòng ban → 409.
+- Ghi `audit_logs` `team.create`, `team.update` (gồm danh sách thành viên trước/sau), `team.delete`.

@@ -55,6 +55,13 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - `/company/departments/new` và `/company/departments/[id]` tạo, sửa phòng ban (tên, trưởng phòng) và xoá phòng ban trống.
 - Nút xoá có hỏi xác nhận dùng chung ở `src/app/(app)/delete-button.tsx`.
 
+## Team (TASK-106)
+
+- Menu "Team" hiện khi có `team.view`; nút "Thêm team" khi có `team.manage`.
+- `/teams` liệt kê team trong phạm vi xem.
+- `/teams/new` và `/teams/[id]` tạo, sửa team: tên, phòng ban, trưởng nhóm, thành viên. Trưởng nhóm và thành viên chỉ chọn trong phòng ban đang chọn; đổi phòng ban thì danh sách đổi theo.
+- Người không quản lý được team đó chỉ xem trưởng nhóm và thành viên.
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |
