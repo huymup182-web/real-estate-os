@@ -66,7 +66,7 @@ void main() {
       ('WC', '2'),
       ('Số tầng', '2'),
       ('Hướng', 'Đông Nam'),
-      ('Đường trước nhà', '6 m'),
+      ('Đường rộng', '6 m'),
       ('Đường vào', 'Ô tô vào được'),
       ('Pháp lý', 'Sổ riêng'),
       ('Họ tên', 'Chủ nhà A'),

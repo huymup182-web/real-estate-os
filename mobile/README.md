@@ -132,6 +132,16 @@ lib/
   BĐS không tồn tại hoặc ngoài phạm vi (404) thì báo "Không tìm thấy BĐS, hoặc bạn không có quyền xem BĐS này.".
 - Kéo xuống tải lại; lỗi thì giữ dữ liệu đang có và báo snackbar. Sửa BĐS ở TASK-123, yêu thích ở TASK-125.
 
+## Thêm BĐS (TASK-122)
+
+- Có quyền `property.create` thì tab "BĐS" có nút "Thêm BĐS" → `/properties/new` → `POST /properties`. Người tạo là
+  môi giới phụ trách (backend gán). Lưu xong mở chi tiết BĐS vừa tạo, danh sách tải lại.
+- Form dùng chung cho sửa (TASK-123): `presentation/property_form.dart` (`PropertyForm`, `PropertyDraft`). Bắt buộc:
+  tiêu đề, loại, giá (đồng, ô tự chèn dấu chấm và hiện "= 2,5 tỷ"), diện tích (> 0, 2 số lẻ), tỉnh/thành, phường/xã.
+  Tuỳ chọn: số nhà/đường, phòng ngủ, WC, số tầng (≤ 32.767), đường rộng (m), hướng, đường vào, pháp lý, mô tả.
+  Ô trống không gửi. API trả lỗi từng trường (`VALIDATION_ERROR`) thì hiện dưới ô đó.
+- Đã nhập mà bấm quay lại thì hỏi "Bỏ thay đổi?". Chưa nhập toạ độ, nguồn, hoa hồng (web admin cũng chưa có).
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

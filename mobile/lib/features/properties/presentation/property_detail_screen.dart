@@ -84,7 +84,7 @@ class _Body extends StatelessWidget {
       if (property.direction case final direction?)
         ('Hướng', labelOf(directionLabels, direction)),
       if (property.roadWidth case final width?)
-        ('Đường trước nhà', '${vnDecimal(width)} m'),
+        ('Đường rộng', '${vnDecimal(width)} m'),
       if (property.roadAccess case final access?)
         ('Đường vào', labelOf(roadAccessLabels, access)),
       if (property.legalStatus case final legal?)
