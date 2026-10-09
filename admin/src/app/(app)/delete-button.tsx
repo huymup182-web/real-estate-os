@@ -7,20 +7,28 @@ type Action = (
   formData: FormData,
 ) => Promise<{ error: string | null }>;
 
-/** Nút xoá vai trò, hỏi xác nhận trước; lỗi từ backend hiện ngay dưới nút. */
-export function DeleteRole({ action, name }: { action: Action; name: string }) {
+/** Nút xoá có hỏi xác nhận trước; lỗi từ backend hiện ngay dưới nút (vai trò, phòng ban). */
+export function DeleteButton({
+  action,
+  label,
+  confirmText,
+}: {
+  action: Action;
+  label: string;
+  confirmText: string;
+}) {
   const [state, formAction, pending] = useActionState(action, { error: null });
   return (
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!window.confirm(`Xoá vai trò "${name}"?`)) {
+        if (!window.confirm(confirmText)) {
           event.preventDefault();
         }
       }}
     >
       <button type="submit" className="button button-danger" disabled={pending}>
-        {pending ? 'Đang xoá…' : 'Xoá vai trò'}
+        {pending ? 'Đang xoá…' : label}
       </button>
       {state.error && (
         <p className="form-error" role="alert">

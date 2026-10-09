@@ -725,3 +725,20 @@ Quy tắc:
 - Không xoá được vai trò mặc định, hay vai trò còn người dùng → 422 (khoá `FOR UPDATE` khi kiểm).
 - Đổi quyền hoặc xoá vai trò xoá cache quyền, nên có hiệu lực ngay ở request kế tiếp.
 - Ghi `audit_logs` cho `role.create`, `role.update` (gồm danh sách quyền trước/sau) và `role.delete`.
+
+## Công ty và phòng ban (TASK-105)
+
+Module `src/company`. Mọi API cần `admin.manage` và chỉ làm việc với công ty của người gọi (Huy Lê chọn 2026-10-09: trang quản lý công ty của mình; quản lý mọi công ty cấp nền tảng để sau).
+
+- `GET /api/v1/company`: tên, slug, trạng thái, `settings.verifyIntervalDays` (giá trị đang áp dụng, mặc định 30) và số người dùng, phòng ban, team.
+- `PATCH /api/v1/company` `{ name?, verifyIntervalDays? (1–365) }`. Chu kỳ ghi vào `companies.settings.verify_interval_days`, giữ nguyên các cài đặt khác. Không đổi được slug hay trạng thái (gửi lên → 400). Ghi `audit_logs` `company.update`.
+- `GET /api/v1/departments`: phòng ban kèm trưởng phòng, số người dùng, số team.
+- `GET /api/v1/departments/manager-options`: người dùng đang hoạt động, để chọn trưởng phòng.
+- `GET /api/v1/departments/:id`, `POST /api/v1/departments` `{ name, managerId? }` → 201, `PATCH /api/v1/departments/:id` (`managerId: null` để bỏ trưởng phòng), `DELETE /api/v1/departments/:id` → 204.
+
+Quy tắc phòng ban:
+
+- Tên trùng trong công ty → 409.
+- Trưởng phòng phải là người dùng đang hoạt động của công ty → 400 (trường `managerId`).
+- Còn người dùng hoặc team trong phòng ban thì không xoá được → 422 (khoá `FOR UPDATE` khi kiểm). Xoá là xoá mềm; tên dùng lại được.
+- Ghi `audit_logs` `department.create`, `department.update`, `department.delete`.
