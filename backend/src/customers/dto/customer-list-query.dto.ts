@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { ArrayNotEmpty, IsArray, IsIn, IsOptional } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/response/pagination-query.dto.js';
 import { CUSTOMER_STATUSES } from '../customer-values.js';
@@ -20,8 +20,17 @@ const commaList = ({ value }: { value: unknown }): unknown => {
   ];
 };
 
-/** `GET /customers?status=NEW,CONTACTED&page&pageSize` (lọc theo bước pipeline, TASK-082). */
+/**
+ * `GET /customers?q&status=NEW,CONTACTED&page&pageSize`: lọc theo bước pipeline (TASK-082) và tìm theo tên,
+ * số điện thoại, email (TASK-108).
+ */
 export class CustomerListQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString({ message: 'q phải là chuỗi' })
+  @MaxLength(100, { message: 'q tối đa 100 ký tự' })
+  q?: string;
+
   @IsOptional()
   @Transform(commaList)
   @IsArray()

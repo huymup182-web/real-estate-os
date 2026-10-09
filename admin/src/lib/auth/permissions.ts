@@ -12,6 +12,7 @@ export function hasPermission(me: Pick<CurrentUser, 'permissions'>, code: string
 export const NAV_ITEMS: readonly { href: string; label: string; permission?: string }[] = [
   { href: '/', label: 'Tổng quan' },
   { href: '/properties', label: 'Bất động sản', permission: 'property.view' },
+  { href: '/customers', label: 'Khách hàng', permission: 'customer.view' },
   { href: '/users', label: 'Người dùng', permission: 'user.view' },
   { href: '/teams', label: 'Team', permission: 'team.view' },
   { href: '/roles', label: 'Vai trò', permission: 'admin.manage' },

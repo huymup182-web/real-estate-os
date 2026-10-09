@@ -124,7 +124,7 @@ export class CustomersService {
 
   /**
    * Danh sách khách hàng trong phạm vi `customer.view`, mới tạo trước, phân trang offset; `status` lọc theo
-   * bước pipeline (TASK-082).
+   * bước pipeline (TASK-082), `q` tìm theo tên, số điện thoại, email (TASK-108).
    */
   async findAll(
     actor: Actor,
@@ -133,10 +133,11 @@ export class CustomersService {
   ): Promise<Paginated<CustomerResponse>> {
     const [customers, total] = await this.customers
       .createQueryBuilder(actor.tenantId, 'c', (builder) => {
-        const visible = builder.where(this.scopeOrFalse(scopes.view));
-        return query.status
-          ? visible.andWhere('c.status IN (:...statuses)', { statuses: query.status })
-          : visible;
+        let visible = builder.where(this.scopeOrFalse(scopes.view));
+        if (query.status) {
+          visible = visible.andWhere('c.status IN (:...statuses)', { statuses: query.status });
+        }
+        return query.q ? visible.andWhere(...keywordCondition(query.q)) : visible;
       })
       .setParameter('scopeUserId', actor.userId)
       .orderBy('c.createdAt', 'DESC')
@@ -559,4 +560,21 @@ function notFound(): AppException {
 
 function invalid(details: ErrorDetail[]): AppException {
   return new AppException(ErrorCode.VALIDATION_ERROR, undefined, details);
+}
+
+/**
+ * Điều kiện tìm khách theo từ khoá (TASK-108): tên hoặc email chứa `q` (không phân biệt hoa thường), hoặc số
+ * điện thoại chứa các chữ số của `q`. SĐT lưu dạng quốc tế nên số 0 đầu bị bỏ: "0901 234" khớp "+84901234…".
+ */
+function keywordCondition(q: string): [string, Record<string, string>] {
+  const like = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
+  const digits = q.replace(/\D/g, '').replace(/^0/, '');
+  const conditions = [
+    `c.fullName ILIKE :keyword ESCAPE '\\'`,
+    `c.email::text ILIKE :keyword ESCAPE '\\'`,
+  ];
+  if (digits.length >= 3) {
+    conditions.push('c.phone LIKE :phoneDigits');
+  }
+  return [`(${conditions.join(' OR ')})`, { keyword: like, phoneDigits: `%${digits}%` }];
 }
