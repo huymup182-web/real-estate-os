@@ -2,14 +2,14 @@
 
 ## Công cụ
 
-| Công cụ           | File cấu hình                             | Phạm vi                                                     |
-| ----------------- | ----------------------------------------- | ----------------------------------------------------------- |
-| EditorConfig      | `.editorconfig`                           | Mọi file: UTF-8, LF, thụt 2 dấu cách, dòng tối đa 100 ký tự |
-| Git line endings  | `.gitattributes`                          | Ép LF trong repo, tránh lỗi CRLF trên Windows               |
-| Prettier          | `.prettierrc.json`, `.prettierignore`     | JS/TS/JSON/YAML/Markdown (trừ `mobile/`)                    |
-| ESLint            | `eslint.config.mjs`                       | JS/TS toàn repo (trừ `mobile/`)                             |
-| TypeScript strict | `tsconfig.base.json`                      | Cấu hình dùng chung; `backend/`, `admin/` extends file này  |
-| Dart/Flutter      | `analysis_options.yaml` (thêm ở TASK-113) | `mobile/`                                                   |
+| Công cụ           | File cấu hình                         | Phạm vi                                                     |
+| ----------------- | ------------------------------------- | ----------------------------------------------------------- |
+| EditorConfig      | `.editorconfig`                       | Mọi file: UTF-8, LF, thụt 2 dấu cách, dòng tối đa 100 ký tự |
+| Git line endings  | `.gitattributes`                      | Ép LF trong repo, tránh lỗi CRLF trên Windows               |
+| Prettier          | `.prettierrc.json`, `.prettierignore` | JS/TS/JSON/YAML/Markdown (trừ `mobile/`)                    |
+| ESLint            | `eslint.config.mjs`                   | JS/TS toàn repo (trừ `mobile/`)                             |
+| TypeScript strict | `tsconfig.base.json`                  | Cấu hình dùng chung; `backend/`, `admin/` extends file này  |
+| Dart/Flutter      | `mobile/analysis_options.yaml`        | `mobile/`                                                   |
 
 Lệnh ở thư mục gốc (cần `npm install` một lần):
 
