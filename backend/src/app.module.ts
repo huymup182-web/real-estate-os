@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module.js';
 import { MatchingModule } from './matching/matching.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
+import { ReportsModule } from './reports/reports.module.js';
 
 /**
  * Module gốc. Các module nghiệp vụ (auth, properties, customers…) được thêm vào `imports`
@@ -29,6 +30,7 @@ import { PropertiesModule } from './properties/properties.module.js';
     CustomersModule,
     AppointmentsModule,
     MatchingModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

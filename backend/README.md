@@ -669,3 +669,16 @@ Hộp thư của người đang đăng nhập. Chỉ cần đăng nhập, không
 - `GET /notifications/unread-count` → `{count}` cho badge.
 - `POST /notifications/:id/read` → thông báo đã đánh dấu đọc; đọc lại giữ thời điểm đọc đầu tiên.
 - `POST /notifications/read-all` → `{count}` số thông báo vừa đánh dấu.
+
+## Dashboard quản trị (TASK-102)
+
+`GET /api/v1/reports/dashboard?from&to` (`report.view`) → số liệu tổng và phễu cho web admin. Module `src/reports` chỉ đọc. Kỳ `[from, to)` giống dashboard khách: mặc định 30 ngày gần nhất, dài nhất 366 ngày, sai thì 400.
+
+Mọi số liệu chỉ tính bản ghi chưa xoá của công ty, trong phạm vi `report.view` của người xem (`scope` trong kết quả). Phạm vi xét theo người phụ trách hoặc người tạo, như `src/auth/record-scope.ts`.
+
+- `properties`: `total` hiện có; `new` tạo trong kỳ; `active` đang bán (`AVAILABLE`).
+- `customers`: `total` hiện có; `new` (lead mới) tạo trong kỳ.
+- `viewings`: lịch hẹn có `scheduled_at` trong kỳ, trừ lịch đã huỷ.
+- `deals`: `new` tạo trong kỳ; `won` là giao dịch `WON` có `closed_at` trong kỳ; `revenue` là tổng `deal_price` của các giao dịch `won` đó.
+- `agents`: người dùng đang hoạt động trong phạm vi.
+- `leadFunnel`: khách hiện có theo 8 trạng thái; `salesFunnel`: giao dịch hiện có theo 5 bước, kèm tổng giá trị.

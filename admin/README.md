@@ -24,6 +24,14 @@ Trong Docker (`docker compose up`), container `admin` tự `npm install` lần �
 - Đăng xuất gọi `POST /auth/logout` rồi xoá cookie.
 - Mọi tài khoản đang hoạt động đều đăng nhập được; menu sẽ ẩn/hiện theo permission. Kiểm quyền thật vẫn ở backend.
 
+## Dashboard (TASK-102)
+
+Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/reports/dashboard` theo phạm vi `report.view` của người xem.
+
+- Kỳ chọn qua `?days=7|30|90`, mặc định 30.
+- Có 10 ô số liệu, phễu khách hàng và phễu giao dịch (thanh CSS, không dùng thư viện biểu đồ).
+- Người không có `report.view` thấy câu báo chưa có quyền.
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |
