@@ -9,6 +9,7 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/properties/presentation/properties_screen.dart';
+import '../../features/properties/presentation/property_detail_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 
@@ -21,6 +22,9 @@ abstract final class AppRoutes {
   static const customers = '/customers';
   static const notifications = '/notifications';
   static const profile = '/profile';
+
+  /// Chi tiết BĐS, nằm trong tab "BĐS" (thanh tab dưới vẫn hiện).
+  static String propertyDetail(String id) => '$properties/$id';
 }
 
 /// Router của app. Chuyển màn hình theo phiên đăng nhập ([sessionProvider]): đang kiểm hoặc lỗi → splash, chưa
@@ -47,7 +51,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             AppShell(navigationShell: navigationShell),
         branches: [
           _branch(AppRoutes.home, const HomeScreen()),
-          _branch(AppRoutes.properties, const PropertiesScreen()),
+          _branch(
+            AppRoutes.properties,
+            const PropertiesScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => PropertyDetailScreen(
+                  propertyId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
           _branch(AppRoutes.customers, const CustomersScreen()),
           _branch(AppRoutes.notifications, const NotificationsScreen()),
           _branch(AppRoutes.profile, const ProfileScreen()),
@@ -76,6 +91,12 @@ String? redirectFor(AsyncValue<Session> session, String location) {
       : null;
 }
 
-StatefulShellBranch _branch(String path, Widget screen) => StatefulShellBranch(
-  routes: [GoRoute(path: path, builder: (context, state) => screen)],
+StatefulShellBranch _branch(
+  String path,
+  Widget screen, {
+  List<RouteBase> routes = const [],
+}) => StatefulShellBranch(
+  routes: [
+    GoRoute(path: path, builder: (context, state) => screen, routes: routes),
+  ],
 );

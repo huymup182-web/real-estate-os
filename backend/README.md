@@ -336,6 +336,7 @@ Test e2e theo scope trên dữ liệu nghiệp vụ (AGENT không sửa BĐS c�
   - `TEAM`: thêm BĐS của thành viên và trưởng nhóm các team mình thuộc hoặc làm trưởng nhóm;
   - `DEPARTMENT`: thêm BĐS của user cùng phòng ban (`users.department_id`);
   - `COMPANY`: mọi BĐS trong công ty.
+- Có thêm `provinceName`, `wardName` (TASK-121) để app không phải tải danh mục địa giới.
 - Test: `test/properties-get.spec.ts` (AGENT, TEAM_LEADER, MANAGER, COLLABORATOR, role tuỳ chỉnh phạm vi OWN, 2 công ty).
 
 ## Danh sách BĐS (TASK-051)

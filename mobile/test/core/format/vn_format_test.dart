@@ -29,5 +29,9 @@ void main() {
     expect(vnMoneyShort(850000000), '850 triệu');
     expect(vnMoneyShort(1250000), '1,3 triệu');
     expect(vnMoneyShort(12000), '12.000 đ');
+    expect(vnDecimal(70), '70');
+    expect(vnDecimal(70.5), '70,5');
+    expect(vnDecimal(1250.25), '1.250,25');
+    expect(vnDecimal(3.999), '4');
   });
 }
