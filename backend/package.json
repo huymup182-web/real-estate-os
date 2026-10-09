@@ -11,7 +11,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch --exec \"node --env-file-if-exists=../.env.development --env-file-if-exists=../.env\"",
-    "test": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env --test --test-concurrency=1 '.test-dist/test/**/*.spec.js'"
+    "test": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env --test --test-concurrency=1 '.test-dist/test/**/*.spec.js'",
+    "perf:search": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env .test-dist/test/perf/search.perf.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",
