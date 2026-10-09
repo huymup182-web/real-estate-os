@@ -180,7 +180,18 @@ lib/
 - Ô tìm theo tên, số điện thoại, email (`q`, tối đa 100 ký tự, chờ ngừng gõ 400ms). Hàng nút lọc theo bước
   (chọn nhiều, gửi `status=A,B`); "Tất cả" bỏ lọc.
 - Ô tìm dùng chung `core/widgets/debounced_search_field.dart`; cuối danh sách dùng chung
-  `core/widgets/load_more_footer.dart`. Chạm thẻ để xem chi tiết làm ở TASK-127.
+  `core/widgets/load_more_footer.dart`. Chạm thẻ để xem chi tiết (TASK-127).
+
+## Chi tiết khách hàng (TASK-127)
+
+- Chạm thẻ khách → `/customers/:id` (trong tab "Khách hàng"): `GET /customers/:id`, không xem được thì báo rõ.
+  Mục "Thông tin": điện thoại, email, mục đích, thời gian mua, nguồn, môi giới phụ trách (mình thì "(bạn)", người
+  khác thì tên nếu có `user.view` qua `GET /users/:id`, không thì "—"), lý do mất khách, ngày tạo, ghi chú.
+- "Nhu cầu" (`GET /customers/:id/preferences`) tóm tắt một dòng như web admin, tên tỉnh lấy từ danh mục tỉnh;
+  nhu cầu tắt ghi "(tạm dừng)". "Hoạt động" (`GET /customers/:id/activities`) mới nhất trước, "Xem thêm" tải trang
+  sau. Hai phần này tải riêng, lỗi thì thử lại riêng. Kéo xuống để tải lại cả màn.
+- `core/widgets/detail_section.dart` (`DetailSection`, `InfoRow`) dùng chung với chi tiết BĐS. Đổi bước, ghi
+  hoạt động chưa làm ở đây.
 
 ## Theme (TASK-114)
 
