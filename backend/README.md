@@ -475,4 +475,13 @@ Luật:
 - Lọc độ rộng đường (TASK-072): `roadWidthMin`, `roadWidthMax` (mét, ≥ 0, tối đa 2 chữ số thập phân, gồm cả hai đầu). BĐS chưa ghi độ rộng đường không khớp. Sai dạng hoặc min > max → 400.
 - Sắp xếp (TASK-073): `sort=newest|price_asc|price_desc|area_asc|area_desc|relevance`. Mặc định `relevance` khi có `q` (đúng mã BĐS lên đầu, rồi khớp tiêu đề + mô tả nhiều hơn lên trước; không tính địa chỉ), không có `q` thì `newest`. Cùng giá trị thì BĐS mới hơn đứng trước. Giá trị khác → 400.
 - Phân trang (TASK-074): `page` (1..10000), `pageSize` (1..100, mặc định 20); `meta` có `page`, `pageSize`, `total`, `totalPages`. Thứ tự luôn có mốc phụ (mới hơn trước, rồi id) nên chuyển trang không trùng, không sót. Quá trang cuối → `data` rỗng. Số trang ngoài khoảng → 400 (trước đây `page=1e20` gây lỗi 500).
+
+## Tìm kiếm đã lưu (TASK-075)
+
+Module `src/notifications` (bảng `saved_searches`, phase0/02-ARCHITECTURE.md mục 2.1). Mọi route cần `property.view`; mỗi người chỉ thấy và sửa tìm kiếm của mình (người khác, cấp trên, công ty khác → 404).
+
+- `POST /api/v1/saved-searches` `{name, filters, notify?}` → 201. `name` 1..100 ký tự, không HTML. `filters` là object cùng tham số với `GET /properties` (`q`, `priceMin`, `propertyType`…, `sort`), không gồm `page`/`pageSize`; kiểm bằng đúng schema đó, sai → 400 với `field` dạng `filters.priceMax`. Bộ lọc được lưu đã chuẩn hoá (trim, tách danh sách, đổi số). `notify` mặc định `true` (gửi thông báo làm ở Phase 8).
+- `GET /api/v1/saved-searches` (phân trang, mới trước), `GET /:id`, `PATCH /:id` `{name?, filters?, notify?}` (`filters` thay toàn bộ; body rỗng → 400), `DELETE /:id` → 204 (xoá mềm).
+- `GET /api/v1/saved-searches/:id/properties?page=&pageSize=` chạy lại tìm kiếm: kết quả như `GET /properties` với bộ lọc đã lưu, theo quyền xem hiện tại.
+- Tối đa 50 tìm kiếm mỗi người → 422 khi vượt.
 - `src/search`: `PropertySearchQueryDto` (bộ lọc dùng chung cho saved search, các bộ lọc khác thêm ở TASK-065..072), `keywordTsQuery()`.

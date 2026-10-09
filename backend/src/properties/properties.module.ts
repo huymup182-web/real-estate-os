@@ -34,5 +34,6 @@ import { PropertyVerificationJob } from './property-verification.job.js';
     PropertyShareLinksService,
     PropertyVerificationJob,
   ],
+  exports: [PropertiesService],
 })
 export class PropertiesModule {}
