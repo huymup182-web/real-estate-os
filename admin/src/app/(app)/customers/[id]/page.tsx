@@ -233,6 +233,21 @@ export default async function CustomerPage({
         </section>
       )}
 
+      {can('deal.view') && (
+        <section className="card">
+          <h2>Giao dịch</h2>
+          <p>
+            <Link href={`/deals?customerId=${data.id}`}>Xem giao dịch của khách</Link>
+            {can('deal.manage') && (
+              <>
+                {' · '}
+                <Link href={`/deals/new?customerId=${data.id}`}>Tạo giao dịch</Link>
+              </>
+            )}
+          </p>
+        </section>
+      )}
+
       {can('customer.delete') && (
         <section className="card">
           <h2>Xoá khách hàng</h2>

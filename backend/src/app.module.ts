@@ -8,6 +8,7 @@ import { CompanyModule } from './company/company.module.js';
 import { CustomersModule } from './customers/customers.module.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
+import { DealsModule } from './deals/deals.module.js';
 import { HealthModule } from './health/health.module.js';
 import { LocationsModule } from './locations/locations.module.js';
 import { MatchingModule } from './matching/matching.module.js';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module.js';
     NotificationsModule,
     CustomersModule,
     AppointmentsModule,
+    DealsModule,
     MatchingModule,
     ReportsModule,
     UsersModule,

@@ -14,6 +14,7 @@ export const NAV_ITEMS: readonly { href: string; label: string; permission?: str
   { href: '/properties', label: 'Bất động sản', permission: 'property.view' },
   { href: '/customers', label: 'Khách hàng', permission: 'customer.view' },
   { href: '/appointments', label: 'Lịch hẹn', permission: 'appointment.view' },
+  { href: '/deals', label: 'Giao dịch', permission: 'deal.view' },
   { href: '/users', label: 'Người dùng', permission: 'user.view' },
   { href: '/teams', label: 'Team', permission: 'team.view' },
   { href: '/roles', label: 'Vai trò', permission: 'admin.manage' },

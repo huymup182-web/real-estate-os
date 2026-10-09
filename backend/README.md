@@ -774,3 +774,13 @@ Module `src/locations`, chỉ đọc, mọi người dùng đã đăng nhập đ
 
 - `GET /api/v1/locations/provinces`: tỉnh/thành đang dùng, theo tên.
 - `GET /api/v1/locations/provinces/:id/wards`: phường/xã đang dùng của tỉnh, theo tên. Tỉnh không có hoặc ngừng dùng → 404; id sai → 400.
+
+## Giao dịch (TASK-110)
+
+Module `src/deals` (bảng `deals`, docs/database.md mục 4.7; đọc khách qua `CustomersService`, BĐS qua `PropertiesService`). Quyền `deal.view` / `deal.manage`, phạm vi xét theo môi giới của giao dịch hoặc người tạo. Bước trong `src/deals/deal-values.ts`: `NEGOTIATING`, `DEPOSIT`, `CONTRACT`, `WON`, `LOST`. Hoa hồng (`commissions`) chưa có API.
+
+- `POST /api/v1/deals` (`deal.manage`) `{customerId, propertyId, dealPrice?, depositAmount?, depositAt?, notes?}` → 201. Môi giới là người tạo, bước `NEGOTIATING`. Khách và BĐS phải là khách/BĐS người tạo xem được (không thì 400 `customerId`/`propertyId`). Số tiền là số nguyên đồng, không âm.
+- `GET /api/v1/deals?stage&customerId&propertyId&page&pageSize` (`deal.view`) → giao dịch trong phạm vi xem, mới tạo trước; `stage` lọc một hoặc nhiều bước. `GET /:id`: ngoài phạm vi → 404. Mỗi giao dịch kèm `customer {id, fullName}` và `property {id, code, title}`.
+- `PATCH /api/v1/deals/:id` (`deal.manage`): đổi `dealPrice`, `depositAmount`, `depositAt`, `notes` (`null` để xoá); không đổi khách, BĐS. Ngoài phạm vi quản lý → 403, `expectedUpdatedAt` lệch → 409; xoá giá chốt của giao dịch `WON` → 422.
+- `POST /api/v1/deals/:id/stage` (`deal.manage`) `{stage, expectedUpdatedAt?}` → 200. Chuyển bước tự do (mở lại được giao dịch đã đóng). Sang `WON` cần đã có giá chốt (422), vì doanh thu dashboard (TASK-102) cộng từ giá này. Vào `WON`/`LOST` ghi `closedAt` = lúc chuyển, về bước đang mở thì xoá. Không tự đổi trạng thái BĐS hay khách.
+- `DELETE /api/v1/deals/:id` (`deal.manage`) → 204, xoá mềm (không còn tính vào báo cáo). Tạo, sửa, chuyển bước, xoá ghi `audit_logs` (`entity_type = 'deal'`).
