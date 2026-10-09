@@ -9,6 +9,7 @@ import {
   PropertiesService,
   type PropertyScopes,
 } from '../properties/properties.service.js';
+import { explainMatch, type MatchExplanation } from './match-explanation.js';
 import { type CriterionScore, type MatchPreference, scoreMatch } from './match-score.js';
 
 /** Điểm tối thiểu để tính là phù hợp (mặc định Claude chọn ở TASK-087). */
@@ -39,6 +40,8 @@ export interface PropertyMatch {
   preferenceId: string;
   score: number;
   criteria: CriterionScore[];
+  /** Lời giải thích (TASK-089). */
+  explanation: MatchExplanation;
 }
 
 /** Một khách phù hợp với BĐS: nhu cầu khớp nhất của khách và điểm của nhu cầu đó. */
@@ -47,6 +50,8 @@ export interface CustomerMatch {
   preferenceId: string;
   score: number;
   criteria: CriterionScore[];
+  /** Lời giải thích (TASK-089). */
+  explanation: MatchExplanation;
 }
 
 interface PreferenceRow {
@@ -125,6 +130,7 @@ export class MatchingService {
       preferenceId: row.preferenceId,
       score,
       criteria,
+      explanation: explainMatch(score, criteria),
     }));
   }
 
@@ -183,6 +189,7 @@ export class MatchingService {
             preferenceId: best.row.preferenceId,
             score: best.score,
             criteria: best.criteria,
+            explanation: explainMatch(best.score, best.criteria),
           },
         });
       }
