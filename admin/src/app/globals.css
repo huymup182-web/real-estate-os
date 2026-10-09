@@ -479,3 +479,64 @@ fieldset.field {
   color: inherit;
   flex-shrink: 0;
 }
+
+.badge-property-available {
+  color: var(--color-success);
+}
+
+.badge-property-hidden,
+.badge-property-sold {
+  color: var(--color-muted);
+}
+
+.badge-property-expired,
+.badge-property-verify_required {
+  color: var(--color-danger);
+}
+
+.gallery {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.gallery img {
+  height: 140px;
+  width: auto;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: var(--color-border);
+}
+
+.prewrap {
+  white-space: pre-wrap;
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-form select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  max-width: 100%;
+}
+
+.inline-form .form-error {
+  flex-basis: 100%;
+  margin: 0;
+}
