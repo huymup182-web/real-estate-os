@@ -5,13 +5,22 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../domain/property_labels.dart';
 import '../domain/property_summary.dart';
+import 'favorite_button.dart';
 
-/// Thẻ BĐS trong danh sách: ảnh bìa, trạng thái, giá, tiêu đề, diện tích, số phòng, vị trí, mã.
+/// Thẻ BĐS trong danh sách: ảnh bìa, trạng thái, nút yêu thích, giá, tiêu đề, diện tích, số phòng, vị trí, mã.
 class PropertyCard extends StatelessWidget {
-  const PropertyCard({super.key, required this.property, this.onTap});
+  const PropertyCard({
+    super.key,
+    required this.property,
+    this.onTap,
+    this.onFavoriteChanged,
+  });
 
   final PropertySummary property;
   final VoidCallback? onTap;
+
+  /// Gọi sau khi lưu/bỏ yêu thích thành công.
+  final ValueChanged<bool>? onFavoriteChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +50,16 @@ class PropertyCard extends StatelessWidget {
                     left: AppSpacing.s8,
                     top: AppSpacing.s8,
                     child: PropertyStatusBadge(status: property.status),
+                  ),
+                  Positioned(
+                    right: AppSpacing.s4,
+                    top: AppSpacing.s4,
+                    child: FavoriteButton(
+                      propertyId: property.id,
+                      loaded: property.isFavorite,
+                      filled: true,
+                      onChanged: onFavoriteChanged,
+                    ),
                   ),
                 ],
               ),

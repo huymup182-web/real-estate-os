@@ -15,7 +15,7 @@ import 'property_list_controller.dart';
 import 'property_search_field.dart';
 
 /// Tab "BĐS": ô tìm kiếm và danh sách BĐS trong phạm vi xem (mới tạo trước, có từ khoá thì khớp nhiều hơn trước).
-/// Nút "Bộ lọc" mở bộ lọc, sắp xếp. Có `property.create` thì có nút "Thêm BĐS". Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
+/// Nút "Bộ lọc" mở bộ lọc, sắp xếp; nút tim trên thanh tiêu đề mở danh sách yêu thích. Có `property.create` thì có nút "Thêm BĐS". Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
 class PropertiesScreen extends ConsumerWidget {
   const PropertiesScreen({super.key});
 
@@ -36,7 +36,16 @@ class PropertiesScreen extends ConsumerWidget {
         ref.watch(sessionProvider).value?.user?.can('property.create') ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bất động sản')),
+      appBar: AppBar(
+        title: const Text('Bất động sản'),
+        actions: [
+          IconButton(
+            tooltip: 'BĐS yêu thích',
+            icon: const Icon(Icons.favorite_border),
+            onPressed: () => context.push(AppRoutes.propertyFavorites),
+          ),
+        ],
+      ),
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
               onPressed: () => context.push(AppRoutes.propertyCreate),
@@ -131,7 +140,7 @@ class PropertiesScreen extends ConsumerWidget {
                           value.loadMoreError == null) {
                         Future.microtask(controller.loadMore);
                       }
-                      return _Footer(
+                      return PropertyListFooter(
                         loading: value.loadingMore || value.hasMore,
                         error: value.loadMoreError,
                         onRetry: controller.loadMore,
@@ -228,9 +237,10 @@ class _FilterButton extends ConsumerWidget {
   }
 }
 
-/// Cuối danh sách: đang tải thêm, lỗi tải thêm (nút thử lại), hoặc trống khi đã hết.
-class _Footer extends StatelessWidget {
-  const _Footer({
+/// Cuối danh sách BĐS: đang tải thêm, lỗi tải thêm (nút thử lại), hoặc trống khi đã hết.
+class PropertyListFooter extends StatelessWidget {
+  const PropertyListFooter({
+    super.key,
     required this.loading,
     required this.error,
     required this.onRetry,

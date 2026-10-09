@@ -25,6 +25,22 @@ class PropertiesRepository {
     PropertySummary.fromJson,
   );
 
+  /// Một trang BĐS yêu thích của người dùng, mới lưu trước.
+  Future<Page<PropertySummary>> favorites({required int page}) async =>
+      Page.from(
+        await _api.get(
+          '/properties/favorites',
+          query: {'page': page, 'pageSize': pageSize},
+        ),
+        PropertySummary.fromJson,
+      );
+
+  /// Lưu ([favorite] = true) hoặc bỏ BĐS khỏi yêu thích. Lưu lại/bỏ lại lần nữa không đổi gì. Lưu BĐS không xem
+  /// được → `ApiException` `NOT_FOUND`.
+  Future<void> setFavorite(String id, {required bool favorite}) => favorite
+      ? _api.put('/properties/$id/favorite')
+      : _api.delete('/properties/$id/favorite');
+
   /// Chi tiết BĐS. Không xem được (ngoài phạm vi, đã xoá) → `ApiException` mã `NOT_FOUND`.
   Future<PropertyDetail> detail(String id) async =>
       PropertyDetail.fromJson((await _api.get('/properties/$id')).object);
