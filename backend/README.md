@@ -531,3 +531,12 @@ Các bước: `NEW` → `CONTACTED` → `QUALIFIED` → `VIEWING` → `NEGOTIATI
 
 - `POST /api/v1/customers/:id/status` (`customer.edit` với khách) `{status, lostReason?, expectedUpdatedAt?}` → 200 khách sau khi chuyển. Sang `LOST` bắt buộc `lostReason` (1..1000 ký tự, không HTML), lưu vào khách; rời `LOST` thì xoá lý do; gửi `lostReason` với bước khác → 400. Đặt lại đúng bước đang có thì không đổi gì. Ghi `customer.change_status` vào `audit_logs` và `STATUS_CHANGE` lên timeline.
 - `GET /api/v1/customers/pipeline` (`customer.view`) → `[{status, count}]` số khách trong phạm vi xem ở từng bước, đủ 8 bước theo thứ tự.
+
+## Lịch hẹn (TASK-083)
+
+Module `src/appointments` (bảng `appointments`, docs/database.md mục 4.7; đọc khách qua `CustomersService`, BĐS qua `PropertiesService`). Quyền `appointment.view` / `appointment.manage`, phạm vi xét theo môi giới của lịch hoặc người tạo.
+
+- `POST /api/v1/appointments` (`appointment.manage`) `{customerId, propertyId, scheduledAt, durationMinutes?, location?, notes?}` → 201. Môi giới của lịch là người tạo, trạng thái `SCHEDULED`. Khách và BĐS phải là khách/BĐS người tạo xem được (không thì 400 `customerId`/`propertyId`). `scheduledAt` không ở quá khứ (cho lệch 5 phút); `durationMinutes` 1..1440.
+- `GET /api/v1/appointments?from&to&customerId&propertyId&page&pageSize` (`appointment.view`) → lịch trong phạm vi xem, giờ hẹn sớm trước; `from` gồm, `to` không gồm, `from` ≥ `to` → 400. `GET /:id`: ngoài phạm vi → 404. Mỗi lịch kèm `customer {id, fullName}` và `property {id, code, title}`.
+- `PATCH /api/v1/appointments/:id` (`appointment.manage`): đổi `propertyId`, `scheduledAt`, `durationMinutes`, `location`, `notes` (`null` để xoá trường tuỳ chọn); xem được nhưng ngoài phạm vi quản lý → 403; `expectedUpdatedAt` lệch → 409. Không đổi khách (tạo lịch mới), trạng thái và kết quả buổi xem làm ở TASK-084.
+- `DELETE /api/v1/appointments/:id` (`appointment.manage`) → 204, xoá mềm. Tạo, sửa, xoá ghi `audit_logs` (`entity_type = 'appointment'`).
