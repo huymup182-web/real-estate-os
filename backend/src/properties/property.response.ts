@@ -122,6 +122,22 @@ export function toPropertyDetailResponse(
  */
 export type PropertyListItem = Omit<PropertyDetailResponse, 'owner'>;
 
+/** Ảnh bìa của BĐS trong danh sách (TASK-118); `thumbnailUrl` null khi chưa có ảnh nhỏ. */
+export interface PropertyCoverImage {
+  url: string;
+  thumbnailUrl: string | null;
+}
+
+/**
+ * Dòng của `GET /properties` và `GET /properties/favorites`: thêm tên tỉnh, phường/xã và ảnh bìa để app hiện
+ * thẻ BĐS không phải gọi thêm (TASK-118).
+ */
+export interface PropertyListRow extends PropertyListItem {
+  provinceName: string;
+  wardName: string;
+  coverImage: PropertyCoverImage | null;
+}
+
 export function toPropertyListItem(
   property: Property,
   { ownerContactVisible, isFavorite }: PropertyViewerFlags,

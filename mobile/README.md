@@ -93,6 +93,15 @@ lib/
 - Ngày giờ, số tiền hiện theo giờ Việt Nam bằng `core/format/vn_format.dart` (UTC+7 cố định, như web admin).
   Giờ hiện tại lấy qua `clockProvider` để test được.
 
+## Danh sách BĐS (TASK-118)
+
+- Tab "BĐS" gọi `GET /properties?page=&pageSize=20` (BĐS trong phạm vi xem, mới tạo trước), hiện tổng số và thẻ BĐS:
+  ảnh bìa (ảnh nhỏ), trạng thái, giá gọn ("3,5 tỷ"), tiêu đề, diện tích · phòng ngủ · WC · loại, phường/xã, tỉnh, mã.
+- Cuộn gần cuối thì tải trang sau, bỏ dòng trùng giữa các trang. Lỗi tải thêm thì giữ danh sách, hiện "Thử lại" ở
+  cuối (không tự gọi lại khi cuộn). Kéo xuống để tải lại; lỗi thì giữ danh sách cũ và báo snackbar.
+- `core/network/page.dart`: `Page<T>` = danh sách + `meta` phân trang, dùng chung cho các danh sách sau.
+- Tìm kiếm, lọc, chi tiết làm ở TASK-119..121.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

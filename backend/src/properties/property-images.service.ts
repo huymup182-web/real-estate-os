@@ -210,6 +210,39 @@ export class PropertyImagesService implements OnApplicationShutdown {
     );
   }
 
+  /**
+   * Ảnh bìa của các BĐS trong một trang danh sách (TASK-118), theo id BĐS; BĐS chưa có ảnh không có trong
+   * kết quả. Không kiểm quyền: nơi gọi chỉ truyền id BĐS người dùng xem được.
+   */
+  async coverImages(
+    tenantId: string,
+    propertyIds: string[],
+  ): Promise<Map<string, { url: string; thumbnailUrl: string | null }>> {
+    if (propertyIds.length === 0) {
+      return new Map();
+    }
+    const rows = (await this.dataSource.query(
+      `SELECT property_id, storage_key, thumbnail_key FROM property_images
+        WHERE tenant_id = $1 AND property_id = ANY($2::uuid[]) AND is_cover AND deleted_at IS NULL`,
+      [tenantId, propertyIds],
+    )) as { property_id: string; storage_key: string; thumbnail_key: string | null }[];
+    const entries = await Promise.all(
+      rows.map(
+        async (row) =>
+          [
+            row.property_id,
+            {
+              url: await this.storage.readUrl(row.storage_key),
+              thumbnailUrl: row.thumbnail_key
+                ? await this.storage.readUrl(row.thumbnail_key)
+                : null,
+            },
+          ] as const,
+      ),
+    );
+    return new Map(entries);
+  }
+
   /** Ảnh của BĐS xem được, theo thứ tự hiển thị. */
   async findAll(
     actor: Actor,

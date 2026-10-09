@@ -29,7 +29,7 @@ import { type ExpiredVerification, PropertyEvents } from './property-events.js';
 import { Property } from './property.entity.js';
 import {
   type PropertyDetailResponse,
-  type PropertyListItem,
+  type PropertyListRow,
   type PropertyOwnerContact,
   type PropertyResponse,
   type PropertyViewerFlags,
@@ -242,7 +242,7 @@ export class PropertiesService {
     actor: Actor,
     query: PropertySearchQueryDto,
     scopes: PropertyScopes,
-  ): Promise<Paginated<PropertyListItem>> {
+  ): Promise<Paginated<Omit<PropertyListRow, 'coverImage'>>> {
     const rangeErrors = searchRangeErrors(query);
     if (rangeErrors.length > 0) {
       throw invalid(rangeErrors);
@@ -258,7 +258,7 @@ export class PropertiesService {
     actor: Actor,
     query: PaginationQueryDto,
     scopes: PropertyScopes,
-  ): Promise<Paginated<PropertyListItem>> {
+  ): Promise<Paginated<Omit<PropertyListRow, 'coverImage'>>> {
     return this.list(actor, query, scopes, true);
   }
 
@@ -327,7 +327,7 @@ export class PropertiesService {
     scopes: PropertyScopes,
     favoritesOnly: boolean,
     search?: PropertySearchQueryDto,
-  ): Promise<Paginated<PropertyListItem>> {
+  ): Promise<Paginated<Omit<PropertyListRow, 'coverImage'>>> {
     const keyword = search?.q;
     let base = this.searched(actor, scopes, search);
     if (favoritesOnly) {
@@ -354,13 +354,34 @@ export class PropertiesService {
       .getRawAndEntities<ViewerFlagsRow & { p_id: string }>();
 
     const flagsById = new Map(raw.map((row) => [row.p_id, viewerFlags(row)]));
-    const items = entities.map((property) =>
-      toPropertyListItem(
+    const names = await this.locationNames(entities.map((property) => property.id));
+    const items = entities.map((property) => ({
+      ...toPropertyListItem(
         property,
         flagsById.get(property.id) ?? { ownerContactVisible: false, isFavorite: false },
       ),
-    );
+      provinceName: names.get(property.id)?.province_name ?? '',
+      wardName: names.get(property.id)?.ward_name ?? '',
+    }));
     return new Paginated(items, query.page, query.pageSize, total);
+  }
+
+  /** Tên tỉnh, phường/xã của các BĐS trong một trang danh sách (TASK-118). */
+  private async locationNames(
+    ids: string[],
+  ): Promise<Map<string, { province_name: string; ward_name: string }>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const rows = (await this.dataSource.query(
+      `SELECT p.id, pr.name AS province_name, w.name AS ward_name
+         FROM properties p
+         JOIN provinces pr ON pr.id = p.province_id
+         JOIN wards w ON w.id = p.ward_id
+        WHERE p.id = ANY($1::uuid[])`,
+      [ids],
+    )) as { id: string; province_name: string; ward_name: string }[];
+    return new Map(rows.map((row) => [row.id, row]));
   }
 
   /**

@@ -17,7 +17,7 @@ import type { RequestUser } from '../auth/jwt-auth.guard.js';
 import { RequirePermission } from '../auth/permission.guard.js';
 import type { UserAccess } from '../auth/permission.service.js';
 import { TenantId } from '../auth/tenant.guard.js';
-import type { Paginated } from '../common/response/paginated.js';
+import { Paginated } from '../common/response/paginated.js';
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { PropertySearchQueryDto } from '../search/property-search-query.dto.js';
 import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
@@ -34,9 +34,10 @@ import {
   type PropertyActivity,
   type PropertyViewStats,
 } from './properties.service.js';
+import { PropertyImagesService } from './property-images.service.js';
 import type {
   PropertyDetailResponse,
-  PropertyListItem,
+  PropertyListRow,
   PropertyResponse,
 } from './property.response.js';
 
@@ -64,7 +65,23 @@ export function actorOf(tenantId: string, user: AuthenticatedUser): Actor {
 
 @Controller('properties')
 export class PropertiesController {
-  constructor(private readonly properties: PropertiesService) {}
+  constructor(
+    private readonly properties: PropertiesService,
+    private readonly images: PropertyImagesService,
+  ) {}
+
+  /** Gắn ảnh bìa vào từng dòng danh sách (TASK-118). */
+  private async withCovers(
+    tenantId: string,
+    page: Paginated<Omit<PropertyListRow, 'coverImage'>>,
+  ): Promise<Paginated<PropertyListRow>> {
+    const covers = await this.images.coverImages(
+      tenantId,
+      page.items.map((item) => item.id),
+    );
+    const items = page.items.map((item) => ({ ...item, coverImage: covers.get(item.id) ?? null }));
+    return new Paginated(items, page.meta.page, page.meta.pageSize, page.meta.total);
+  }
 
   /** `POST /api/v1/properties` → 201 BĐS vừa tạo (TASK-049). Cần quyền `property.create`. */
   @Post()
@@ -92,12 +109,15 @@ export class PropertiesController {
    */
   @Get()
   @RequirePermission('property.view')
-  findAll(
+  async findAll(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
     @Query() query: PropertySearchQueryDto,
-  ): Promise<Paginated<PropertyListItem>> {
-    return this.properties.findAll(actorOf(tenantId, req.user), query, scopesOf(req.user));
+  ): Promise<Paginated<PropertyListRow>> {
+    return this.withCovers(
+      tenantId,
+      await this.properties.findAll(actorOf(tenantId, req.user), query, scopesOf(req.user)),
+    );
   }
 
   /**
@@ -106,12 +126,15 @@ export class PropertiesController {
    */
   @Get('favorites')
   @RequirePermission('property.view')
-  findFavorites(
+  async findFavorites(
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
     @Query() query: PaginationQueryDto,
-  ): Promise<Paginated<PropertyListItem>> {
-    return this.properties.findFavorites(actorOf(tenantId, req.user), query, scopesOf(req.user));
+  ): Promise<Paginated<PropertyListRow>> {
+    return this.withCovers(
+      tenantId,
+      await this.properties.findFavorites(actorOf(tenantId, req.user), query, scopesOf(req.user)),
+    );
   }
 
   /** `PUT /api/v1/properties/:id/favorite` → 204, lưu BĐS vào yêu thích (TASK-059). */
