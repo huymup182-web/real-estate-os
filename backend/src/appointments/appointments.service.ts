@@ -209,7 +209,10 @@ export class AppointmentsService {
           'Lịch hẹn đã được người khác cập nhật, vui lòng tải lại rồi thao tác lại',
         );
       }
-      if (dto.scheduledAt && dto.scheduledAt.getTime() !== current.scheduledAt.getTime()) {
+      const rescheduled =
+        dto.scheduledAt !== undefined &&
+        dto.scheduledAt.getTime() !== current.scheduledAt.getTime();
+      if (rescheduled && dto.scheduledAt) {
         assertNotPast(dto.scheduledAt);
       }
       if (dto.propertyId && dto.propertyId !== current.propertyId) {
@@ -219,6 +222,13 @@ export class AppointmentsService {
         ...patch,
         updatedBy: actor.userId,
       } as TenantWritable<Appointment>);
+      if (rescheduled) {
+        // Đổi giờ hẹn thì nhắc lại theo giờ mới (TASK-097).
+        await manager.query(
+          `UPDATE appointments SET reminder_sent_at = NULL WHERE tenant_id = $1 AND id = $2`,
+          [actor.tenantId, id],
+        );
+      }
       const changes = diff(current, patch);
       if (changes) {
         await this.record(manager, actor, id, 'appointment.update', changes);

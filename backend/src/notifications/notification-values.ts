@@ -32,3 +32,9 @@ export const MAX_DEVICES_PER_USER = 10;
 
 /** Token không được làm mới sau số ngày này bị coi là hết hạn (Firebase: thiết bị Android ngừng hoạt động 270 ngày). */
 export const DEVICE_TOKEN_STALE_DAYS = 270;
+
+/** Nhắc môi giới trước giờ hẹn bao nhiêu phút (TASK-097, Huy Lê chọn ngày 2026-10-09). */
+export const APPOINTMENT_REMINDER_LEAD_MINUTES = 60;
+
+/** Múi giờ hiển thị giờ hẹn trong thông báo. */
+export const DISPLAY_TIME_ZONE = 'Asia/Ho_Chi_Minh';
