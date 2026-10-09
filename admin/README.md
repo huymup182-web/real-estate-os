@@ -98,6 +98,15 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - `/deals/[id]` hiện thông tin và chuyển bước; sang "Thành công" cần có giá chốt (backend báo lỗi cạnh nút). `/deals/[id]/edit` sửa giá, cọc, ghi chú; không đổi khách, BĐS.
 - Chưa có trên admin: hoa hồng, đổi môi giới của giao dịch.
 
+## Thông báo (TASK-111)
+
+- Menu "Thông báo" hiện với mọi người dùng, kèm số chưa đọc (lấy từ `GET /notifications/unread-count`, làm mới sau mỗi thao tác trên trang thông báo).
+- `/notifications` liệt kê thông báo của chính mình, mới nhất trước; lọc chưa đọc và theo loại; phân trang.
+- "Mở" đánh dấu đã đọc rồi chuyển tới trang liên quan (lịch hẹn, BĐS, khách; nhắc xác minh nhiều BĐS thì mở danh sách BĐS). Link lấy từ `data` của thông báo, id phải là UUID nên luôn là đường dẫn nội bộ. Thông báo không có trang liên quan thì có nút "Đã đọc".
+- "Đánh dấu đã đọc tất cả" khi còn thông báo chưa đọc.
+- Phần "Nhận tin BĐS mới" (khi có `property.view`): tìm kiếm đã lưu của mình, bật/tắt nhận tin và xoá. Tạo, sửa bộ lọc vẫn làm trên app.
+- Chưa có trên admin: gửi thông báo cho người khác (backend chưa có API gửi tay).
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |

@@ -14,11 +14,11 @@ describe('permissions', () => {
   it('menu ẩn mục không có quyền', () => {
     assert.deepEqual(
       navItemsFor(me).map((item) => item.href),
-      ['/', '/users'],
+      ['/', '/notifications', '/users'],
     );
     assert.deepEqual(
       navItemsFor({ permissions: [] }).map((item) => item.href),
-      ['/'],
+      ['/', '/notifications'],
     );
   });
 });
