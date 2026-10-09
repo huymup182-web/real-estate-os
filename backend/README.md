@@ -601,3 +601,11 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 
 - `GET /api/v1/properties/:id/matching-customers` (`property.view`): BĐS ngoài phạm vi xem → 404. Chỉ gợi ý khách trong phạm vi `customer.view` của user; không có quyền đó → `[]`.
 - `GET /api/v1/customers/:id/matching-properties` (`customer.view`): khách ngoài phạm vi xem → 404. Chỉ gợi ý BĐS trong phạm vi `property.view`; không có quyền đó → `[]`.
+
+## Notification service (TASK-092)
+
+`NotificationsService` (`src/notifications`, export từ `NotificationsModule`) là API nội bộ, chưa có route (hộp thư cho người dùng ở TASK-099). `notify({tenantId, userIds, type, title, body, data?})` → `[{id, userId}]`:
+
+- Ghi một dòng `notifications` cho mỗi người nhận; chỉ user ACTIVE, chưa xoá, cùng công ty `tenantId` (id khác bị bỏ qua, id trùng gửi một lần). Gọi sau khi transaction nghiệp vụ đã commit.
+- `type` thuộc `NOTIFICATION_TYPES`; tiêu đề 1..255 và nội dung 1..2000 ký tự (đã trim); `data` là object, JSON ≤ 4000 ký tự; tối đa 1000 người nhận. Sai là lỗi lập trình → ném Error, không ghi gì.
+- Sau khi ghi, đẩy từng thông báo qua `PushSender`. Đẩy được thì ghi `push_sent_at`; lỗi chỉ ghi log, thông báo vẫn nằm trong hộp thư. Mặc định `NoopPushSender` (không đẩy); FCM ở TASK-093.
