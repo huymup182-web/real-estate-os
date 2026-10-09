@@ -10,6 +10,7 @@ import { DataSource } from 'typeorm';
 import { createApp } from '../src/app.factory.js';
 import { hashPassword } from '../src/auth/password.js';
 import { PermissionService } from '../src/auth/permission.service.js';
+import { StorageService } from '../src/storage/storage.service.js';
 import { useTestDatabase } from './support/test-database.js';
 
 const PASSWORD = 'mat-khau-dung-8';
@@ -58,6 +59,7 @@ describe('GET /api/v1/properties', () => {
     const address = app.getHttpServer().address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
     db = app.get(DataSource);
+    app.get(StorageService).readUrl = (key: string) => Promise.resolve(`https://cdn.test/${key}`);
 
     province = await insertId(`INSERT INTO provinces (code, name) VALUES ('56', 'Khánh Hòa')`);
     ward = await insertId(
@@ -232,6 +234,29 @@ describe('GET /api/v1/properties', () => {
     assert.equal(ids.includes(deletedId), false);
     assert.equal(ids.includes(otherCompanyId), false);
     assert.equal('tenantId' in (body.data[0] ?? {}), false);
+  });
+
+  it('mỗi dòng có tên tỉnh, phường/xã và ảnh bìa (null khi chưa có ảnh)', async () => {
+    const [first] = created;
+    assert.ok(first);
+    await db.query(
+      `INSERT INTO property_images (tenant_id, property_id, storage_key, thumbnail_key, mime_type, size_bytes, sort_order, is_cover)
+       VALUES ($1, $2, $3 || 'cover.jpg', $3 || 'cover_thumb.webp', 'image/jpeg', 1000, 0, true),
+              ($1, $2, $3 || 'other.jpg', NULL, 'image/jpeg', 1000, 1, false)`,
+      [tenantA, first.id, `${tenantA}/properties/${first.id}/`],
+    );
+    const prefix = `https://cdn.test/${tenantA}/properties/${first.id}/`;
+    const body = await list('admin');
+    const withCover = body.data.find((item) => item.id === first.id);
+    assert.equal(withCover?.provinceName, 'Khánh Hòa');
+    assert.equal(withCover?.wardName, 'Vĩnh Hải');
+    assert.deepEqual(withCover?.coverImage, {
+      url: `${prefix}cover.jpg`,
+      thumbnailUrl: `${prefix}cover_thumb.webp`,
+    });
+    assert.ok(
+      body.data.filter((item) => item.id !== first.id).every((item) => item.coverImage === null),
+    );
   });
 
   it('phân trang: page/pageSize, trang vượt quá → danh sách rỗng nhưng vẫn có total', async () => {
