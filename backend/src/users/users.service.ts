@@ -4,8 +4,8 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { AuditService } from '../audit/audit.service.js';
 import { COMPANY_ADMIN_ROLE } from '../auth/default-roles.js';
 import { hashPassword } from '../auth/password.js';
+import { exceedingGrants, type PermissionGrant } from '../auth/permission-grant.js';
 import {
-  PERMISSION_SCOPES,
   type PermissionScope,
   PermissionService,
   type UserAccess,
@@ -84,8 +84,6 @@ function toResponse(row: UserRow): UserResponse {
     updatedAt: row.updated_at,
   };
 }
-
-const scopeRank = (scope: PermissionScope): number => PERMISSION_SCOPES.indexOf(scope);
 
 /**
  * Quản lý người dùng trong công ty (TASK-103, phase0/01-PRD.md US-03). Không có xoá: nhân viên nghỉ thì
@@ -438,12 +436,8 @@ export class UsersService {
          FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id
         WHERE rp.role_id = ANY($1::uuid[])`,
       [roleIds],
-    )) as { code: string; scope: PermissionScope }[];
-    const exceeding = granted.filter(({ code, scope }) => {
-      const own = access.permissions[code];
-      return !own || scopeRank(scope) > scopeRank(own);
-    });
-    if (exceeding.length > 0) {
+    )) as PermissionGrant[];
+    if (exceedingGrants(granted, access).length > 0) {
       throw new AppException(
         ErrorCode.FORBIDDEN,
         'Không thể gán vai trò có quyền vượt quá quyền của bạn',

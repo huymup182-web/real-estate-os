@@ -12,6 +12,7 @@ import { MatchingModule } from './matching/matching.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
 import { ReportsModule } from './reports/reports.module.js';
+import { RolesModule } from './roles/roles.module.js';
 import { UsersModule } from './users/users.module.js';
 
 /**
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module.js';
     MatchingModule,
     ReportsModule,
     UsersModule,
+    RolesModule,
   ],
 })
 export class AppModule {}

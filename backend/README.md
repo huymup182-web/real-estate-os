@@ -704,3 +704,24 @@ Quy tắc an toàn (phase0/04-RBAC.md mục 6):
 - Email/SĐT trùng (toàn hệ thống) → 409.
 - Ghi `audit_logs` cho `user.create`, `user.update` (gồm đổi role) và `user.status`; không bao giờ ghi mật khẩu.
 - Đổi role xoá cache quyền của user đó, nên quyền mới có hiệu lực ngay.
+
+## Vai trò (TASK-104)
+
+Module `src/roles`. Mọi API cần `admin.manage`; vai trò và quyền của vai trò chỉ trong công ty của người gọi.
+
+- `GET /api/v1/roles`: danh sách vai trò, kèm số người dùng, số quyền, `isSystem` (vai trò mặc định) và `permissionsLocked`.
+- `GET /api/v1/roles/permissions`: danh mục quyền gán được (không gồm quyền `platform.*`).
+- `GET /api/v1/roles/:id`: chi tiết kèm `permissions: [{ code, scope }]`.
+- `POST /api/v1/roles` → 201. Body: `code` (chữ in hoa, số, `_`; không đổi được), `name`, `description?`, `permissions` (tối đa 100).
+- `PATCH /api/v1/roles/:id`: sửa `name`, `description`, và `permissions` (thay toàn bộ danh sách).
+- `DELETE /api/v1/roles/:id` → 204, xoá mềm.
+
+Quy tắc:
+
+- Quyền không tồn tại, quyền `platform.*`, quyền lặp, phạm vi sai → 400.
+- Không cấp được quyền mà người gọi không có, hoặc phạm vi rộng hơn của người gọi → 403 (dùng chung `auth/permission-grant.ts` với gán role ở TASK-103).
+- Mã vai trò trùng trong công ty → 409.
+- Quyền của vai trò COMPANY_ADMIN mặc định bị khoá, chỉ đổi được tên và mô tả (Huy Lê chọn 2026-10-09) → 422 nếu gửi `permissions`.
+- Không xoá được vai trò mặc định, hay vai trò còn người dùng → 422 (khoá `FOR UPDATE` khi kiểm).
+- Đổi quyền hoặc xoá vai trò xoá cache quyền, nên có hiệu lực ngay ở request kế tiếp.
+- Ghi `audit_logs` cho `role.create`, `role.update` (gồm danh sách quyền trước/sau) và `role.delete`.
