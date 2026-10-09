@@ -628,3 +628,12 @@ Token FCM của thiết bị lưu ở bảng `device_tokens`. Chỉ cần đăng
 - `DELETE /device-tokens/:id` → 204; app gọi trước khi đăng xuất. Thiết bị của người khác hoặc đã gỡ → 404.
 - Mỗi người tối đa 10 thiết bị (`MAX_DEVICES_PER_USER`); đăng ký thêm thì thiết bị lâu không dùng nhất bị gỡ.
 - FCM chỉ gửi tới token được làm mới trong 270 ngày (`DEVICE_TOKEN_STALE_DAYS`); token FCM báo hỏng bị xoá.
+
+## Thông báo BĐS mới (TASK-095)
+
+Tạo BĐS xong (sau khi commit), `PropertiesService` phát `PropertyEvents.created`; `NewPropertyNotifier` (`src/notifications`) chạy nền, không làm chậm hay làm hỏng `POST /properties`:
+
+- Xét mọi tìm kiếm đã lưu bật `notify`, chưa xoá, của user ACTIVE cùng công ty, trừ người tạo BĐS.
+- BĐS phải khớp bộ lọc đã lưu theo quyền xem BĐS hiện tại của người đó, đúng điều kiện của `GET /properties` (`PropertiesService.matchesSearch`). Không có `property.view` thì không nhận. Bộ lọc không còn hợp lệ thì bỏ qua tìm kiếm đó (ghi log cảnh báo).
+- Mỗi người nhận một thông báo `NEW_PROPERTY` dù khớp nhiều tìm kiếm: tiêu đề "BĐS mới khớp tìm kiếm đã lưu", nội dung `<mã> · <tiêu đề>. Khớp: "<tên tìm kiếm>", ...`, `data` = `{propertyId, savedSearchIds}`. Các tìm kiếm khớp được ghi `last_notified_at`.
+- Chỉ khi tạo BĐS mới; sửa BĐS hoặc mở bán lại không báo.

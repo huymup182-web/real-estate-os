@@ -15,6 +15,7 @@ import {
 import type { AuthenticatedUser } from '../auth/access-token.service.js';
 import type { RequestUser } from '../auth/jwt-auth.guard.js';
 import { RequirePermission } from '../auth/permission.guard.js';
+import type { UserAccess } from '../auth/permission.service.js';
 import { TenantId } from '../auth/tenant.guard.js';
 import type { Paginated } from '../common/response/paginated.js';
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
@@ -41,14 +42,19 @@ import type {
 
 /** Phạm vi các quyền BĐS của user (route đã có @RequirePermission nên quyền của route chắc chắn có). */
 export function scopesOf(user: RequestUser): PropertyScopes {
+  return scopesFrom(user.permissions);
+}
+
+/** Phạm vi quyền BĐS từ bảng permission hiệu lực (`UserAccess.permissions`). */
+export function scopesFrom(permissions: UserAccess['permissions']): PropertyScopes {
   return {
-    view: user.permissions['property.view'],
-    edit: user.permissions['property.edit'],
-    delete: user.permissions['property.delete'],
-    contact: user.permissions['property.view_owner_contact'],
-    assign: user.permissions['property.assign'],
-    documents: user.permissions['property.view_documents'],
-    verify: user.permissions['property.verify'],
+    view: permissions['property.view'],
+    edit: permissions['property.edit'],
+    delete: permissions['property.delete'],
+    contact: permissions['property.view_owner_contact'],
+    assign: permissions['property.assign'],
+    documents: permissions['property.view_documents'],
+    verify: permissions['property.verify'],
   };
 }
 
