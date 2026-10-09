@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_config.dart';
 import 'core/providers.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
 
-/// Gốc app: router, ngôn ngữ tiếng Việt. Theme đầy đủ làm ở TASK-114.
+/// Gốc app: router, theme sáng/tối theo hệ thống, ngôn ngữ tiếng Việt.
 class App extends ConsumerWidget {
   const App({super.key});
 
@@ -16,7 +17,9 @@ class App extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Real Estate OS',
       debugShowCheckedModeBanner: config.env == AppEnv.local,
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF1E5EFF)),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       locale: const Locale('vi'),
       supportedLocales: const [Locale('vi'), Locale('en')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
