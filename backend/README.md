@@ -537,6 +537,16 @@ Các bước: `NEW` → `CONTACTED` → `QUALIFIED` → `VIEWING` → `NEGOTIATI
 Module `src/appointments` (bảng `appointments`, docs/database.md mục 4.7; đọc khách qua `CustomersService`, BĐS qua `PropertiesService`). Quyền `appointment.view` / `appointment.manage`, phạm vi xét theo môi giới của lịch hoặc người tạo.
 
 - `POST /api/v1/appointments` (`appointment.manage`) `{customerId, propertyId, scheduledAt, durationMinutes?, location?, notes?}` → 201. Môi giới của lịch là người tạo, trạng thái `SCHEDULED`. Khách và BĐS phải là khách/BĐS người tạo xem được (không thì 400 `customerId`/`propertyId`). `scheduledAt` không ở quá khứ (cho lệch 5 phút); `durationMinutes` 1..1440.
-- `GET /api/v1/appointments?from&to&customerId&propertyId&page&pageSize` (`appointment.view`) → lịch trong phạm vi xem, giờ hẹn sớm trước; `from` gồm, `to` không gồm, `from` ≥ `to` → 400. `GET /:id`: ngoài phạm vi → 404. Mỗi lịch kèm `customer {id, fullName}` và `property {id, code, title}`.
-- `PATCH /api/v1/appointments/:id` (`appointment.manage`): đổi `propertyId`, `scheduledAt`, `durationMinutes`, `location`, `notes` (`null` để xoá trường tuỳ chọn); xem được nhưng ngoài phạm vi quản lý → 403; `expectedUpdatedAt` lệch → 409. Không đổi khách (tạo lịch mới), trạng thái và kết quả buổi xem làm ở TASK-084.
+- `GET /api/v1/appointments?from&to&customerId&propertyId&status&page&pageSize` (`appointment.view`) → lịch trong phạm vi xem, giờ hẹn sớm trước; `from` gồm, `to` không gồm, `from` ≥ `to` → 400. `GET /:id`: ngoài phạm vi → 404. Mỗi lịch kèm `customer {id, fullName}` và `property {id, code, title}`.
+- `PATCH /api/v1/appointments/:id` (`appointment.manage`): đổi `propertyId`, `scheduledAt`, `durationMinutes`, `location`, `notes` (`null` để xoá trường tuỳ chọn); xem được nhưng ngoài phạm vi quản lý → 403; `expectedUpdatedAt` lệch → 409. Không đổi khách (tạo lịch mới), không đổi trạng thái (dùng `/status`).
 - `DELETE /api/v1/appointments/:id` (`appointment.manage`) → 204, xoá mềm. Tạo, sửa, xoá ghi `audit_logs` (`entity_type = 'appointment'`).
+
+## Trạng thái buổi xem (TASK-084)
+
+Giá trị trong `src/appointments/appointment-values.ts`: trạng thái `SCHEDULED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`; kết quả `INTERESTED`, `NOT_INTERESTED`, `NEED_FOLLOW_UP`, `NEGOTIATING`.
+
+- `POST /api/v1/appointments/:id/status` (`appointment.manage`) `{status, outcome?, expectedUpdatedAt?}` → 200 kèm lịch đã cập nhật. Ngoài phạm vi xem → 404, xem được nhưng ngoài phạm vi quản lý → 403, `expectedUpdatedAt` lệch → 409.
+- Chuyển trạng thái tự do (mở lại được lịch đã huỷ), nhưng `COMPLETED` và `NO_SHOW` chỉ đặt được khi đã tới giờ hẹn (cho lệch 5 phút), chưa tới → 422.
+- `outcome` chỉ gửi kèm `COMPLETED` (trạng thái khác → 400) và không bắt buộc (Huy Lê chọn ngày 2026-10-09, cờ `OUTCOME_REQUIRED`). Rời `COMPLETED` thì xoá kết quả. Gửi lại đúng trạng thái và kết quả hiện có thì không ghi gì.
+- Mỗi lần đổi ghi `appointment.change_status` vào `audit_logs`. `COMPLETED`, `NO_SHOW` ghi thêm một dòng `VIEWING` lên timeline của khách (BĐS của lịch, `metadata {appointmentId, status, outcome}`).
+- `GET /api/v1/appointments?status=` lọc một hoặc nhiều trạng thái (phân cách bằng dấu phẩy hoặc lặp tham số).
