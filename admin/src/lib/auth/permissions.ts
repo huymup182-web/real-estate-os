@@ -20,6 +20,7 @@ export const NAV_ITEMS: readonly { href: string; label: string; permission?: str
   { href: '/teams', label: 'Team', permission: 'team.view' },
   { href: '/roles', label: 'Vai trò', permission: 'admin.manage' },
   { href: '/company', label: 'Công ty', permission: 'admin.manage' },
+  { href: '/audit-logs', label: 'Nhật ký', permission: 'audit.view' },
 ];
 
 export function navItemsFor(me: Pick<CurrentUser, 'permissions'>) {

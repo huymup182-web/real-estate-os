@@ -784,3 +784,10 @@ Module `src/deals` (bảng `deals`, docs/database.md mục 4.7; đọc khách qu
 - `PATCH /api/v1/deals/:id` (`deal.manage`): đổi `dealPrice`, `depositAmount`, `depositAt`, `notes` (`null` để xoá); không đổi khách, BĐS. Ngoài phạm vi quản lý → 403, `expectedUpdatedAt` lệch → 409; xoá giá chốt của giao dịch `WON` → 422.
 - `POST /api/v1/deals/:id/stage` (`deal.manage`) `{stage, expectedUpdatedAt?}` → 200. Chuyển bước tự do (mở lại được giao dịch đã đóng). Sang `WON` cần đã có giá chốt (422), vì doanh thu dashboard (TASK-102) cộng từ giá này. Vào `WON`/`LOST` ghi `closedAt` = lúc chuyển, về bước đang mở thì xoá. Không tự đổi trạng thái BĐS hay khách.
 - `DELETE /api/v1/deals/:id` (`deal.manage`) → 204, xoá mềm (không còn tính vào báo cáo). Tạo, sửa, chuyển bước, xoá ghi `audit_logs` (`entity_type = 'deal'`).
+
+## Nhật ký thao tác (TASK-112)
+
+`src/audit/audit-logs.controller.ts`, chỉ đọc bảng `audit_logs` (chỉ thêm, TASK-025). Quyền `audit.view`, mặc định chỉ `COMPANY_ADMIN` và `DIRECTOR` (phạm vi công ty). Phạm vi xét theo người thao tác: OWN là nhật ký của chính mình, TEAM/DEPARTMENT là của người trong team/phòng, COMPANY là cả công ty, gồm cả dòng do hệ thống ghi (`user` null).
+
+- `GET /api/v1/audit-logs?entityType&entityId&userId&action&from&to&page&pageSize` → mới nhất trước. Mỗi dòng: `{id, user {id, fullName} | null, action, entityType, entityId, changes {field: [cũ, mới]}, ipAddress, userAgent, requestId, createdAt}`.
+- `entityType` chữ thường (vd `property`), `action` dạng `module.hanh_dong` (vd `deal.change_stage`), `entityId`/`userId` là UUID, `from` (gồm) và `to` (không gồm) là thời điểm ISO 8601; `from` ≥ `to` → 400. Chỉ thấy nhật ký của công ty mình.
