@@ -131,7 +131,7 @@ export class CustomersService {
     await this.dataSource.transaction(async (manager) => {
       const customers = this.customers.withManager(manager);
       const current = await this.lockForAction(
-        customers,
+        manager,
         actor,
         id,
         scopes,
@@ -160,7 +160,7 @@ export class CustomersService {
     await this.dataSource.transaction(async (manager) => {
       const customers = this.customers.withManager(manager);
       await this.lockForAction(
-        customers,
+        manager,
         actor,
         id,
         scopes,
@@ -173,7 +173,8 @@ export class CustomersService {
     });
   }
 
-  private recordActivity(
+  /** Ghi một hoạt động của khách vào `audit_logs`, trong transaction của thao tác. */
+  recordActivity(
     manager: EntityManager,
     actor: Actor,
     customerId: string,
@@ -190,16 +191,20 @@ export class CustomersService {
     });
   }
 
-  /** Khoá dòng (FOR UPDATE) rồi kiểm quyền theo bản ghi: ngoài phạm vi xem → 404, ngoài phạm vi thao tác → 403. */
-  private async lockForAction(
-    customers: TenantRepository<Customer>,
+  /**
+   * Khoá dòng khách (FOR UPDATE) rồi kiểm quyền theo bản ghi: ngoài phạm vi xem → 404, ngoài phạm vi
+   * thao tác → 403. Dùng chung cho nhu cầu của khách (TASK-078).
+   */
+  async lockForAction(
+    manager: EntityManager,
     actor: Actor,
     id: string,
     scopes: CustomerScopes,
     actionScope: PermissionScope | undefined,
     forbiddenMessage: string,
   ): Promise<Customer> {
-    const { entities, raw } = await customers
+    const { entities, raw } = await this.customers
+      .withManager(manager)
       .createQueryBuilder(actor.tenantId, 'c', (query) => query.where('c.id = :id', { id }))
       .addSelect(`(${this.scopeOrFalse(scopes.view)})`, 'in_view')
       .addSelect(`(${this.scopeOrFalse(actionScope)})`, 'in_action')

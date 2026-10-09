@@ -499,3 +499,12 @@ Module `src/customers` (bảng `customers`, docs/database.md mục 4.5). Phạm 
 - `PATCH /api/v1/customers/:id` (`customer.edit`): chỉ đổi trường được gửi, trường tuỳ chọn gửi `null` hoặc chuỗi rỗng để xoá; body rỗng → 400. Xem được nhưng ngoài phạm vi sửa → 403; `expectedUpdatedAt` lệch → 409.
 - `DELETE /api/v1/customers/:id` (`customer.delete`) → 204, xoá mềm, ghi người xoá vào `updated_by`.
 - Tạo, sửa (kèm `{field: [cũ, mới]}`), xoá đều ghi `audit_logs` (`entity_type = 'customer'`).
+
+## Nhu cầu của khách (TASK-078)
+
+Bảng `customer_preferences` (đầu vào matching Phase 7). Một khách có nhiều nhu cầu.
+
+- `GET /api/v1/customers/:customerId/preferences` (`customer.view`, khách trong phạm vi xem, không thì 404) → mọi nhu cầu của khách, kể cả đang tắt, tạo trước đứng trước.
+- `POST …/preferences` (`customer.edit` với khách, xem được mà ngoài phạm vi sửa → 403) → 201. Body: `transactionType` (`SALE` mặc định | `RENT`), `isActive` (mặc định `true`) và các tiêu chí `propertyTypes[]`, `budgetMin/Max` (đồng), `areaMin/Max` (m²), `bedroomsMin`, `provinceIds[]`, `districtIds[]`, `wardIds[]` (tối đa 50 mỗi loại, phải tồn tại và đang dùng), `directions[]`, `legalStatuses[]`, `minRoadAccess`. Giá trị theo đúng danh sách của BĐS. Cần ít nhất một tiêu chí; min ≤ max; mảng bỏ trùng, mảng rỗng = không đặt. Tối đa 20 nhu cầu mỗi khách → 422.
+- `PATCH …/preferences/:id` chỉ đổi trường được gửi, `null` để bỏ tiêu chí, `expectedUpdatedAt` lệch → 409. `DELETE …/preferences/:id` → 204, xoá mềm. Nhu cầu không thuộc khách trong đường dẫn → 404.
+- Thêm, sửa, xoá nhu cầu ghi `audit_logs` của khách (`customer.add_preference`, `customer.update_preference`, `customer.remove_preference`).

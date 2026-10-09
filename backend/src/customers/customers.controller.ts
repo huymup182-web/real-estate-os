@@ -24,7 +24,7 @@ import { CreateCustomerDto } from './dto/create-customer.dto.js';
 import { UpdateCustomerDto } from './dto/update-customer.dto.js';
 
 /** Phạm vi các quyền khách hàng của user (route đã có @RequirePermission nên quyền của route chắc chắn có). */
-function scopesOf(user: RequestUser): CustomerScopes {
+export function customerScopesOf(user: RequestUser): CustomerScopes {
   return {
     view: user.permissions['customer.view'],
     edit: user.permissions['customer.edit'],
@@ -56,7 +56,7 @@ export class CustomersController {
     @Req() req: { user: RequestUser },
     @Query() query: PaginationQueryDto,
   ): Promise<Paginated<CustomerResponse>> {
-    return this.customers.findAll(actorOf(tenantId, req.user), query, scopesOf(req.user));
+    return this.customers.findAll(actorOf(tenantId, req.user), query, customerScopesOf(req.user));
   }
 
   /** `GET /api/v1/customers/:id`; không xem được → 404. */
@@ -67,7 +67,7 @@ export class CustomersController {
     @Req() req: { user: RequestUser },
     @Param('id', ParseUuidPipe) id: string,
   ): Promise<CustomerResponse> {
-    return this.customers.findOne(actorOf(tenantId, req.user), id, scopesOf(req.user));
+    return this.customers.findOne(actorOf(tenantId, req.user), id, customerScopesOf(req.user));
   }
 
   /** `PATCH /api/v1/customers/:id` → khách sau khi sửa. Cần `customer.edit`. */
@@ -79,7 +79,7 @@ export class CustomersController {
     @Param('id', ParseUuidPipe) id: string,
     @Body() dto: UpdateCustomerDto,
   ): Promise<CustomerResponse> {
-    return this.customers.update(actorOf(tenantId, req.user), id, dto, scopesOf(req.user));
+    return this.customers.update(actorOf(tenantId, req.user), id, dto, customerScopesOf(req.user));
   }
 
   /** `DELETE /api/v1/customers/:id` → 204, xoá mềm. Cần `customer.delete`. */
@@ -91,6 +91,6 @@ export class CustomersController {
     @Req() req: { user: RequestUser },
     @Param('id', ParseUuidPipe) id: string,
   ): Promise<void> {
-    await this.customers.remove(actorOf(tenantId, req.user), id, scopesOf(req.user));
+    await this.customers.remove(actorOf(tenantId, req.user), id, customerScopesOf(req.user));
   }
 }
