@@ -32,6 +32,14 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 - Có 10 ô số liệu, phễu khách hàng và phễu giao dịch (thanh CSS, không dùng thư viện biểu đồ).
 - Người không có `report.view` thấy câu báo chưa có quyền.
 
+## Người dùng (TASK-103)
+
+- Các trang sau đăng nhập nằm trong route group `src/app/(app)/`, dùng chung layout: tên công ty, người dùng, menu theo permission (`src/lib/auth/permissions.ts`) và nút đăng xuất.
+- `/users` là danh sách có tìm kiếm, lọc theo trạng thái, vai trò, phòng ban và phân trang. Menu chỉ hiện mục này khi có `user.view`.
+- `/users/new` tạo người dùng; admin đặt mật khẩu ban đầu.
+- `/users/[id]` sửa thông tin, phòng ban, vai trò và đổi trạng thái (kích hoạt, ngừng hoạt động, khoá). Người không có `user.manage` chỉ xem.
+- Thao tác ghi là Server Action (`users/actions.ts`). Lỗi theo trường từ backend (`error.details`) hiện ngay dưới ô nhập.
+
 ## Cấu hình
 
 | Biến               | Mặc định                | Ý nghĩa                                                                         |

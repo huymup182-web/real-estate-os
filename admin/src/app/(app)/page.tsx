@@ -1,8 +1,6 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 
-import { currentUser } from '../lib/auth/auth-api.ts';
-import { ACCESS_COOKIE } from '../lib/auth/session-cookies.ts';
+import { accessToken } from '../../lib/auth/server-session.ts';
 import {
   barWidths,
   CUSTOMER_STATUS_LABELS,
@@ -14,21 +12,10 @@ import {
   PERIOD_OPTIONS,
   periodDays,
   SCOPE_LABELS,
-} from '../lib/dashboard.ts';
-import { logoutAction } from './auth-actions.ts';
+} from '../../lib/dashboard.ts';
 
 /** Luôn render lúc request vì nội dung phụ thuộc người đăng nhập. */
 export const dynamic = 'force-dynamic';
-
-function LogoutButton() {
-  return (
-    <form action={logoutAction}>
-      <button type="submit" className="button button-secondary">
-        Đăng xuất
-      </button>
-    </form>
-  );
-}
 
 function Funnel({ rows }: { rows: { label: string; count: number; note?: string }[] }) {
   const widths = barWidths(rows.map((row) => row.count));
@@ -87,39 +74,12 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const accessToken = (await cookies()).get(ACCESS_COOKIE)?.value ?? '';
   const days = periodDays((await searchParams)['days']);
-  const [me, dashboard] = await Promise.all([
-    currentUser(accessToken),
-    fetchDashboard(accessToken, days),
-  ]);
+  const dashboard = await fetchDashboard(await accessToken(), days);
 
-  if (!me.ok) {
-    return (
-      <main>
-        <div className="card">
-          <h1>AI Real Estate OS</h1>
-          <p className="form-error" role="alert">
-            {me.message}
-          </p>
-          <LogoutButton />
-        </div>
-      </main>
-    );
-  }
-
-  const { user, company } = me.data;
   return (
-    <main className="dashboard">
-      <header className="topbar">
-        <div>
-          <strong>{company ? company.name : 'Tài khoản nền tảng'}</strong>
-          <span className="muted"> · {user.fullName}</span>
-        </div>
-        <LogoutButton />
-      </header>
-
-      <div className="dashboard-heading">
+    <main className="page">
+      <div className="page-heading">
         <div>
           <h1>Tổng quan</h1>
           {dashboard.ok && (
