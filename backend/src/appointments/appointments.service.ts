@@ -8,6 +8,7 @@ import { scopeCondition } from '../auth/record-scope.js';
 import { AppException, type ErrorDetail } from '../common/errors/app.exception.js';
 import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
+import { insertCustomerActivity } from '../customers/customer-activity.record.js';
 import { CustomersService, type CustomerScopes } from '../customers/customers.service.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import {
@@ -16,8 +17,10 @@ import {
   type PropertyScopes,
 } from '../properties/properties.service.js';
 import { Appointment } from './appointment.entity.js';
+import { OUTCOME_REQUIRED, STATUSES_AFTER_START } from './appointment-values.js';
 import {
   type AppointmentListQueryDto,
+  type ChangeAppointmentStatusDto,
   type CreateAppointmentDto,
   EDITABLE_APPOINTMENT_FIELDS,
   type UpdateAppointmentDto,
@@ -157,6 +160,9 @@ export class AppointmentsService {
           propertyId: query.propertyId,
         });
       }
+      if (query.status) {
+        filtered = filtered.andWhere('a.status IN (:...statuses)', { statuses: query.status });
+      }
       return filtered;
     });
     const total = await base.clone().getCount();
@@ -216,6 +222,72 @@ export class AppointmentsService {
       const changes = diff(current, patch);
       if (changes) {
         await this.record(manager, actor, id, 'appointment.update', changes);
+      }
+    });
+    return this.findOne(actor, id, scopes);
+  }
+
+  /**
+   * Đổi trạng thái lịch hẹn / ghi kết quả buổi xem (TASK-084). Cần `appointment.manage` (404/403 như khi sửa).
+   * - `outcome` chỉ đi với COMPLETED (gửi kèm trạng thái khác → 400); rời COMPLETED thì xoá kết quả.
+   * - COMPLETED, NO_SHOW chỉ đặt được khi đã tới giờ hẹn (→ 422). Các trạng thái chuyển qua lại tự do
+   *   (mở lại lịch đã huỷ được), như pipeline khách.
+   * - Không đổi gì (cùng trạng thái, cùng kết quả) thì không ghi gì.
+   * - Ghi `appointment.change_status` vào `audit_logs`; COMPLETED, NO_SHOW ghi thêm một dòng VIEWING lên
+   *   timeline của khách (BĐS của lịch, `metadata {appointmentId, status, outcome}`).
+   */
+  async changeStatus(
+    actor: Actor,
+    id: string,
+    dto: ChangeAppointmentStatusDto,
+    scopes: AppointmentScopes,
+  ): Promise<AppointmentResponse> {
+    if (dto.status !== 'COMPLETED' && dto.outcome !== undefined) {
+      throw invalid([{ field: 'outcome', message: 'outcome chỉ gửi khi status là COMPLETED' }]);
+    }
+    if (dto.status === 'COMPLETED' && OUTCOME_REQUIRED && dto.outcome === undefined) {
+      throw invalid([{ field: 'outcome', message: 'Cần ghi kết quả buổi xem' }]);
+    }
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.lockForManage(manager, actor, id, scopes);
+      if (
+        dto.expectedUpdatedAt &&
+        dto.expectedUpdatedAt.getTime() !== current.updatedAt.getTime()
+      ) {
+        throw new AppException(
+          ErrorCode.CONFLICT,
+          'Lịch hẹn đã được người khác cập nhật, vui lòng tải lại rồi thao tác lại',
+        );
+      }
+      const outcome = dto.status === 'COMPLETED' ? (dto.outcome ?? null) : null;
+      if (current.status === dto.status && current.outcome === outcome) {
+        return;
+      }
+      if (
+        STATUSES_AFTER_START.includes(dto.status) &&
+        current.scheduledAt.getTime() > Date.now() + CLOCK_SKEW_MS
+      ) {
+        throw new AppException(
+          ErrorCode.BUSINESS_RULE_VIOLATION,
+          'Chưa tới giờ hẹn, chưa đánh dấu đã xem hoặc khách không đến được',
+        );
+      }
+      await this.appointments.withManager(manager).update(actor.tenantId, id, {
+        status: dto.status,
+        outcome,
+        updatedBy: actor.userId,
+      });
+      const changes = diff(current, { status: dto.status, outcome });
+      await this.record(manager, actor, id, 'appointment.change_status', changes);
+      if (STATUSES_AFTER_START.includes(dto.status)) {
+        await insertCustomerActivity(manager, {
+          tenantId: actor.tenantId,
+          customerId: current.customerId,
+          userId: actor.userId,
+          type: 'VIEWING',
+          propertyIds: [current.propertyId],
+          metadata: { appointmentId: id, status: dto.status, outcome },
+        });
       }
     });
     return this.findOne(actor, id, scopes);

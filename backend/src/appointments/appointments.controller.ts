@@ -26,6 +26,7 @@ import {
 } from './appointments.service.js';
 import {
   AppointmentListQueryDto,
+  ChangeAppointmentStatusDto,
   CreateAppointmentDto,
   UpdateAppointmentDto,
 } from './dto/appointment.dto.js';
@@ -62,7 +63,7 @@ export class AppointmentsController {
     );
   }
 
-  /** `GET /api/v1/appointments?from&to&customerId&propertyId&page&pageSize` → lịch hẹn, giờ hẹn sớm trước. */
+  /** `GET /api/v1/appointments?from&to&customerId&propertyId&status&page&pageSize` → lịch hẹn, giờ hẹn sớm trước. */
   @Get()
   @RequirePermission('appointment.view')
   findAll(
@@ -106,6 +107,27 @@ export class AppointmentsController {
       id,
       dto,
       relatedScopesOf(req.user),
+      appointmentScopesOf(req.user),
+    );
+  }
+
+  /**
+   * `POST /api/v1/appointments/:id/status` {status, outcome?, expectedUpdatedAt?} → lịch hẹn sau khi đổi
+   * trạng thái / ghi kết quả buổi xem (TASK-084).
+   */
+  @Post(':id/status')
+  @HttpCode(200)
+  @RequirePermission('appointment.manage')
+  changeStatus(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() dto: ChangeAppointmentStatusDto,
+  ): Promise<AppointmentResponse> {
+    return this.appointments.changeStatus(
+      actorOf(tenantId, req.user),
+      id,
+      dto,
       appointmentScopesOf(req.user),
     );
   }
