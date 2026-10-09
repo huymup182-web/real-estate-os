@@ -36,7 +36,7 @@ const oneOf = (values: readonly string[]): string => values.join(', ');
 
 /**
  * Sửa khách hàng (TASK-077), PATCH: chỉ đổi trường được gửi; trường tuỳ chọn gửi `null` để xoá.
- * Không sửa ở đây: môi giới phụ trách (`POST /customers/:id/assign`, TASK-079), trạng thái và lý do mất khách (TASK-082).
+ * Không sửa ở đây: môi giới phụ trách (`POST /customers/:id/assign`, TASK-079), trạng thái và lý do mất khách (`POST /customers/:id/status`, TASK-082).
  */
 export class UpdateCustomerDto {
   /** Chống ghi đè: `updatedAt` client đang có; khác bản ghi hiện tại → 409. */

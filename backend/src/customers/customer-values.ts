@@ -58,3 +58,25 @@ export const USER_ACTIVITY_TYPES = [
 
 /** Số BĐS tối đa gắn vào một hoạt động. */
 export const MAX_ACTIVITY_PROPERTIES = 20;
+
+/** Các bước pipeline khách hàng theo thứ tự (MASTER_PLAN mục 7), khớp CHECK của `customers.status`. */
+export const CUSTOMER_STATUSES = [
+  'NEW',
+  'CONTACTED',
+  'QUALIFIED',
+  'VIEWING',
+  'NEGOTIATING',
+  'DEPOSIT',
+  'WON',
+  'LOST',
+] as const;
+export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number];
+
+/**
+ * Luật chuyển bước pipeline (TASK-082, Huy Lê chọn ngày 2026-10-09): chuyển tự do giữa mọi
+ * bước, kể cả lùi bước và mở lại khách đã WON/LOST (như đổi trạng thái BĐS ở TASK-054).
+ */
+export function canChangeCustomerStatus(from: string, to: CustomerStatus): boolean {
+  const statuses: readonly string[] = CUSTOMER_STATUSES;
+  return statuses.includes(from) && statuses.includes(to);
+}

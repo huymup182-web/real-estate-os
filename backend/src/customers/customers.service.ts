@@ -8,14 +8,16 @@ import { scopeCondition } from '../auth/record-scope.js';
 import { AppException, type ErrorDetail } from '../common/errors/app.exception.js';
 import { ErrorCode } from '../common/errors/error-code.js';
 import { Paginated } from '../common/response/paginated.js';
-import type { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
 import { TenantRepository, type TenantWritable } from '../database/tenant.repository.js';
 import type { Actor } from '../properties/properties.service.js';
 import { insertCustomerActivity } from './customer-activity.record.js';
+import { CUSTOMER_STATUSES, canChangeCustomerStatus } from './customer-values.js';
 import { Customer } from './customer.entity.js';
 import { type CustomerResponse, toCustomerResponse } from './customer.response.js';
 import type { AssignCustomerDto } from './dto/assign-customer.dto.js';
+import type { ChangeCustomerStatusDto } from './dto/change-customer-status.dto.js';
 import type { CreateCustomerDto } from './dto/create-customer.dto.js';
+import type { CustomerListQueryDto } from './dto/customer-list-query.dto.js';
 import { EDITABLE_CUSTOMER_FIELDS, type UpdateCustomerDto } from './dto/update-customer.dto.js';
 
 /** Phạm vi các quyền khách hàng của user, lấy từ `req.user.permissions`. Không có key = không có quyền. */
@@ -95,16 +97,22 @@ export class CustomersService {
     return toCustomerResponse(customer);
   }
 
-  /** Danh sách khách hàng trong phạm vi `customer.view`, mới tạo trước, phân trang offset. */
+  /**
+   * Danh sách khách hàng trong phạm vi `customer.view`, mới tạo trước, phân trang offset; `status` lọc theo
+   * bước pipeline (TASK-082).
+   */
   async findAll(
     actor: Actor,
-    query: PaginationQueryDto,
+    query: CustomerListQueryDto,
     scopes: CustomerScopes,
   ): Promise<Paginated<CustomerResponse>> {
     const [customers, total] = await this.customers
-      .createQueryBuilder(actor.tenantId, 'c', (builder) =>
-        builder.where(this.scopeOrFalse(scopes.view)),
-      )
+      .createQueryBuilder(actor.tenantId, 'c', (builder) => {
+        const visible = builder.where(this.scopeOrFalse(scopes.view));
+        return query.status
+          ? visible.andWhere('c.status IN (:...statuses)', { statuses: query.status })
+          : visible;
+      })
       .setParameter('scopeUserId', actor.userId)
       .orderBy('c.createdAt', 'DESC')
       .addOrderBy('c.id', 'DESC')
@@ -177,6 +185,85 @@ export class CustomersService {
       await customers.softDelete(actor.tenantId, id);
       await this.recordActivity(manager, actor, id, 'customer.delete');
     });
+  }
+
+  /**
+   * Số khách ở từng bước pipeline trong phạm vi `customer.view` (TASK-082), đủ mọi bước theo thứ tự
+   * (bước không có khách = 0).
+   */
+  async pipeline(
+    actor: Actor,
+    scopes: CustomerScopes,
+  ): Promise<{ status: string; count: number }[]> {
+    const rows = await this.customers
+      .createQueryBuilder(actor.tenantId, 'c', (builder) =>
+        builder.where(this.scopeOrFalse(scopes.view)),
+      )
+      .setParameter('scopeUserId', actor.userId)
+      .select('c.status', 'status')
+      .addSelect('count(*)::int', 'count')
+      .groupBy('c.status')
+      .getRawMany<{ status: string; count: number }>();
+    const counts = new Map(rows.map((row) => [row.status, row.count]));
+    return CUSTOMER_STATUSES.map((status) => ({ status, count: counts.get(status) ?? 0 }));
+  }
+
+  /**
+   * Chuyển khách sang bước pipeline khác (TASK-082). Cần `customer.edit` với khách (404/403 như khi sửa).
+   * - Sang LOST bắt buộc `lostReason` (lưu vào khách); rời LOST thì xoá lý do cũ. `lostReason` gửi kèm
+   *   bước khác → 400.
+   * - Luật chuyển bước: `canChangeCustomerStatus` (hiện cho chuyển tự do).
+   * - Đặt lại đúng bước đang có thì không đổi gì; LOST → LOST với lý do mới thì cập nhật lý do.
+   * - Ghi `customer.change_status` vào `audit_logs` và một dòng STATUS_CHANGE lên timeline của khách.
+   */
+  async changeStatus(
+    actor: Actor,
+    id: string,
+    dto: ChangeCustomerStatusDto,
+    scopes: CustomerScopes,
+  ): Promise<CustomerResponse> {
+    if (dto.status !== 'LOST' && dto.lostReason !== undefined) {
+      throw invalid([{ field: 'lostReason', message: 'lostReason chỉ gửi khi chuyển sang LOST' }]);
+    }
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.lockForAction(
+        manager,
+        actor,
+        id,
+        scopes,
+        scopes.edit,
+        'Không có quyền đổi trạng thái khách hàng này',
+      );
+      assertNotModified(current, dto.expectedUpdatedAt);
+      const lostReason = dto.status === 'LOST' ? (dto.lostReason ?? null) : null;
+      if (current.status === dto.status && current.lostReason === lostReason) {
+        return;
+      }
+      if (!canChangeCustomerStatus(current.status, dto.status)) {
+        throw new AppException(
+          ErrorCode.BUSINESS_RULE_VIOLATION,
+          `Không chuyển được khách từ ${current.status} sang ${dto.status}`,
+        );
+      }
+      await this.customers.withManager(manager).update(actor.tenantId, id, {
+        status: dto.status,
+        lostReason,
+        updatedBy: actor.userId,
+      });
+      const changes = diff(current, { status: dto.status, lostReason });
+      if (changes) {
+        await this.recordActivity(manager, actor, id, 'customer.change_status', changes);
+      }
+      await insertCustomerActivity(manager, {
+        tenantId: actor.tenantId,
+        customerId: id,
+        userId: actor.userId,
+        type: 'STATUS_CHANGE',
+        content: lostReason,
+        metadata: { fromStatus: current.status, toStatus: dto.status },
+      });
+    });
+    return this.findOne(actor, id, scopes);
   }
 
   /**
