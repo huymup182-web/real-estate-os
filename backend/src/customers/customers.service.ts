@@ -13,6 +13,7 @@ import { TenantRepository, type TenantWritable } from '../database/tenant.reposi
 import type { Actor } from '../properties/properties.service.js';
 import { Customer } from './customer.entity.js';
 import { type CustomerResponse, toCustomerResponse } from './customer.response.js';
+import type { AssignCustomerDto } from './dto/assign-customer.dto.js';
 import type { CreateCustomerDto } from './dto/create-customer.dto.js';
 import { EDITABLE_CUSTOMER_FIELDS, type UpdateCustomerDto } from './dto/update-customer.dto.js';
 
@@ -21,10 +22,14 @@ export interface CustomerScopes {
   view: PermissionScope | undefined;
   edit: PermissionScope | undefined;
   delete: PermissionScope | undefined;
+  assign: PermissionScope | undefined;
 }
 
 /** Cột xét phạm vi của khách hàng: môi giới phụ trách và người tạo. */
 const CUSTOMER_SCOPE_COLUMNS = { agent: 'c.agent_id', creator: 'c.created_by' };
+
+/** Xét người nhận khách `u` như người phụ trách của bản ghi (OWN = chính mình). */
+const AGENT_SCOPE_COLUMNS = { agent: 'u.id', creator: 'u.id' };
 
 /** `{ field: [cũ, mới] }` cho các trường thật sự đổi giá trị; không đổi gì → null. */
 function diff(current: Customer, patch: Record<string, unknown>): AuditChanges | null {
@@ -173,6 +178,45 @@ export class CustomersService {
     });
   }
 
+  /**
+   * Đổi môi giới phụ trách khách (TASK-079), cần `customer.assign` (phase0/04-RBAC.md), cùng luật như
+   * phân BĐS (TASK-056):
+   * - Khách ngoài phạm vi xem → 404; xem được nhưng ngoài phạm vi `customer.assign` → 403.
+   * - Người nhận phải là user đang hoạt động của cùng công ty (không có → 400 `agentId`) và nằm trong
+   *   cùng phạm vi đó (TEAM: cùng nhóm, DEPARTMENT: cùng phòng, COMPANY: cả công ty), ngoài phạm vi → 403.
+   * - Giao lại đúng người đang phụ trách thì không đổi gì. Trả về khách sau khi giao.
+   */
+  async assign(
+    actor: Actor,
+    id: string,
+    dto: AssignCustomerDto,
+    scopes: CustomerScopes,
+  ): Promise<CustomerResponse> {
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.lockForAction(
+        manager,
+        actor,
+        id,
+        scopes,
+        scopes.assign,
+        'Không có quyền phân khách hàng này',
+      );
+      assertNotModified(current, dto.expectedUpdatedAt);
+      if (current.agentId === dto.agentId) {
+        return;
+      }
+      await this.assertAssignableAgent(manager, actor, dto.agentId, scopes.assign);
+      await this.customers.withManager(manager).update(actor.tenantId, id, {
+        agentId: dto.agentId,
+        updatedBy: actor.userId,
+      });
+      await this.recordActivity(manager, actor, id, 'customer.assign', {
+        agentId: [current.agentId, dto.agentId],
+      });
+    });
+    return this.findOne(actor, id, scopes);
+  }
+
   /** Ghi một hoạt động của khách vào `audit_logs`, trong transaction của thao tác. */
   recordActivity(
     manager: EntityManager,
@@ -221,9 +265,40 @@ export class CustomersService {
     return current;
   }
 
+  /** Người nhận khách: user đang hoạt động của công ty và trong phạm vi phân khách của người giao. */
+  private async assertAssignableAgent(
+    manager: EntityManager,
+    actor: Actor,
+    agentId: string,
+    scope: PermissionScope | undefined,
+  ): Promise<void> {
+    const [row] = (await manager
+      .createQueryBuilder()
+      .select(`(${this.scopeOrFalse(scope, AGENT_SCOPE_COLUMNS)})`, 'in_scope')
+      .from('users', 'u')
+      .where('u.tenant_id = :tenantId', { tenantId: actor.tenantId })
+      .andWhere('u.id = :agentId', { agentId })
+      .andWhere(`u.status = 'ACTIVE'`)
+      .andWhere('u.deleted_at IS NULL')
+      .setParameter('scopeUserId', actor.userId)
+      .getRawMany()) as { in_scope: boolean }[];
+    if (!row) {
+      throw invalid([{ field: 'agentId', message: 'Môi giới không tồn tại hoặc không hoạt động' }]);
+    }
+    if (row.in_scope !== true) {
+      throw new AppException(
+        ErrorCode.FORBIDDEN,
+        'Không được giao khách cho người ngoài phạm vi quản lý của mình',
+      );
+    }
+  }
+
   /** Điều kiện phạm vi, hoặc FALSE khi user không có quyền đó. */
-  private scopeOrFalse(scope: PermissionScope | undefined): string {
-    return scope ? scopeCondition(scope, CUSTOMER_SCOPE_COLUMNS) : 'FALSE';
+  private scopeOrFalse(
+    scope: PermissionScope | undefined,
+    columns = CUSTOMER_SCOPE_COLUMNS,
+  ): string {
+    return scope ? scopeCondition(scope, columns) : 'FALSE';
   }
 }
 
