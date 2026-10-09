@@ -572,7 +572,7 @@ Giá trị trong `src/appointments/appointment-values.ts`: trạng thái `SCHEDU
 
 ## Matching BĐS → khách hàng (TASK-087)
 
-Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `PropertiesService`). `MatchingService.customersForProperty(actor, propertyId, {property, customer}, {minScore?, limit?})` → danh sách khách phù hợp, chưa có API (TASK-090).
+Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `PropertiesService`). `MatchingService.customersForProperty(actor, propertyId, {property, customer}, {minScore?, limit?})` → danh sách khách phù hợp (API ở TASK-090).
 
 - BĐS phải trong phạm vi xem của user (không có, công ty khác, ngoài phạm vi → 404). Chỉ xét khách trong phạm vi `customer.view` (`CustomersService.visible`).
 - Chỉ xét nhu cầu đang bật, chưa xoá, cùng loại giao dịch với BĐS, của khách chưa xoá và chưa WON/LOST.
@@ -581,7 +581,7 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 
 ## Matching khách hàng → BĐS (TASK-088)
 
-`MatchingService.propertiesForCustomer(actor, customerId, {property, customer}, {minScore?, limit?})` → danh sách BĐS phù hợp, chưa có API (TASK-090).
+`MatchingService.propertiesForCustomer(actor, customerId, {property, customer}, {minScore?, limit?})` → danh sách BĐS phù hợp (API ở TASK-090).
 
 - Khách phải trong phạm vi `customer.view` (không có, công ty khác, ngoài phạm vi → 404). Khách không có nhu cầu đang bật → danh sách rỗng.
 - Chỉ xét BĐS user xem được (`PropertiesService.visible`), chưa xoá, đang `AVAILABLE` (`MATCHABLE_PROPERTY_STATUS`), cùng loại giao dịch với một nhu cầu đang bật của khách.
@@ -594,3 +594,10 @@ Module `src/matching` (`MatchingModule`, dùng `CustomersService` và `Propertie
 
 - Tiêu chí mức đạt 1 vào `matched`, giữa 0 và 1 vào `partial`, 0 vào `unmatched`, theo thứ tự trọng số. Tên hiển thị trong `CRITERION_LABELS`.
 - Ví dụ `summary`: "92% phù hợp vì đúng khu vực, ngân sách và số phòng ngủ.", "70% phù hợp vì đúng khu vực và diện tích; gần đúng ngân sách; chưa đúng loại BĐS và pháp lý.", khách chưa nêu tiêu chí: "100% phù hợp: khách chưa nêu tiêu chí cụ thể."
+
+## API matching (TASK-090)
+
+`MatchingController` (`src/matching`). Cả hai route nhận `?minScore` (số nguyên 0..100, mặc định 50) và `?limit` (1..100, mặc định 20); sai → 400. Trả mảng kết quả của TASK-087/088 kèm `explanation` (TASK-089), điểm cao trước.
+
+- `GET /api/v1/properties/:id/matching-customers` (`property.view`): BĐS ngoài phạm vi xem → 404. Chỉ gợi ý khách trong phạm vi `customer.view` của user; không có quyền đó → `[]`.
+- `GET /api/v1/customers/:id/matching-properties` (`customer.view`): khách ngoài phạm vi xem → 404. Chỉ gợi ý BĐS trong phạm vi `property.view`; không có quyền đó → `[]`.
