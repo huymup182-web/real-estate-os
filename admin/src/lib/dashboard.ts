@@ -73,8 +73,12 @@ export function formatCount(value: number): string {
 
 /** Tiền VNĐ dạng ngắn: "9 tỷ", "1,25 tỷ", "850 triệu", dưới một triệu thì ghi đủ kèm "đ". */
 export function formatVnd(value: number): string {
-  if (Math.abs(value) >= 1e9) {return `${shortFormat.format(value / 1e9)} tỷ`;}
-  if (Math.abs(value) >= 1e6) {return `${shortFormat.format(value / 1e6)} triệu`;}
+  if (Math.abs(value) >= 1e9) {
+    return `${shortFormat.format(value / 1e9)} tỷ`;
+  }
+  if (Math.abs(value) >= 1e6) {
+    return `${shortFormat.format(value / 1e6)} triệu`;
+  }
   return `${countFormat.format(value)} đ`;
 }
 
