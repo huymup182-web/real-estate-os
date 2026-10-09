@@ -41,6 +41,18 @@ const directionLabels = {
   'SW': 'Tây Nam',
 };
 
+const roadAccessLabels = {
+  'CAR': 'Ô tô vào được',
+  'MOTORBIKE': 'Xe máy',
+  'WALK': 'Đi bộ',
+};
+
+const verificationLabels = {
+  'UNVERIFIED': 'Chưa xác minh',
+  'VERIFIED': 'Đã xác minh',
+  'EXPIRED': 'Hết hạn xác minh',
+};
+
 /// Cách sắp xếp `GET /properties?sort=` (không gồm `relevance`: đó là mặc định khi có từ khoá).
 const propertySortLabels = {
   'newest': 'Mới nhất',

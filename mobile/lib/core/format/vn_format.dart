@@ -65,6 +65,15 @@ String vnNumber(int value) {
   return buffer.toString();
 }
 
+/// Số thập phân kiểu Việt, tối đa 2 chữ số sau dấu phẩy: 70 → "70", 1250 → "1.250", 70.5 → "70,5".
+String vnDecimal(double value) {
+  final text = value.toStringAsFixed(2);
+  final [whole, fraction] = text.split('.');
+  final decimals = fraction.replaceFirst(RegExp(r'0+$'), '');
+  final integer = vnNumber(int.parse(whole));
+  return decimals.isEmpty ? integer : '$integer,$decimals';
+}
+
 /// Số tiền đồng viết gọn: `3,5 tỷ`, `850 triệu`, `12.000 đ`.
 String vnMoneyShort(int value) {
   String trim(double number) {

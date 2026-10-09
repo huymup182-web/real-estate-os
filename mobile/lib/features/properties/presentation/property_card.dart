@@ -18,7 +18,7 @@ class PropertyCard extends StatelessWidget {
     final theme = Theme.of(context);
     final muted = context.appColors.mutedForeground;
     final facts = [
-      '${_area(property.area)} m²',
+      '${vnDecimal(property.area)} m²',
       if (property.bedrooms != null) '${property.bedrooms} PN',
       if (property.bathrooms != null) '${property.bathrooms} WC',
       labelOf(propertyTypeLabels, property.propertyType),
@@ -99,14 +99,6 @@ class PropertyCard extends StatelessWidget {
     );
   }
 }
-
-/// 70 → "70", 70.5 → "70,5".
-String _area(double area) => area == area.roundToDouble()
-    ? vnNumber(area.toInt())
-    : area
-          .toStringAsFixed(2)
-          .replaceFirst(RegExp(r'0+$'), '')
-          .replaceAll('.', ',');
 
 class _Cover extends StatelessWidget {
   const _Cover({required this.url});

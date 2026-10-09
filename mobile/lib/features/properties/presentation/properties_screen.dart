@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/format/vn_format.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
@@ -12,7 +14,7 @@ import 'property_list_controller.dart';
 import 'property_search_field.dart';
 
 /// Tab "BĐS": ô tìm kiếm và danh sách BĐS trong phạm vi xem (mới tạo trước, có từ khoá thì khớp nhiều hơn trước).
-/// Nút "Bộ lọc" mở bộ lọc, sắp xếp. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chi tiết ở TASK-121.
+/// Nút "Bộ lọc" mở bộ lọc, sắp xếp. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
 class PropertiesScreen extends ConsumerWidget {
   const PropertiesScreen({super.key});
 
@@ -123,7 +125,12 @@ class PropertiesScreen extends ConsumerWidget {
                         onRetry: controller.loadMore,
                       );
                     }
-                    return PropertyCard(property: value.items[index - 1]);
+                    final property = value.items[index - 1];
+                    return PropertyCard(
+                      property: property,
+                      onTap: () =>
+                          context.push(AppRoutes.propertyDetail(property.id)),
+                    );
                   },
                 ),
               ),

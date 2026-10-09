@@ -29,6 +29,7 @@ import { type ExpiredVerification, PropertyEvents } from './property-events.js';
 import { Property } from './property.entity.js';
 import {
   type PropertyDetailResponse,
+  type PropertyDetailView,
   type PropertyListRow,
   type PropertyOwnerContact,
   type PropertyResponse,
@@ -211,7 +212,7 @@ export class PropertiesService {
    * (không lộ BĐS có tồn tại). Địa chỉ chi tiết và chủ nhà chỉ trả khi BĐS nằm trong phạm vi
    * `property.view_owner_contact` của user (phase0/04-RBAC.md, Q5).
    */
-  async findOne(actor: Actor, id: string, scopes: PropertyScopes): Promise<PropertyDetailResponse> {
+  async findOne(actor: Actor, id: string, scopes: PropertyScopes): Promise<PropertyDetailView> {
     const { entities, raw } = await this.properties
       .createQueryBuilder(actor.tenantId, 'p', (query) =>
         query.where('p.id = :id', { id }).andWhere(this.visibleCondition(scopes)),
@@ -231,7 +232,12 @@ export class PropertiesService {
       flags.ownerContactVisible && property.ownerId
         ? await this.findOwner(actor.tenantId, property.ownerId)
         : null;
-    return toPropertyDetailResponse(property, owner, flags);
+    const names = (await this.locationNames([property.id])).get(property.id);
+    return {
+      ...toPropertyDetailResponse(property, owner, flags),
+      provinceName: names?.province_name ?? '',
+      wardName: names?.ward_name ?? '',
+    };
   }
 
   /**
@@ -366,7 +372,7 @@ export class PropertiesService {
     return new Paginated(items, query.page, query.pageSize, total);
   }
 
-  /** Tên tỉnh, phường/xã của các BĐS trong một trang danh sách (TASK-118). */
+  /** Tên tỉnh, phường/xã của các BĐS (danh sách TASK-118, chi tiết TASK-121). */
   private async locationNames(
     ids: string[],
   ): Promise<Map<string, { province_name: string; ward_name: string }>> {

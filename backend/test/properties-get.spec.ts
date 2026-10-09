@@ -251,6 +251,8 @@ describe('GET /api/v1/properties/:id', () => {
       email: 'chu@a.vn',
       notes: null,
     });
+    assert.equal(data['provinceName'], 'Khánh Hòa');
+    assert.equal(data['wardName'], 'Vĩnh Hải');
     assert.equal('tenantId' in data, false);
   });
 

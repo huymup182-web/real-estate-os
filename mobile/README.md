@@ -121,6 +121,17 @@ lib/
   lọc không ra BĐS nào thì danh sách có nút "Xoá bộ lọc". Đóng bảng không áp dụng thì không đổi gì.
 - Chưa lọc số WC, độ rộng đường (API có sẵn `bathroomsMin/Max`, `roadWidthMin/Max`).
 
+## Chi tiết BĐS (TASK-121)
+
+- Chạm thẻ trong tab "BĐS" mở `/properties/:id` (vẫn trong tab, thanh tab dưới còn), gọi `GET /properties/:id` và
+  `GET /properties/:id/images` riêng (lỗi ảnh không chặn phần thông tin).
+- Ảnh vuốt ngang có số thứ tự, chạm để xem ảnh gốc toàn màn hình (chụm để phóng to). Chưa có ảnh thì ảnh giữ chỗ.
+- Giá gọn và đầy đủ, giá/m², trạng thái, mã, tiêu đề, địa chỉ; thông số (loại, diện tích, phòng, tầng, hướng, đường,
+  pháp lý; trường trống thì ẩn), mô tả, chủ nhà, xác minh và lần cập nhật.
+- Không được xem liên hệ chủ nhà (`ownerContactVisible = false`) thì không có số nhà, phần chủ nhà ghi rõ lý do.
+  BĐS không tồn tại hoặc ngoài phạm vi (404) thì báo "Không tìm thấy BĐS, hoặc bạn không có quyền xem BĐS này.".
+- Kéo xuống tải lại; lỗi thì giữ dữ liệu đang có và báo snackbar. Sửa BĐS ở TASK-123, yêu thích ở TASK-125.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

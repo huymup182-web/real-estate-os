@@ -37,6 +37,7 @@ import {
 import { PropertyImagesService } from './property-images.service.js';
 import type {
   PropertyDetailResponse,
+  PropertyDetailView,
   PropertyListRow,
   PropertyResponse,
 } from './property.response.js';
@@ -163,8 +164,8 @@ export class PropertiesController {
 
   /**
    * `GET /api/v1/properties/:id` → chi tiết BĐS (TASK-050). Cần quyền `property.view`; không xem được → 404.
-   * Địa chỉ chi tiết, chủ nhà chỉ có khi được xem liên hệ chủ nhà (`property.view_owner_contact`).
-   * Mỗi lần xem thành công ghi một lượt xem (TASK-060).
+   * Địa chỉ chi tiết, chủ nhà chỉ có khi được xem liên hệ chủ nhà (`property.view_owner_contact`). Có tên tỉnh,
+   * phường/xã (TASK-121). Mỗi lần xem thành công ghi một lượt xem (TASK-060).
    */
   @Get(':id')
   @RequirePermission('property.view')
@@ -172,7 +173,7 @@ export class PropertiesController {
     @TenantId() tenantId: string,
     @Req() req: { user: RequestUser },
     @Param('id', ParseUuidPipe) id: string,
-  ): Promise<PropertyDetailResponse> {
+  ): Promise<PropertyDetailView> {
     const actor = actorOf(tenantId, req.user);
     const detail = await this.properties.findOne(actor, id, scopesOf(req.user));
     await this.properties.recordView(actor, id);

@@ -115,4 +115,97 @@ void main() {
     expect(normalizeKeyword('a' * 250), hasLength(200));
     expect(normalizeKeyword('${'a' * 199} b'), 'a' * 199);
   });
+
+  test('chi tiết và ảnh: đọc đúng kiểu, trường null', () async {
+    final adapter = FakeAdapter((options) {
+      if (options.path.endsWith('/images')) {
+        return (
+          200,
+          {
+            'success': true,
+            'message': null,
+            'data': [
+              {
+                'id': 'i1',
+                'url': 'https://cdn/1.jpg',
+                'thumbnailUrl': null,
+                'mimeType': 'image/jpeg',
+                'sizeBytes': 1000,
+                'width': null,
+                'height': null,
+                'sortOrder': 0,
+                'isCover': true,
+                'createdAt': '2026-10-01T00:00:00.000Z',
+              },
+            ],
+          },
+        );
+      }
+      return (
+        200,
+        {
+          'success': true,
+          'message': null,
+          'data': {
+            'id': 'p1',
+            'code': 'BDS-000001',
+            'title': 'Nhà phố',
+            'description': null,
+            'transactionType': 'SALE',
+            'propertyType': 'HOUSE',
+            'price': 3500000000,
+            'area': 70.5,
+            'pricePerM2': 49645390,
+            'bedrooms': null,
+            'bathrooms': 2,
+            'floors': null,
+            'direction': null,
+            'roadWidth': 5.5,
+            'roadAccess': null,
+            'legalStatus': 'PRIVATE_BOOK',
+            'provinceId': 'x',
+            'districtId': null,
+            'wardId': 'y',
+            'provinceName': 'Khánh Hòa',
+            'wardName': 'Vĩnh Hải',
+            'streetAddress': null,
+            'latitude': null,
+            'longitude': null,
+            'status': 'AVAILABLE',
+            'ownerId': null,
+            'agentId': 'u1',
+            'verificationStatus': 'UNVERIFIED',
+            'lastVerifiedAt': null,
+            'ownerContactVisible': false,
+            'owner': null,
+            'isFavorite': true,
+            'createdAt': '2026-10-01T00:00:00.000Z',
+            'updatedAt': '2026-10-08T02:30:00.000Z',
+          },
+        },
+      );
+    });
+    final repository = PropertiesRepository(
+      ApiClient(
+        baseUrl: 'https://api.example.vn/api/v1',
+        tokens: MemoryTokenStorage(),
+        dio: Dio()..httpClientAdapter = adapter,
+      ),
+    );
+
+    final detail = await repository.detail('p1');
+    expect(adapter.requests.last.options.path, '/properties/p1');
+    expect(detail.roadWidth, 5.5);
+    expect(detail.pricePerM2, 49645390);
+    expect(detail.bedrooms, isNull);
+    expect(detail.owner, isNull);
+    expect(detail.isFavorite, isTrue);
+    expect(detail.address, 'Vĩnh Hải, Khánh Hòa');
+    expect(detail.updatedAt, DateTime.utc(2026, 10, 8, 2, 30));
+
+    final [image] = await repository.images('p1');
+    expect(adapter.requests.last.options.path, '/properties/p1/images');
+    expect(image.isCover, isTrue);
+    expect(image.thumbnailUrl, isNull);
+  });
 }
