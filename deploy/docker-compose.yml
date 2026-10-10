@@ -1,0 +1,153 @@
+# Production trên một VPS (TASK-160, docs/deployment.md). Chạy trong thư mục deploy/:
+#   ./deploy.sh                      # kéo image, sao lưu, migration, khởi động
+#   docker compose ps | logs backend
+# - deploy/.env (từ env.example): IMAGE_TAG, tên miền. Docker Compose tự đọc file này.
+# - deploy/production.env (từ production.env.example): cấu hình và secret của ứng dụng.
+# Cả hai không commit. Image lấy từ GHCR theo IMAGE_TAG (commit git); `docker compose build` để build tại máy chủ.
+
+# Tên riêng để không trùng project dev (docker-compose.yml ở gốc repo) và volume của nó.
+name: real-estate-os-prod
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    env_file: production.env
+    # Không mở cổng ra ngoài: chỉ backend, migration và sao lưu trong network nội bộ gọi tới.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    shm_size: 256mb
+    healthcheck:
+      # Kiểm qua TCP: lần chạy đầu, server tạm lúc khởi tạo chỉ nghe socket nội bộ.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  backend:
+    image: ${IMAGE_REGISTRY:-ghcr.io/huymup182-web}/real-estate-os-backend:${IMAGE_TAG:?Đặt IMAGE_TAG trong deploy/.env}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: production.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Sau Caddy (một tầng proxy) để lấy đúng IP người gọi cho giới hạn số lần gọi.
+      TRUST_PROXY_HOPS: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Một instance: job định kỳ và giới hạn số lần gọi đang giữ trong bộ nhớ (docs/deployment.md).
+    stop_grace_period: 30s
+    networks: [internal]
+
+  admin:
+    image: ${IMAGE_REGISTRY:-ghcr.io/huymup182-web}/real-estate-os-admin:${IMAGE_TAG:?Đặt IMAGE_TAG trong deploy/.env}
+    build:
+      context: ..
+      dockerfile: admin/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://backend:3000
+      APP_VERSION: ${IMAGE_TAG}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [internal]
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Đặt API_DOMAIN trong deploy/.env}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?Đặt ADMIN_DOMAIN trong deploy/.env}
+      ACME_EMAIL: ${ACME_EMAIL:?Đặt ACME_EMAIL trong deploy/.env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - admin
+    networks: [internal]
+
+  # Lệnh một lần (profile tools): docker compose run --rm migrate [run|show]
+  migrate:
+    image: ${IMAGE_REGISTRY:-ghcr.io/huymup182-web}/real-estate-os-migrate:${IMAGE_TAG:?Đặt IMAGE_TAG trong deploy/.env}
+    build:
+      context: ..
+      dockerfile: database/Dockerfile
+    profiles: [tools]
+    env_file: production.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  # Sao lưu (docs/backup.md): docker compose run --rm backup create | list | check | restore …
+  # Lịch chạy bằng cron của máy chủ (deploy/crontab.example).
+  backup:
+    image: ${IMAGE_REGISTRY:-ghcr.io/huymup182-web}/real-estate-os-backend:${IMAGE_TAG:?Đặt IMAGE_TAG trong deploy/.env}
+    profiles: [tools]
+    env_file: production.env
+    environment:
+      NODE_ENV: production
+    entrypoint: ['node', 'dist/backup/backup.cli.js']
+    command: ['list']
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  # Giám sát (profile monitoring, docs/monitoring.md): docker compose --profile monitoring up -d
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [monitoring]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - ./secrets:/run/secrets:ro
+      - prometheus_data:/prometheus
+    networks: [internal]
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks: [internal]
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    command: ['--path.rootfs=/host']
+    pid: host
+    volumes:
+      - /:/host:ro
+    networks: [internal]
+
+volumes:
+  postgres_data:
+  backups:
+  caddy_data:
+  caddy_config:
+  prometheus_data:
+  alertmanager_data:
+
+networks:
+  internal:

@@ -1,0 +1,27 @@
+# Reverse proxy và HTTPS tự động (Let's Encrypt) cho production (TASK-160, docs/deployment.md).
+# API_DOMAIN, ADMIN_DOMAIN, ACME_EMAIL lấy từ deploy/production.env.
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header -Server
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$API_DOMAIN} {
+	import common
+	# Số liệu giám sát chỉ cho Prometheus trong network nội bộ, không mở ra Internet.
+	@metrics path /api/v1/metrics /api/v1/metrics/*
+	respond @metrics 404
+	reverse_proxy backend:3000
+}
+
+{$ADMIN_DOMAIN} {
+	import common
+	reverse_proxy admin:3001
+}

@@ -1,0 +1,39 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import type { AppConfig } from '../config/app-config.js';
+import { APP_CONFIG } from '../config/app-config.module.js';
+import { SnakeNamingStrategy } from './snake-naming.strategy.js';
+
+/**
+ * Kết nối PostgreSQL qua TypeORM.
+ * - Không dùng `synchronize` và không tự chạy migration: schema chỉ thay đổi qua migration
+ *   trong thư mục database/ (`npm run migration:run`).
+ * - Entity được đăng ký theo từng module nghiệp vụ (`TypeOrmModule.forFeature`), tự nạp vào kết nối.
+ * - Thuộc tính camelCase ↔ cột snake_case qua SnakeNamingStrategy. Entity bảng nghiệp vụ kế thừa
+ *   TenantEntity và chỉ truy vấn qua TenantRepository (luôn lọc theo tenant).
+ */
+@Module({
+  imports: [
+    TypeOrmModule.forRootAsync({
+      inject: [APP_CONFIG],
+      useFactory: (config: AppConfig) => ({
+        type: 'postgres',
+        url: config.databaseUrl,
+        synchronize: false,
+        migrationsRun: false,
+        autoLoadEntities: true,
+        namingStrategy: new SnakeNamingStrategy(),
+        // Không để TypeORM tự log câu lỗi: nó in cả tham số truy vấn (mật khẩu đã băm, email, SĐT).
+        // Lỗi truy vấn đi qua bộ lọc lỗi chung, lỗi 500 được ghi log ở đó.
+        logging: ['warn'],
+        // Tắt JIT của PostgreSQL cho kết nối của ứng dụng (TASK-154): truy vấn báo cáo có chi phí ước tính cao nên
+        // Postgres biên dịch JIT, mất 1–2,5 giây biên dịch cho truy vấn chạy chỉ vài trăm ms (docs/performance.md).
+        extra: { options: '-c jit=off' },
+        retryAttempts: 5,
+        retryDelay: 3000,
+      }),
+    }),
+  ],
+})
+export class DatabaseModule {}

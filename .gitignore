@@ -13,10 +13,13 @@
 # Node.js (backend, admin)
 node_modules/
 dist/
+.test-dist/
 coverage/
 .next/
 out/
 *.tsbuildinfo
+# Next.js tự sinh khi build/typegen (admin)
+next-env.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -53,3 +56,11 @@ desktop.ini
 !.vscode/extensions.json
 *.swp
 *~
+
+# Bản sao lưu database (TASK-157)
+backups/
+
+# Triển khai production (TASK-160): file thật trên máy chủ, có secret
+deploy/production.env
+deploy/secrets/
+deploy/alertmanager/alertmanager.yml

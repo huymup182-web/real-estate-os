@@ -1,0 +1,11 @@
+import { Module } from '@nestjs/common';
+
+import { LocationsController } from './locations.controller.js';
+import { LocationsService } from './locations.service.js';
+
+/** Module danh mục địa giới hành chính (provinces, wards; chỉ đọc). */
+@Module({
+  controllers: [LocationsController],
+  providers: [LocationsService],
+})
+export class LocationsModule {}

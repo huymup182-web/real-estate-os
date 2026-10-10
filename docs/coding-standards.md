@@ -2,14 +2,14 @@
 
 ## Công cụ
 
-| Công cụ           | File cấu hình                             | Phạm vi                                                     |
-| ----------------- | ----------------------------------------- | ----------------------------------------------------------- |
-| EditorConfig      | `.editorconfig`                           | Mọi file: UTF-8, LF, thụt 2 dấu cách, dòng tối đa 100 ký tự |
-| Git line endings  | `.gitattributes`                          | Ép LF trong repo, tránh lỗi CRLF trên Windows               |
-| Prettier          | `.prettierrc.json`, `.prettierignore`     | JS/TS/JSON/YAML/Markdown (trừ `mobile/`)                    |
-| ESLint            | `eslint.config.mjs`                       | JS/TS toàn repo (trừ `mobile/`)                             |
-| TypeScript strict | `tsconfig.base.json`                      | Cấu hình dùng chung; `backend/`, `admin/` extends file này  |
-| Dart/Flutter      | `analysis_options.yaml` (thêm ở TASK-113) | `mobile/`                                                   |
+| Công cụ           | File cấu hình                         | Phạm vi                                                     |
+| ----------------- | ------------------------------------- | ----------------------------------------------------------- |
+| EditorConfig      | `.editorconfig`                       | Mọi file: UTF-8, LF, thụt 2 dấu cách, dòng tối đa 100 ký tự |
+| Git line endings  | `.gitattributes`                      | Ép LF trong repo, tránh lỗi CRLF trên Windows               |
+| Prettier          | `.prettierrc.json`, `.prettierignore` | JS/TS/JSON/YAML/Markdown (trừ `mobile/`)                    |
+| ESLint            | `eslint.config.mjs`                   | JS/TS toàn repo (trừ `mobile/`)                             |
+| TypeScript strict | `tsconfig.base.json`                  | Cấu hình dùng chung; `backend/`, `admin/` extends file này  |
+| Dart/Flutter      | `mobile/analysis_options.yaml`        | `mobile/`                                                   |
 
 Lệnh ở thư mục gốc (cần `npm install` một lần):
 
@@ -51,15 +51,19 @@ Bật `strict` cùng `noImplicitReturns`, `noUncheckedIndexedAccess`, `noImplici
 
 ### Database (PostgreSQL)
 
-| Loại       | Quy ước                     | Ví dụ                               |
-| ---------- | --------------------------- | ----------------------------------- |
-| Bảng       | snake_case, số nhiều        | `properties`, `customer_activities` |
-| Cột        | snake_case                  | `tenant_id`, `created_at`           |
-| Khoá chính | `id` (UUID)                 |                                     |
-| Khoá ngoại | `<bảng số ít>_id`           | `property_id`, `agent_id`           |
-| Index      | `idx_<bảng>_<cột>`          | `idx_properties_tenant_id_status`   |
-| Unique     | `uq_<bảng>_<cột>`           | `uq_users_email`                    |
-| Migration  | `<timestamp>-<mô-tả-kebab>` | `1759550000000-create-companies`    |
+| Loại              | Quy ước                     | Ví dụ                               |
+| ----------------- | --------------------------- | ----------------------------------- |
+| Bảng              | snake_case, số nhiều        | `properties`, `customer_activities` |
+| Cột               | snake_case                  | `tenant_id`, `created_at`           |
+| Khoá chính        | `id` (UUID)                 |                                     |
+| Khoá ngoại        | `<bảng số ít>_id`           | `property_id`, `agent_id`           |
+| Index             | `idx_<bảng>_<cột>`          | `idx_properties_tenant_id_status`   |
+| Unique            | `uq_<bảng>_<cột>`           | `uq_users_email`                    |
+| Tên constraint PK | `pk_<bảng>`                 | `pk_companies`                      |
+| Tên constraint FK | `fk_<bảng>_<cột>`           | `fk_teams_department_id`            |
+| Check             | `ck_<bảng>_<mô tả>`         | `ck_companies_status`               |
+| Trigger           | `trg_<bảng>_<mô tả>`        | `trg_companies_updated_at`          |
+| Migration         | `<timestamp>-<mô-tả-kebab>` | `1759550000000-create-companies`    |
 
 ### API
 

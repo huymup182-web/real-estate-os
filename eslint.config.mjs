@@ -10,10 +10,12 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      '**/.test-dist/**',
       '**/build/**',
       '**/coverage/**',
       '**/.next/**',
       '**/out/**',
+      '**/next-env.d.ts',
       'mobile/**',
     ],
   },
@@ -61,6 +63,20 @@ export default tseslint.config(
       '@typescript-eslint/no-require-imports': 'off',
       'no-console': 'off',
     },
+  },
+
+  // NestJS: module là class rỗng gắn decorator @Module
+  {
+    files: ['backend/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
+    },
+  },
+
+  // CLI in thông báo ra terminal
+  {
+    files: ['**/cli.ts'],
+    rules: { 'no-console': 'off' },
   },
 
   {

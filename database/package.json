@@ -1,0 +1,22 @@
+{
+  "name": "@real-estate-os/database",
+  "private": true,
+  "description": "Migration TypeORM cho PostgreSQL của AI Real Estate OS",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "migration:run": "node --env-file-if-exists=../.env.development --env-file-if-exists=../.env src/cli.ts run",
+    "migration:revert": "node --env-file-if-exists=../.env.development --env-file-if-exists=../.env src/cli.ts revert",
+    "migration:show": "node --env-file-if-exists=../.env.development --env-file-if-exists=../.env src/cli.ts show",
+    "migration:create": "node src/cli.ts create",
+    "seed": "node --env-file-if-exists=../.env.development --env-file-if-exists=../.env src/cli.ts seed",
+    "test": "node --env-file-if-exists=../.env.development --env-file-if-exists=../.env --test --test-concurrency=1 'test/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "2.2.1",
+    "pg": "8.23.1",
+    "typeorm": "1.1.1"
+  }
+}

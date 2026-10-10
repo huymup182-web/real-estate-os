@@ -25,6 +25,16 @@ services:
     networks:
       - internal
 
+  # Hộp thư giả cho dev: nhận mọi email backend gửi qua SMTP, xem tại http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    ports:
+      - '${MAILPIT_SMTP_PORT:-1025}:1025'
+      - '${MAILPIT_UI_PORT:-8025}:8025'
+    networks:
+      - internal
+
   backend:
     build:
       context: .
@@ -42,6 +52,9 @@ services:
       DEV_SCRIPT: start:dev
       # Trong network nội bộ, backend gọi database qua tên service "postgres"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-real_estate_os}
+      # Email dev gửi tới Mailpit trong network nội bộ
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
     ports:
       - '${BACKEND_PORT:-3000}:3000'
     volumes:
@@ -50,6 +63,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     networks:
       - internal
 

@@ -14,6 +14,7 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 ├── database/   # Thiết kế, migration, seed PostgreSQL
 ├── docs/       # Tài liệu dự án
 ├── scripts/    # Script hỗ trợ phát triển
+├── deploy/     # Triển khai production: Docker Compose, Caddy, giám sát (docs/deployment.md)
 ├── docker-compose.yml
 ├── eslint.config.mjs   # ESLint dùng chung
 ├── tsconfig.base.json  # TypeScript strict dùng chung
@@ -70,6 +71,10 @@ npm run check    # lint + format + typecheck, phải pass trước khi commit
 ```
 
 Chi tiết và quy ước đặt tên: [docs/coding-standards.md](docs/coding-standards.md).
+
+## Git workflow
+
+Branch `main` / `develop` / `feature/*` / `fix/*`, commit theo Conventional Commits. Chi tiết: [docs/git-workflow.md](docs/git-workflow.md) và [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quy trình phát triển
 
