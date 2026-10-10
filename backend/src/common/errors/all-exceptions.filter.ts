@@ -41,6 +41,7 @@ const CODE_BY_STATUS: Readonly<Record<number, ErrorCode>> = {
   409: ErrorCode.CONFLICT,
   422: ErrorCode.BUSINESS_RULE_VIOLATION,
   429: ErrorCode.RATE_LIMITED,
+  503: ErrorCode.SERVICE_UNAVAILABLE,
 };
 
 /**

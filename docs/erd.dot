@@ -54,6 +54,7 @@ digraph erd {
     refresh_tokens [label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="#3c4043"><font color="white"><b>refresh_tokens (TASK-040)</b></font></td></tr><tr><td align="left">id PK</td></tr><tr><td align="left">user_id FK</td></tr><tr><td align="left">token_hash UQ</td></tr><tr><td align="left">family_id</td></tr></table>>];
     password_reset_tokens [label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="#3c4043"><font color="white"><b>password_reset_tokens (TASK-042)</b></font></td></tr><tr><td align="left">id PK</td></tr><tr><td align="left">user_id FK</td></tr><tr><td align="left">token_hash UQ</td></tr></table>>];
     device_tokens [label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="#3c4043"><font color="white"><b>device_tokens (TASK-094)</b></font></td></tr><tr><td align="left">id PK</td></tr><tr><td align="left">user_id FK</td></tr><tr><td align="left">fcm_token UQ</td></tr></table>>];
+    ai_requests [label=<<table border="0" cellborder="1" cellspacing="0" cellpadding="3" bgcolor="white"><tr><td bgcolor="#3c4043"><font color="white"><b>ai_requests (TASK-133)</b></font></td></tr><tr><td align="left">id PK</td></tr><tr><td align="left">user_id FK</td></tr><tr><td align="left">tenant_id FK</td></tr><tr><td align="left">feature</td></tr><tr><td align="left">status</td></tr></table>>];
   }
   departments -> companies;
   teams -> departments;
@@ -101,4 +102,5 @@ digraph erd {
   refresh_tokens -> users;
   password_reset_tokens -> users;
   device_tokens -> users;
+  ai_requests -> users;
 }

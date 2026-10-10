@@ -9,6 +9,7 @@ export enum ErrorCode {
   DUPLICATE_SUSPECTED = 'DUPLICATE_SUSPECTED',
   BUSINESS_RULE_VIOLATION = 'BUSINESS_RULE_VIOLATION',
   RATE_LIMITED = 'RATE_LIMITED',
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
 }
 
@@ -26,5 +27,9 @@ export const ERROR_DEFAULTS: Readonly<Record<ErrorCode, { status: number; messag
     message: 'Thao tác vi phạm quy tắc nghiệp vụ',
   },
   [ErrorCode.RATE_LIMITED]: { status: 429, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau' },
+  [ErrorCode.SERVICE_UNAVAILABLE]: {
+    status: 503,
+    message: 'Dịch vụ tạm thời không khả dụng, vui lòng thử lại sau',
+  },
   [ErrorCode.INTERNAL_ERROR]: { status: 500, message: 'Có lỗi hệ thống, vui lòng thử lại sau' },
 };

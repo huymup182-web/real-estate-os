@@ -55,6 +55,7 @@ function configWith(mail: MailConfig | null): AppConfig {
     mail,
     storage: null,
     fcm: null,
+    ai: null,
   };
 }
 

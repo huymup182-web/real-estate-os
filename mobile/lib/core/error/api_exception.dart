@@ -10,6 +10,7 @@ abstract final class ErrorCodes {
   static const duplicateSuspected = 'DUPLICATE_SUSPECTED';
   static const businessRuleViolation = 'BUSINESS_RULE_VIOLATION';
   static const rateLimited = 'RATE_LIMITED';
+  static const serviceUnavailable = 'SERVICE_UNAVAILABLE';
   static const internalError = 'INTERNAL_ERROR';
   static const networkError = 'NETWORK_ERROR';
   static const unknown = 'UNKNOWN';
