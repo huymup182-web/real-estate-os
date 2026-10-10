@@ -26,6 +26,7 @@ function serviceWith(storage: StorageConfig | null): StorageService {
     mail: null,
     storage,
     fcm: null,
+    ai: null,
   } satisfies AppConfig);
 }
 

@@ -794,3 +794,14 @@ Module `src/deals` (bảng `deals`, docs/database.md mục 4.7; đọc khách qu
 
 - `GET /api/v1/audit-logs?entityType&entityId&userId&action&from&to&page&pageSize` → mới nhất trước. Mỗi dòng: `{id, user {id, fullName} | null, action, entityType, entityId, changes {field: [cũ, mới]}, ipAddress, userAgent, requestId, createdAt}`.
 - `entityType` chữ thường (vd `property`), `action` dạng `module.hanh_dong` (vd `deal.change_stage`), `entityId`/`userId` là UUID, `from` (gồm) và `to` (không gồm) là thời điểm ISO 8601; `from` ≥ `to` → 400. Chỉ thấy nhật ký của công ty mình.
+
+## AI gateway (TASK-133)
+
+Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời gọi AI đi Mobile → Backend → `AiGatewayService` → LLM; API key (`AI_API_KEY`, docs/environment.md) chỉ nằm ở backend. Không có API gọi LLM tự do: mỗi tính năng AI (TASK-134+) có route riêng, kiểm quyền của nghiệp vụ đó rồi gọi gateway.
+
+- `AiGatewayService.complete(user, {feature, system?, messages, tools?, forceTool?, maxTokens?})` → `{text, toolCalls [{id, name, input}], stopReason, usage}`. `forceTool` bắt LLM gọi đúng một tool để lấy kết quả có cấu trúc. `maxTokens` mặc định 1024, tối đa 8192. LLM chỉ đề xuất tool + tham số; backend tự chạy tool qua service với quyền + tenant của user.
+- Adapter `LlmProvider`; hiện có `AnthropicProvider` gọi thẳng Messages API bằng `fetch` (không SDK), timeout `AI_TIMEOUT_MS`. Thêm nhà cung cấp = thêm adapter và giá trị `AI_PROVIDER`.
+- Mỗi người tối đa `AI_USER_DAILY_LIMIT` lượt (mặc định 100) trong 24 giờ gần nhất, tính cả lượt lỗi; hết lượt → 429 `RATE_LIMITED`, không gọi LLM.
+- Mỗi lượt ghi một dòng `ai_requests` (user, tenant, tính năng, model, tool LLM đã gọi, số token, thời gian, `requestId`); không lưu nội dung prompt/câu trả lời.
+- Lỗi nhà cung cấp không trả nguyên văn cho client: LLM quá tải (429) → 429 `RATE_LIMITED`, lỗi khác (timeout, mạng, 5xx, sai khoá) → 503 `SERVICE_UNAVAILABLE`. Chưa đặt `AI_API_KEY` → 503 "Tính năng AI chưa được bật".
+- `GET /api/v1/ai/status` (chỉ cần đăng nhập) → `{enabled, dailyLimit, used, remaining}`; app dựa vào đây để ẩn/hiện tính năng AI. AI tắt thì `dailyLimit`, `remaining` là null.

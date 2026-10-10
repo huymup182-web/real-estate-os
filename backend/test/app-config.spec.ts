@@ -24,6 +24,7 @@ describe('loadAppConfig', () => {
       mail: null,
       storage: null,
       fcm: null,
+      ai: null,
     });
   });
 
@@ -236,5 +237,46 @@ describe('loadAppConfig', () => {
       /private_key không phải khoá PEM/,
     );
     assert.throws(load(encode({ ...account, token_uri: 'ftp://x' })), /token_uri không hợp lệ/);
+  });
+
+  it('AI: không bắt buộc; mặc định Anthropic, giới hạn 100 lượt/24 giờ; từ chối cấu hình sai', () => {
+    assert.equal(loadAppConfig({ DATABASE_URL, JWT_SECRET }).ai, null);
+    assert.equal(loadAppConfig({ DATABASE_URL, JWT_SECRET, AI_API_KEY: '  ' }).ai, null);
+    assert.deepEqual(loadAppConfig({ DATABASE_URL, JWT_SECRET, AI_API_KEY: 'sk-test' }).ai, {
+      provider: 'anthropic',
+      apiKey: 'sk-test',
+      model: 'claude-opus-5-5',
+      baseUrl: 'https://api.anthropic.com',
+      timeoutMs: 60_000,
+      userDailyLimit: 100,
+    });
+    assert.deepEqual(
+      loadAppConfig({
+        DATABASE_URL,
+        JWT_SECRET,
+        AI_API_KEY: 'sk-test',
+        AI_PROVIDER: 'anthropic',
+        AI_MODEL: 'claude-sonnet-5-5',
+        AI_BASE_URL: 'http://localhost:9/',
+        AI_TIMEOUT_MS: '5000',
+        AI_USER_DAILY_LIMIT: '20',
+      }).ai,
+      {
+        provider: 'anthropic',
+        apiKey: 'sk-test',
+        model: 'claude-sonnet-5-5',
+        baseUrl: 'http://localhost:9',
+        timeoutMs: 5000,
+        userDailyLimit: 20,
+      },
+    );
+
+    const load = (extra: Record<string, string>) => () =>
+      loadAppConfig({ DATABASE_URL, JWT_SECRET, AI_API_KEY: 'sk-test', ...extra });
+    assert.throws(load({ AI_PROVIDER: 'openai' }), /AI_PROVIDER không hợp lệ/);
+    assert.throws(load({ AI_BASE_URL: 'ftp://x' }), /AI_BASE_URL không hợp lệ/);
+    assert.throws(load({ AI_TIMEOUT_MS: '0' }), /AI_TIMEOUT_MS không hợp lệ/);
+    assert.throws(load({ AI_TIMEOUT_MS: '1.5' }), /AI_TIMEOUT_MS không hợp lệ/);
+    assert.throws(load({ AI_USER_DAILY_LIMIT: 'abc' }), /AI_USER_DAILY_LIMIT không hợp lệ/);
   });
 });

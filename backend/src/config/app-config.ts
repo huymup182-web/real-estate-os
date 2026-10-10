@@ -18,7 +18,36 @@ export interface AppConfig {
   storage: StorageConfig | null;
   /** null khi chưa đặt FCM_CONFIG: thông báo chỉ lưu hộp thư, không đẩy tới thiết bị. */
   fcm: FcmConfig | null;
+  /** null khi chưa đặt AI_API_KEY: các tính năng AI tắt, API AI trả 503. */
+  ai: AiConfig | null;
 }
+
+/** Nhà cung cấp LLM gateway hỗ trợ (TASK-133). Thêm nhà cung cấp = thêm adapter `LlmProvider`. */
+export const AI_PROVIDERS = ['anthropic'] as const;
+export type AiProviderName = (typeof AI_PROVIDERS)[number];
+
+/** LLM mà AI gateway của backend gọi tới (TASK-133). */
+export interface AiConfig {
+  provider: AiProviderName;
+  /** Khoá API nhà cung cấp LLM. Là secret, không bao giờ ghi log hay trả cho client. */
+  apiKey: string;
+  model: string;
+  /** Gốc URL API của nhà cung cấp; đổi được để đi qua proxy hoặc test với máy chủ giả. */
+  baseUrl: string;
+  timeoutMs: number;
+  /** Số lượt gọi AI tối đa của một người trong 24 giờ gần nhất. */
+  userDailyLimit: number;
+}
+
+const DEFAULT_AI_PROVIDER: AiProviderName = 'anthropic';
+const DEFAULT_AI_MODELS: Readonly<Record<AiProviderName, string>> = {
+  anthropic: 'claude-opus-5-5',
+};
+const DEFAULT_AI_BASE_URLS: Readonly<Record<AiProviderName, string>> = {
+  anthropic: 'https://api.anthropic.com',
+};
+const DEFAULT_AI_TIMEOUT_MS = 60_000;
+const DEFAULT_AI_USER_DAILY_LIMIT = 100;
 
 /** Service account Firebase dùng gọi FCM HTTP v1 (TASK-093). */
 export interface FcmConfig {
@@ -143,6 +172,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     mail: loadMailConfig(env, nodeEnv),
     storage: loadStorageConfig(env, nodeEnv),
     fcm: loadFcmConfig(env),
+    ai: loadAiConfig(env),
   };
 }
 
@@ -271,4 +301,45 @@ function loadFcmConfig(env: NodeJS.ProcessEnv): FcmConfig | null {
   }
 
   return { projectId, clientEmail, privateKey, tokenUri };
+}
+
+function isAiProvider(value: string): value is AiProviderName {
+  return (AI_PROVIDERS as readonly string[]).includes(value);
+}
+
+function positiveInt(env: NodeJS.ProcessEnv, name: string, fallback: number, max: number): number {
+  const raw = env[name] || String(fallback);
+  const value = Number(raw);
+  if (!/^\d+$/.test(raw) || value < 1 || value > max) {
+    throw new Error(`${name} không hợp lệ: "${raw}" (cần số nguyên 1–${max})`);
+  }
+  return value;
+}
+
+/** AI không bắt buộc ở môi trường nào: để trống AI_API_KEY thì tắt AI; đặt mà cấu hình sai thì dừng ngay. */
+function loadAiConfig(env: NodeJS.ProcessEnv): AiConfig | null {
+  const apiKey = env['AI_API_KEY']?.trim();
+  if (!apiKey) {
+    return null;
+  }
+
+  const provider = env['AI_PROVIDER'] || DEFAULT_AI_PROVIDER;
+  if (!isAiProvider(provider)) {
+    throw new Error(`AI_PROVIDER không hợp lệ: "${provider}" (cần ${AI_PROVIDERS.join(' | ')})`);
+  }
+
+  const model = env['AI_MODEL']?.trim() || DEFAULT_AI_MODELS[provider];
+  const baseUrl = env['AI_BASE_URL'] || DEFAULT_AI_BASE_URLS[provider];
+  if (!isHttpUrl(baseUrl)) {
+    throw new Error(`AI_BASE_URL không hợp lệ: "${baseUrl}" (cần http:// hoặc https://)`);
+  }
+
+  return {
+    provider,
+    apiKey,
+    model,
+    baseUrl: baseUrl.replace(/\/+$/, ''),
+    timeoutMs: positiveInt(env, 'AI_TIMEOUT_MS', DEFAULT_AI_TIMEOUT_MS, 600_000),
+    userDailyLimit: positiveInt(env, 'AI_USER_DAILY_LIMIT', DEFAULT_AI_USER_DAILY_LIMIT, 100_000),
+  };
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 
+import { AiModule } from './ai/ai.module.js';
 import { AppointmentsModule } from './appointments/appointments.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CommonModule } from './common/common.module.js';
@@ -43,6 +44,7 @@ import { UsersModule } from './users/users.module.js';
     CompanyModule,
     TeamsModule,
     LocationsModule,
+    AiModule,
   ],
 })
 export class AppModule {}

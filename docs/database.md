@@ -57,6 +57,7 @@ Ký hiệu trong tài liệu: `PK` khoá chính, `FK` khoá ngoại, `UQ` unique
 | Audit                   | `audit_logs`                                                                                                                    | 025                 |
 | Xác thực (Phase 3)      | `refresh_tokens`, `password_reset_tokens`                                                                                       | 040, 042            |
 | Thiết bị (Phase 8)      | `device_tokens`                                                                                                                 | 094                 |
+| AI (Phase 11)           | `ai_requests`                                                                                                                   | 133                 |
 
 `user_roles` không có tên riêng trong roadmap nhưng bắt buộc để gán role cho user (một user có thể nhiều role); tạo cùng TASK-009. Ba bảng xác thực/thiết bị được thiết kế ở đây để ERD đầy đủ, nhưng chỉ tạo ở task tương ứng.
 
@@ -488,6 +489,10 @@ Trigger chặn `UPDATE`, `DELETE`, `TRUNCATE` trên `audit_logs`, nên công ty 
 
 **device_tokens** (FCM, TASK-094): `id` PK · `user_id` FK users (xoá user thì xoá token) · `tenant_id` NULL · `fcm_token` text NOT NULL UQ (không rỗng, ≤ 4096 ký tự; một thiết bị chỉ thuộc người đăng nhập gần nhất) · `platform` `ANDROID` \| `IOS` \| `WEB` · `last_seen_at` NOT NULL (lần đăng ký/làm mới gần nhất) · `created_at`. Index (`user_id`, `last_seen_at` DESC). Trigger đảm bảo `tenant_id` trùng công ty của user.
 
+### 4.11 AI (Phase 11)
+
+**ai_requests** (mỗi lượt gọi LLM qua AI gateway, TASK-133): `id` PK · `tenant_id` NULL FK companies (RESTRICT) · `user_id` NOT NULL FK users (RESTRICT) · `feature` varchar(50) NOT NULL (chữ thường và `_`, vd `search`) · `provider` varchar(30), `model` varchar(100) NOT NULL, không rỗng · `status` `SUCCESS` \| `ERROR` · `input_tokens`, `output_tokens` integer NULL (≥ 0) · `tool_names` text[] NOT NULL DEFAULT `'{}'` (tool LLM đã gọi) · `error_code` varchar(50) (có khi và chỉ khi `ERROR`) · `latency_ms` integer NOT NULL (≥ 0) · `request_id` varchar(100) NULL · `created_at`. Index (`user_id`, `created_at` DESC) để đếm lượt trong 24 giờ, (`tenant_id`, `created_at` DESC) cho báo cáo. Trigger đảm bảo `tenant_id` trùng công ty của user. Không lưu nội dung prompt/câu trả lời vì có thể chứa dữ liệu khách hàng.
+
 ## 5. Quan hệ chính
 
 ```text
@@ -501,7 +506,7 @@ properties 1──* property_images, property_documents, property_views, propert
 users (agent) 1──* customers 1──* customer_preferences, customer_activities
 customers *──* properties qua appointments và deals
 deals 1──* commissions *──1 users
-users 1──* notifications, saved_searches, refresh_tokens, device_tokens
+users 1──* notifications, saved_searches, refresh_tokens, device_tokens, ai_requests
 ```
 
 ## 6. Chiến lược index (TASK-026)
