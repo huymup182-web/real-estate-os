@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/clock.dart';
 import '../../../core/format/vn_format.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
@@ -22,6 +24,7 @@ class HomeScreen extends ConsumerWidget {
     final stats = ref.watch(dashboardStatsProvider);
     final appointments = ref.watch(upcomingAppointmentsProvider);
     final theme = Theme.of(context);
+    final canViewAppointments = user?.can('appointment.view') ?? false;
 
     Future<void> refresh() async {
       ref
@@ -34,7 +37,17 @@ class HomeScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trang chủ')),
+      appBar: AppBar(
+        title: const Text('Trang chủ'),
+        actions: [
+          if (canViewAppointments)
+            IconButton(
+              tooltip: 'Lịch hẹn',
+              icon: const Icon(Icons.calendar_month_outlined),
+              onPressed: () => context.push(AppRoutes.calendar),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: refresh,
         child: ListView(
@@ -69,7 +82,13 @@ class HomeScreen extends ConsumerWidget {
                 appointments.isLoading ||
                 appointments.hasError) ...[
               const SizedBox(height: AppSpacing.s24),
-              const _SectionTitle('Lịch hẹn sắp tới'),
+              _SectionTitle(
+                'Lịch hẹn sắp tới',
+                action: TextButton(
+                  onPressed: () => context.push(AppRoutes.calendar),
+                  child: const Text('Xem lịch'),
+                ),
+              ),
               appointments.when(
                 data: (items) => items!.isEmpty
                     ? Padding(
@@ -123,14 +142,22 @@ String firstName(String fullName) {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
+  const _SectionTitle(this.text, {this.action});
 
   final String text;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-    child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+        ),
+        ?action,
+      ],
+    ),
   );
 }
 

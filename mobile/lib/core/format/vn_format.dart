@@ -5,6 +5,11 @@ const _vnOffset = Duration(hours: 7);
 /// Thời điểm [at] đổi sang "đồng hồ" Việt Nam (đọc year/month/day/hour... là giờ Việt Nam).
 DateTime toVn(DateTime at) => at.toUtc().add(_vnOffset);
 
+/// Thời điểm 0 giờ (giờ Việt Nam) của ngày [year]/[month]/[day], dạng UTC. Tháng/ngày tràn thì tự sang tháng sau
+/// (như `DateTime.utc`).
+DateTime vnDayStart(int year, int month, int day) =>
+    DateTime.utc(year, month, day).subtract(_vnOffset);
+
 String _two(int value) => value.toString().padLeft(2, '0');
 
 /// `08:30`.
@@ -28,6 +33,10 @@ const _weekdays = [
   'Thứ 7',
   'Chủ nhật',
 ];
+
+/// `Thứ 6, 16/10/2026` (theo giờ Việt Nam).
+String vnWeekdayDate(DateTime at) =>
+    '${_weekdays[toVn(at).weekday - 1]}, ${vnDate(at)}';
 
 /// Ngày của [at] so với [now] theo giờ Việt Nam: `Hôm nay`, `Ngày mai`, `Hôm qua`, còn lại `Thứ 6, 16/10`
 /// (khác năm thì thêm năm).
