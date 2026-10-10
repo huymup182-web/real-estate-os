@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
+import { RateLimiter } from '../common/rate-limit/rate-limiter.js';
 import { MailModule } from '../mail/mail.module.js';
 import { AccessTokenService } from './access-token.service.js';
 import { AuthController } from './auth.controller.js';
@@ -24,6 +25,7 @@ import { TenantGuard } from './tenant.guard.js';
     PasswordResetService,
     PermissionService,
     CurrentUserService,
+    RateLimiter,
     // Thứ tự đăng ký = thứ tự chạy: xác thực token rồi mới kiểm tenant/tài khoản.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },

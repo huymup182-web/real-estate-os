@@ -963,3 +963,16 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - `lost`: khách chuyển sang LOST mà chưa chốt.
 - `medianDaysToContact`, `medianDaysToWin`: số ngày giữa từ lúc tạo khách đến lần liên hệ đầu, đến lúc giao dịch WON đầu tiên chốt. Sự kiện ghi trước lúc tạo khách (dữ liệu nhập lại) tính là 0 ngày.
 - `bySource`: đủ mọi nguồn khách, `key: null` (chưa ghi nguồn) ở cuối. `byAgent`: theo người phụ trách (`key: null` là chưa giao), nhiều lead trước. Mỗi nhóm có `leads`, `contacted`, `won`, `conversionRate` (won / leads, %).
+
+## Bảo mật (TASK-155)
+
+Kết quả rà soát theo MASTER_PLAN mục 29: [docs/security-audit.md](../docs/security-audit.md).
+
+- Giới hạn số lần gọi route xác thực công khai (`src/auth/auth-rate-limits.ts`), quá thì 429 `RATE_LIMITED` kèm `Retry-After`.
+  - Đăng nhập: chỉ đếm lần sai; 10 lần mỗi tài khoản, 50 lần mỗi IP trong 15 phút.
+  - Quên mật khẩu: 5 lần mỗi email, 20 lần mỗi IP trong 15 phút.
+  - Đặt lại mật khẩu: 10 lần mỗi email, 30 lần mỗi IP trong 15 phút.
+  - Đăng ký: 20 lần/giờ mỗi IP. Refresh: 300 lần/5 phút mỗi IP.
+  - Bộ đếm nằm trong bộ nhớ từng instance (`src/common/rate-limit/rate-limiter.ts`).
+- Mọi response có header bảo mật (`src/common/security/security-headers.ts`), HSTS ở production, không có `X-Powered-By`. Không bật CORS.
+- Chạy sau load balancer/reverse proxy: đặt `TRUST_PROXY_HOPS` bằng số proxy để lấy đúng IP người gọi.

@@ -1,7 +1,10 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 
+import { AppException } from '../common/errors/app.exception.js';
+import { ErrorCode } from '../common/errors/error-code.js';
+import { RateLimiter } from '../common/rate-limit/rate-limiter.js';
 import type { AuthenticatedUser } from './access-token.service.js';
-
+import { accountKey, AUTH_RATE_LIMITS as LIMITS } from './auth-rate-limits.js';
 import { AuthService, type RegisterResult } from './auth.service.js';
 import { type ClientRequest, clientInfoFrom } from './client-info.js';
 import { type CurrentUser, CurrentUserService } from './current-user.service.js';
@@ -15,7 +18,10 @@ import { type ForgotPasswordResult, PasswordResetService } from './password-rese
 import { Public } from './public.decorator.js';
 import { RefreshTokenService, type TokenPair } from './refresh-token.service.js';
 
-/** register/login/refresh/forgot-password/reset-password là route công khai; logout và me cần access token. */
+/**
+ * register/login/refresh/forgot-password/reset-password là route công khai; logout và me cần access token.
+ * Route công khai có giới hạn số lần gọi theo IP và theo tài khoản (TASK-155, `auth-rate-limits.ts`), quá thì 429.
+ */
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -24,12 +30,14 @@ export class AuthController {
     private readonly refreshTokens: RefreshTokenService,
     private readonly passwordReset: PasswordResetService,
     private readonly currentUser: CurrentUserService,
+    private readonly limiter: RateLimiter,
   ) {}
 
   /** `POST /api/v1/auth/register` → 201. Không trả token: đăng nhập ở `POST /auth/login` (TASK-037). */
   @Public()
   @Post('register')
-  register(@Body() dto: RegisterDto): Promise<RegisterResult> {
+  register(@Body() dto: RegisterDto, @Req() req: ClientRequest): Promise<RegisterResult> {
+    this.limiter.consume(LIMITS.registerPerIp, ipKey(req));
     return this.authService.register(dto);
   }
 
@@ -37,8 +45,22 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  login(@Body() dto: LoginDto, @Req() req: ClientRequest): Promise<LoginResult> {
-    return this.loginService.login(dto, clientInfoFrom(req));
+  async login(@Body() dto: LoginDto, @Req() req: ClientRequest): Promise<LoginResult> {
+    const ip = ipKey(req);
+    const account = accountKey(dto.identifier);
+    this.limiter.check(LIMITS.loginFailuresPerIp, ip);
+    this.limiter.check(LIMITS.loginFailuresPerAccount, account);
+    try {
+      const result = await this.loginService.login(dto, clientInfoFrom(req));
+      this.limiter.reset(LIMITS.loginFailuresPerAccount, account);
+      return result;
+    } catch (error) {
+      if (error instanceof AppException && error.code === ErrorCode.UNAUTHENTICATED) {
+        this.limiter.hit(LIMITS.loginFailuresPerIp, ip);
+        this.limiter.hit(LIMITS.loginFailuresPerAccount, account);
+      }
+      throw error;
+    }
   }
 
   /** `POST /api/v1/auth/refresh` → 200 cặp token mới `{ accessToken, refreshToken, expiresIn }` (TASK-040). */
@@ -46,6 +68,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto, @Req() req: ClientRequest): Promise<TokenPair> {
+    this.limiter.consume(LIMITS.refreshPerIp, ipKey(req));
     return this.refreshTokens.rotate(dto.refreshToken, clientInfoFrom(req));
   }
 
@@ -66,7 +89,12 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(200)
-  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<ForgotPasswordResult> {
+  forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+    @Req() req: ClientRequest,
+  ): Promise<ForgotPasswordResult> {
+    this.limiter.consume(LIMITS.forgotPerIp, ipKey(req));
+    this.limiter.consume(LIMITS.forgotPerEmail, accountKey(dto.email));
     return this.passwordReset.requestReset(dto.email);
   }
 
@@ -77,7 +105,9 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(204)
-  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: ClientRequest): Promise<void> {
+    this.limiter.consume(LIMITS.resetPerIp, ipKey(req));
+    this.limiter.consume(LIMITS.resetPerEmail, accountKey(dto.email));
     await this.passwordReset.resetPassword(dto.email, dto.code, dto.newPassword);
   }
 
@@ -86,4 +116,9 @@ export class AuthController {
   me(@Req() req: { user: AuthenticatedUser }): Promise<CurrentUser> {
     return this.currentUser.get(req.user);
   }
+}
+
+/** Khoá giới hạn theo IP; không xác định được IP thì gộp chung một khoá. */
+function ipKey(req: ClientRequest): string {
+  return clientInfoFrom(req).ipAddress ?? 'unknown';
 }

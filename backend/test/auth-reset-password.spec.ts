@@ -12,6 +12,7 @@ import {
   INVALID_RESET_CODE_MESSAGE,
   RESET_CODE_MAX_ATTEMPTS,
 } from '../src/auth/password-reset.service.js';
+import { RateLimiter } from '../src/common/rate-limit/rate-limiter.js';
 import { type MailMessage, MailService } from '../src/mail/mail.service.js';
 import { useTestDatabase } from './support/test-database.js';
 
@@ -61,6 +62,8 @@ describe('POST /api/v1/auth/reset-password', () => {
 
   beforeEach(() => {
     sent.length = 0;
+    // Giới hạn số lần gọi (TASK-155) có test riêng ở security.spec.ts; ở đây mỗi ca bắt đầu từ 0.
+    app.get(RateLimiter).clear();
   });
 
   function post(path: string, payload: unknown): Promise<Response> {

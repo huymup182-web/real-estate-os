@@ -23,6 +23,7 @@ function serviceWith(storage: StorageConfig | null): StorageService {
     databaseUrl: 'postgresql://u:p@localhost:5432/x',
     logLevel: 'log',
     jwtSecret: 'khoa-test-du-dai-it-nhat-32-ky-tu-abc',
+    trustProxyHops: 0,
     mail: null,
     storage,
     fcm: null,
