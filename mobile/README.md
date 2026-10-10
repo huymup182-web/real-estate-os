@@ -214,6 +214,19 @@ lib/
   `POST /appointments/:id/status` kèm `expectedUpdatedAt`; người khác vừa sửa (409) thì báo và tải lại. Xong thì
   lịch tháng và lịch sắp tới ở trang chủ tải lại.
 
+## Thông báo (TASK-130)
+
+- Tab "Thông báo": hộp thư của người đang đăng nhập (`GET /notifications`, 20/trang, mới nhất trước), cuộn gần
+  cuối thì tải thêm, kéo xuống để tải lại; nút "Chưa đọc" lọc `unread=true`. Thông báo chưa đọc có chấm và chữ
+  đậm.
+- Tab có số chưa đọc (`GET /notifications/unread-count`, lỗi thì ẩn); chuyển sang tab thì tải lại hộp thư và số.
+- Chạm thông báo → `POST /notifications/:id/read` (đổi ngay trên màn hình, lỗi thì trả lại) và mở màn hình liên
+  quan như web admin: lịch hẹn → lịch, `propertyId` → chi tiết BĐS, `customerId` → chi tiết khách, nhắc xác minh
+  nhiều BĐS → danh sách BĐS. Chỉ nhận id dạng UUID.
+- "Đánh dấu đã đọc tất cả" → `POST /notifications/read-all`.
+- Chưa nhận tin đẩy (FCM) trên điện thoại: cần cấu hình Firebase của dự án (`google-services.json`,
+  `GoogleService-Info.plist`) và thư viện `firebase_messaging`, làm khi có cấu hình.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):
