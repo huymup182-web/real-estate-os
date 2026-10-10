@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
-import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
@@ -14,16 +13,12 @@ import type { AuthenticatedUser } from '../src/auth/access-token.service.js';
 import { AppException } from '../src/common/errors/app.exception.js';
 import { ErrorCode } from '../src/common/errors/error-code.js';
 import type { AppConfig } from '../src/config/app-config.js';
+import { type FakeLlm, startFakeLlm, setEnv } from './support/fake-llm.js';
 import { useTestDatabase } from './support/test-database.js';
 
 const PASSWORD = 'mat-khau-dung-8';
 const API_KEY = 'sk-ant-khoa-test';
 const DAILY_LIMIT = 3;
-
-interface LlmCall {
-  headers: IncomingMessage['headers'];
-  body: Record<string, unknown>;
-}
 
 interface AiRequestRow {
   tenant_id: string | null;
@@ -44,36 +39,19 @@ describe('AI gateway (TASK-133)', () => {
   let baseUrl: string;
   let db: DataSource;
   let gateway: AiGatewayService;
-  let llm: Server;
-  const llmCalls: LlmCall[] = [];
-  let reply: { status: number; body: unknown } = { status: 200, body: {} };
+  let llm: FakeLlm;
+  let restoreEnv: () => void;
   const users: Record<string, AuthenticatedUser> = {};
   const tokens: Record<string, string> = {};
-  const savedEnv: Record<string, string | undefined> = {};
 
   before(async () => {
-    llm = createServer((req, res) => {
-      let raw = '';
-      req.on('data', (chunk: Buffer) => (raw += chunk.toString()));
-      req.on('end', () => {
-        llmCalls.push({ headers: req.headers, body: JSON.parse(raw) as Record<string, unknown> });
-        res.writeHead(reply.status, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(reply.body));
-      });
-    });
-    await new Promise<void>((resolve) => llm.listen(0, '127.0.0.1', resolve));
-    const llmPort = (llm.address() as AddressInfo).port;
-
-    const env = {
+    llm = await startFakeLlm();
+    restoreEnv = setEnv({
       AI_API_KEY: API_KEY,
-      AI_BASE_URL: `http://127.0.0.1:${llmPort}`,
+      AI_BASE_URL: llm.url,
       AI_MODEL: 'claude-test',
       AI_USER_DAILY_LIMIT: String(DAILY_LIMIT),
-    };
-    for (const [name, value] of Object.entries(env)) {
-      savedEnv[name] = process.env[name];
-      process.env[name] = value;
-    }
+    });
 
     await useTestDatabase();
     app = await createApp();
@@ -103,21 +81,15 @@ describe('AI gateway (TASK-133)', () => {
   });
 
   beforeEach(async () => {
-    llmCalls.length = 0;
-    reply = { status: 200, body: okBody() };
+    llm.calls.length = 0;
+    llm.reply = { status: 200, body: okBody() };
     await db.query('DELETE FROM ai_requests');
   });
 
   after(async () => {
     await app.close();
-    await new Promise<void>((resolve) => llm.close(() => resolve()));
-    for (const [name, value] of Object.entries(savedEnv)) {
-      if (value === undefined) {
-        Reflect.deleteProperty(process.env, name);
-      } else {
-        process.env[name] = value;
-      }
-    }
+    await llm.close();
+    restoreEnv();
   });
 
   function userOf(name: string): AuthenticatedUser {
@@ -207,11 +179,11 @@ describe('AI gateway (TASK-133)', () => {
       usage: { inputTokens: 50, outputTokens: 12 },
     });
 
-    assert.equal(llmCalls.length, 1);
-    assert.equal(llmCalls[0]?.headers['x-api-key'], API_KEY);
-    assert.equal(llmCalls[0]?.body['model'], 'claude-test');
-    assert.equal(llmCalls[0]?.body['max_tokens'], 8192);
-    assert.deepEqual(llmCalls[0]?.body['tool_choice'], { type: 'tool', name: 'search_filter' });
+    assert.equal(llm.calls.length, 1);
+    assert.equal(llm.calls[0]?.headers['x-api-key'], API_KEY);
+    assert.equal(llm.calls[0]?.body['model'], 'claude-test');
+    assert.equal(llm.calls[0]?.body['max_tokens'], 8192);
+    assert.deepEqual(llm.calls[0]?.body['tool_choice'], { type: 'tool', name: 'search_filter' });
 
     assert.deepEqual(await rows(), [
       {
@@ -233,11 +205,11 @@ describe('AI gateway (TASK-133)', () => {
   });
 
   it('nhà cung cấp lỗi: trả 503 hoặc 429 chung chung và ghi lượt lỗi', async () => {
-    reply = { status: 500, body: { error: { message: 'lỗi nội bộ' } } };
+    llm.reply = { status: 500, body: { error: { message: 'lỗi nội bộ' } } };
     await assert.rejects(complete(userOf('a')), isAppError(ErrorCode.SERVICE_UNAVAILABLE, 503));
-    reply = { status: 401, body: { error: { message: 'invalid x-api-key' } } };
+    llm.reply = { status: 401, body: { error: { message: 'invalid x-api-key' } } };
     await assert.rejects(complete(userOf('a')), isAppError(ErrorCode.SERVICE_UNAVAILABLE, 503));
-    reply = { status: 429, body: { error: { message: 'rate limit' } } };
+    llm.reply = { status: 429, body: { error: { message: 'rate limit' } } };
     await assert.rejects(complete(userOf('a')), isAppError(ErrorCode.RATE_LIMITED, 429));
 
     assert.deepEqual(
@@ -254,9 +226,9 @@ describe('AI gateway (TASK-133)', () => {
     for (let i = 0; i < DAILY_LIMIT; i += 1) {
       await complete(userOf('a'));
     }
-    assert.equal(llmCalls.length, DAILY_LIMIT);
+    assert.equal(llm.calls.length, DAILY_LIMIT);
     await assert.rejects(complete(userOf('a')), isAppError(ErrorCode.RATE_LIMITED, 429));
-    assert.equal(llmCalls.length, DAILY_LIMIT);
+    assert.equal(llm.calls.length, DAILY_LIMIT);
     assert.deepEqual(await status('a'), {
       enabled: true,
       dailyLimit: DAILY_LIMIT,
@@ -284,7 +256,7 @@ describe('AI gateway (TASK-133)', () => {
       }),
       /Tên tính năng AI không hợp lệ/,
     );
-    assert.equal(llmCalls.length, 0);
+    assert.equal(llm.calls.length, 0);
   });
 
   it('chưa cấu hình AI_API_KEY: tắt AI, gọi thì trả 503', async () => {
@@ -300,6 +272,6 @@ describe('AI gateway (TASK-133)', () => {
       disabled.complete(userOf('a'), { feature: 'search', messages: [] }),
       isAppError(ErrorCode.SERVICE_UNAVAILABLE, 503),
     );
-    assert.equal(llmCalls.length, 0);
+    assert.equal(llm.calls.length, 0);
   });
 });

@@ -98,6 +98,7 @@ void main() {
     await tapChip(tester, '3+');
     await tapChip(tester, 'Sổ riêng');
     await tapChip(tester, 'Đông Nam');
+    await tapChip(tester, 'Ô tô vào được');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Áp dụng'));
     await tester.pumpAndSettle();
@@ -115,12 +116,14 @@ void main() {
         bedroomsMin: 3,
         legalStatuses: {'PRIVATE_BOOK'},
         directions: {'SE'},
+        roadAccesses: {'CAR'},
       ),
     );
+    expect(lastQuery().toQueryParameters()['roadAccess'], 'CAR');
     expect(repository.listedPages.last, 1);
     expect(find.text('1 kết quả'), findsOneWidget);
-    // Badge: sắp xếp, loại, giá, diện tích, khu vực, phòng ngủ, pháp lý, hướng.
-    expect(find.text('8'), findsOneWidget);
+    // Badge: sắp xếp, loại, giá, diện tích, khu vực, phòng ngủ, pháp lý, hướng, đường vào.
+    expect(find.text('9'), findsOneWidget);
 
     // Mở lại thấy giá trị đang dùng.
     await openSheet(tester);

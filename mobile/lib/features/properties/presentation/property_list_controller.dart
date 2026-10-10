@@ -27,6 +27,9 @@ class PropertyQueryController extends Notifier<PropertyQuery> {
 
   void clearFilters() => _set(state.withoutFilters());
 
+  /// Thay toàn bộ điều kiện tìm (từ khoá và bộ lọc), vd bằng kết quả tìm bằng AI (TASK-134).
+  void replace(PropertyQuery query) => _set(query);
+
   void _set(PropertyQuery next) {
     if (next != state) {
       state = next;

@@ -476,6 +476,7 @@ Luật:
 - Lọc pháp lý (TASK-070): `legalStatus=PRIVATE_BOOK,SHARED_BOOK` hoặc lặp tham số; khớp một trong các giá trị (`PRIVATE_BOOK`, `SHARED_BOOK`, `PENDING_BOOK`, `SALE_CONTRACT`, `HANDWRITTEN`, `OTHER`). BĐS chưa ghi pháp lý không khớp. Giá trị lạ hoặc để trống → 400.
 - Lọc hướng nhà (TASK-071): `direction=E,SE` hoặc lặp tham số; khớp một trong các hướng (`N`, `S`, `E`, `W`, `NE`, `NW`, `SE`, `SW`). BĐS chưa ghi hướng không khớp. Hướng lạ hoặc để trống → 400.
 - Lọc độ rộng đường (TASK-072): `roadWidthMin`, `roadWidthMax` (mét, ≥ 0, tối đa 2 chữ số thập phân, gồm cả hai đầu). BĐS chưa ghi độ rộng đường không khớp. Sai dạng hoặc min > max → 400.
+- Lọc đường vào (TASK-134): `roadAccess` một hoặc nhiều giá trị `CAR` \| `MOTORBIKE` \| `WALK` (`?roadAccess=CAR,MOTORBIKE`), khớp một trong các giá trị. BĐS chưa ghi đường vào không khớp. Giá trị lạ hoặc rỗng → 400.
 - Sắp xếp (TASK-073): `sort=newest|price_asc|price_desc|area_asc|area_desc|relevance`. Mặc định `relevance` khi có `q` (đúng mã BĐS lên đầu, rồi khớp tiêu đề + mô tả nhiều hơn lên trước; không tính địa chỉ), không có `q` thì `newest`. Cùng giá trị thì BĐS mới hơn đứng trước. Giá trị khác → 400.
 - Phân trang (TASK-074): `page` (1..10000), `pageSize` (1..100, mặc định 20); `meta` có `page`, `pageSize`, `total`, `totalPages`. Thứ tự luôn có mốc phụ (mới hơn trước, rồi id) nên chuyển trang không trùng, không sót. Quá trang cuối → `data` rỗng. Số trang ngoài khoảng → 400 (trước đây `page=1e20` gây lỗi 500).
 
@@ -805,3 +806,11 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - Mỗi lượt ghi một dòng `ai_requests` (user, tenant, tính năng, model, tool LLM đã gọi, số token, thời gian, `requestId`); không lưu nội dung prompt/câu trả lời.
 - Lỗi nhà cung cấp không trả nguyên văn cho client: LLM quá tải (429) → 429 `RATE_LIMITED`, lỗi khác (timeout, mạng, 5xx, sai khoá) → 503 `SERVICE_UNAVAILABLE`. Chưa đặt `AI_API_KEY` → 503 "Tính năng AI chưa được bật".
 - `GET /api/v1/ai/status` (chỉ cần đăng nhập) → `{enabled, dailyLimit, used, remaining}`; app dựa vào đây để ẩn/hiện tính năng AI. AI tắt thì `dailyLimit`, `remaining` là null.
+
+## Tìm BĐS bằng câu tự nhiên (TASK-134)
+
+`POST /api/v1/ai/property-search` (`property.view`) `{query}` (2–500 ký tự) → `{filters, explanation, unresolved}`. Theo MASTER_PLAN mục 6: AI chỉ đổi câu thành bộ lọc, không truy cập database; app gửi `filters` lên `GET /properties` để lấy kết quả, nên quyền và phạm vi xem giữ nguyên. Mỗi lần gọi tính một lượt AI (TASK-133).
+
+- LLM bắt buộc gọi tool `property_search_filter` (`src/ai/property-search.tool.ts`) với: giá, diện tích, loại BĐS, số phòng ngủ tối thiểu, pháp lý, hướng, đường vào, sắp xếp, từ khoá, tên khu vực, và một câu `explanation` nói lại các điều kiện đã hiểu. Quy tắc hiểu câu nằm trong system prompt cùng file, vd "khoảng 5 tỷ" → 4,5–5,5 tỷ, "ô tô vào được" → `roadAccess=CAR`.
+- Khu vực LLM trả bằng tên, backend đổi ra `provinceId`/`wardId`: so không dấu, không phân biệt hoa thường, bỏ tiền tố "Tỉnh", "Thành phố", "TP", "Phường", "Xã", "Đặc khu", "Thị trấn". Phường phải khớp đúng một phường (trong tỉnh đã nêu nếu có). Tên không khớp (vd "Nha Trang" là thành phố cũ, nay là nhiều phường) không được lọc và nằm trong `unresolved`.
+- `filters` đã kiểm bằng đúng schema của `GET /properties`. Trường LLM điền sai (giá trị lạ, min > max) bị bỏ, các trường khác giữ nguyên. LLM không gọi tool → 503.

@@ -106,6 +106,7 @@ export class PropertiesController {
    * `legalStatus` lọc pháp lý (TASK-070),
    * `direction` lọc hướng nhà (TASK-071),
    * `roadWidthMin`/`roadWidthMax` lọc độ rộng đường (TASK-072),
+   * `roadAccess` lọc đường vào (TASK-134),
    * `sort=newest|price_asc|price_desc|area_asc|area_desc|relevance` sắp xếp (TASK-073).
    */
   @Get()

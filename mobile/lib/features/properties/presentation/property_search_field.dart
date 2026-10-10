@@ -50,6 +50,17 @@ class _PropertySearchFieldState extends ConsumerState<PropertySearchField> {
 
   @override
   Widget build(BuildContext context) {
+    // Từ khoá đổi từ nơi khác (tìm bằng AI) thì hiện theo; đang gõ dở (chưa tới lúc tìm) thì không ghi đè.
+    ref.listen(propertyQueryProvider.select((query) => query.keyword), (
+      _,
+      keyword,
+    ) {
+      if (normalizeKeyword(_controller.text) != keyword) {
+        _timer?.cancel();
+        _controller.text = keyword;
+        setState(() {});
+      }
+    });
     return TextField(
       controller: _controller,
       onChanged: _onChanged,

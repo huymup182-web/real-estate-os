@@ -26,7 +26,7 @@ interface Detail {
  * Công ty A: admin; phòng D1 có `manager` (MANAGER), team T1 (trưởng nhóm `leader`) gồm agent1, agent2;
  * phòng D2 có agent4. Mỗi test dùng một từ riêng (`tag()`) để không lẫn với BĐS của test khác.
  */
-describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng, độ rộng đường, sắp xếp, phân trang)', () => {
+describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu vực, loại, số phòng, pháp lý, hướng, đường vào, độ rộng đường, sắp xếp, phân trang)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -614,6 +614,39 @@ describe('Tìm và lọc BĐS GET /api/v1/properties (q, giá, diện tích, khu
       const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
       assert.ok(
         error.details.some((detail) => detail.field.startsWith('direction')),
+        `${query}: ${JSON.stringify(error)}`,
+      );
+    }
+  });
+
+  it('lọc đường vào: một hoặc nhiều loại, kết hợp bộ lọc khác; BĐS chưa ghi đường vào không khớp', async () => {
+    const word = tag();
+    const car = await createProperty({ title: `Nhà ${word}`, roadAccess: 'CAR' });
+    const bike = await createProperty({
+      title: `Nhà ${word}`,
+      roadAccess: 'MOTORBIKE',
+      price: 1_500_000_000,
+    });
+    const unknown = await createProperty({ title: `Nhà ${word}` });
+    assert.deepEqual((await search(word)).ids, [unknown.id, bike.id, car.id]);
+    assert.deepEqual((await search(word, 'agent1', '&roadAccess=CAR')).ids, [car.id]);
+    assert.deepEqual((await search(word, 'agent1', '&roadAccess=CAR,MOTORBIKE')).ids, [
+      bike.id,
+      car.id,
+    ]);
+    assert.deepEqual(
+      (await search(word, 'agent1', '&roadAccess=CAR&roadAccess=MOTORBIKE&priceMax=2000000000'))
+        .ids,
+      [bike.id],
+    );
+    assert.deepEqual((await search(word, 'agent1', '&roadAccess=WALK')).ids, []);
+
+    for (const query of ['roadAccess=TRUCK', 'roadAccess=car', 'roadAccess=', 'roadAccess=,']) {
+      const response = await request('GET', `/properties?${query}`, undefined, tokens['agent1']);
+      assert.equal(response.status, 400, query);
+      const error = ((await response.json()) as { error: { details: { field: string }[] } }).error;
+      assert.ok(
+        error.details.some((detail) => detail.field.startsWith('roadAccess')),
         `${query}: ${JSON.stringify(error)}`,
       );
     }

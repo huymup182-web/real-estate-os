@@ -474,6 +474,12 @@ export class PropertiesService {
     if (search?.direction) {
       base = base.andWhere('p.direction IN (:...directions)', { directions: search.direction });
     }
+    // Lọc đường vào (TASK-134): khớp một trong các loại đã chọn; BĐS chưa ghi đường vào không khớp.
+    if (search?.roadAccess) {
+      base = base.andWhere('p.roadAccess IN (:...roadAccesses)', {
+        roadAccesses: search.roadAccess,
+      });
+    }
     // Lọc độ rộng đường (TASK-072): BĐS chưa ghi độ rộng (NULL) không khớp.
     if (search?.roadWidthMin !== undefined) {
       base = base.andWhere('p.roadWidth >= :roadWidthMin', { roadWidthMin: search.roadWidthMin });
