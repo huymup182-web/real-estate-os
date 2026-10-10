@@ -814,3 +814,12 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - LLM bắt buộc gọi tool `property_search_filter` (`src/ai/property-search.tool.ts`) với: giá, diện tích, loại BĐS, số phòng ngủ tối thiểu, pháp lý, hướng, đường vào, sắp xếp, từ khoá, tên khu vực, và một câu `explanation` nói lại các điều kiện đã hiểu. Quy tắc hiểu câu nằm trong system prompt cùng file, vd "khoảng 5 tỷ" → 4,5–5,5 tỷ, "ô tô vào được" → `roadAccess=CAR`.
 - Khu vực LLM trả bằng tên, backend đổi ra `provinceId`/`wardId`: so không dấu, không phân biệt hoa thường, bỏ tiền tố "Tỉnh", "Thành phố", "TP", "Phường", "Xã", "Đặc khu", "Thị trấn". Phường phải khớp đúng một phường (trong tỉnh đã nêu nếu có). Tên không khớp (vd "Nha Trang" là thành phố cũ, nay là nhiều phường) không được lọc và nằm trong `unresolved`.
 - `filters` đã kiểm bằng đúng schema của `GET /properties`. Trường LLM điền sai (giá trị lạ, min > max) bị bỏ, các trường khác giữ nguyên. LLM không gọi tool → 503.
+
+## AI giải thích matching (TASK-135)
+
+`POST /api/v1/customers/:customerId/matching-properties/:propertyId/ai-explanation` (`customer.view`) → `{property {id, code, title}, preferenceId, score, criteria, explanation, ai {summary, strengths, concerns, pitch}}`. Theo MASTER_PLAN mục 8: điểm và tiêu chí vẫn do luật chấm TASK-086 tính (nhu cầu đang bật, cùng loại giao dịch, cho điểm cao nhất); AI chỉ viết lời giải thích. Mỗi lần gọi tính một lượt AI.
+
+- Phạm vi xem như `GET /customers/:id/matching-properties`: khách ngoài phạm vi `customer.view` hoặc BĐS ngoài phạm vi `property.view` → 404, không gọi AI.
+- Khách chưa có nhu cầu đang bật cùng loại giao dịch với BĐS → 422 `BUSINESS_RULE_VIOLATION`, không gọi AI.
+- LLM chỉ nhận thông số BĐS (mã, tiêu đề, loại, giá, diện tích, phòng, hướng, pháp lý, đường vào, phường/tỉnh), nhu cầu của khách và điểm từng tiêu chí. Không gửi tên, số điện thoại, email, ghi chú của khách, liên hệ chủ nhà, địa chỉ chi tiết hay mô tả BĐS.
+- LLM bắt buộc gọi tool `match_explanation` (`src/ai/match-explanation.tool.ts`). Mỗi câu tối đa 500 ký tự, tối đa 4 điểm hợp, 3 điểm lưu ý. Không gọi tool hoặc thiếu `summary` → 503.

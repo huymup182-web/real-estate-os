@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/presentation/session_controller.dart';
 import '../domain/customer_detail.dart';
+import '../domain/property_match.dart';
 import 'customer_list_controller.dart';
 
 /// Chi tiết một khách.
@@ -15,6 +16,14 @@ final customerDetailProvider = FutureProvider.autoDispose
 final customerPreferencesProvider = FutureProvider.autoDispose
     .family<List<CustomerPreference>, String>(
       (ref, id) => ref.watch(customersRepositoryProvider).preferences(id),
+      retry: (_, _) => null,
+    );
+
+/// BĐS phù hợp với khách (TASK-090), điểm cao trước. Tải riêng như nhu cầu.
+final customerMatchesProvider = FutureProvider.autoDispose
+    .family<List<PropertyMatch>, String>(
+      (ref, id) =>
+          ref.watch(customersRepositoryProvider).matchingProperties(id),
       retry: (_, _) => null,
     );
 

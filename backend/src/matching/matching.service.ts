@@ -9,6 +9,7 @@ import {
   PropertiesService,
   type PropertyScopes,
 } from '../properties/properties.service.js';
+import type { PropertyDetailView } from '../properties/property.response.js';
 import { explainMatch, type MatchExplanation } from './match-explanation.js';
 import { type CriterionScore, type MatchPreference, scoreMatch } from './match-score.js';
 
@@ -51,6 +52,16 @@ export interface CustomerMatch {
   score: number;
   criteria: CriterionScore[];
   /** Lời giải thích (TASK-089). */
+  explanation: MatchExplanation;
+}
+
+/** Một cặp khách ↔ BĐS đã chấm điểm (TASK-135). `property` gồm cả liên hệ chủ nhà nếu được xem: không gửi AI. */
+export interface PairMatch {
+  property: PropertyDetailView;
+  preferenceId: string;
+  preference: MatchPreference;
+  score: number;
+  criteria: CriterionScore[];
   explanation: MatchExplanation;
 }
 
@@ -197,6 +208,44 @@ export class MatchingService {
     return keepTop(matches, options, (item) => [item.updatedAt, item.match.property.id]).map(
       (item) => item.match,
     );
+  }
+
+  /**
+   * Điểm của một cặp khách ↔ BĐS (TASK-135, cho AI giải thích): nhu cầu đang bật, cùng loại giao dịch cho
+   * điểm cao nhất. Khách ngoài phạm vi `customer.view` hoặc BĐS ngoài phạm vi xem → 404. Không có nhu cầu
+   * nào chấm được (khác loại giao dịch, chưa có nhu cầu) → null. Không lọc theo `minScore`.
+   */
+  async pair(
+    actor: Actor,
+    customerId: string,
+    propertyId: string,
+    scopes: { property: PropertyScopes; customer: CustomerScopes },
+  ): Promise<PairMatch | null> {
+    await this.customers.findOne(actor, customerId, scopes.customer);
+    const property = await this.properties.findOne(actor, propertyId, scopes.property);
+    const rows = await this.preferences(actor, scopes.customer)
+      .andWhere('c.id = :customerId', { customerId })
+      .andWhere('cp.transaction_type = :transactionType', {
+        transactionType: property.transactionType,
+      })
+      .getRawMany<PreferenceRow>();
+
+    let best: PairMatch | null = null;
+    for (const row of rows) {
+      const preference = toPreference(row);
+      const result = scoreMatch(preference, property);
+      if (result.eligible && (!best || result.score > best.score)) {
+        best = {
+          property,
+          preferenceId: row.preferenceId,
+          preference,
+          score: result.score,
+          criteria: result.criteria,
+          explanation: explainMatch(result.score, result.criteria),
+        };
+      }
+    }
+    return best;
   }
 
   /** Nhu cầu đang bật, chưa xoá của khách trong phạm vi xem, kèm thông tin khách. */

@@ -1,26 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/error/api_exception.dart';
 import '../../../core/format/vn_format.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/detail_section.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../../ai/presentation/ai_match_sheet.dart';
+import '../../ai/presentation/ai_providers.dart';
 import '../../auth/presentation/session_controller.dart';
 import '../../locations/domain/location_option.dart';
 import '../../locations/presentation/location_providers.dart';
-import '../../properties/domain/property_labels.dart' show labelOf;
+import '../../properties/domain/property_labels.dart'
+    show labelOf, propertyTypeLabels;
 import '../domain/customer_detail.dart';
 import '../domain/customer_labels.dart';
 import '../domain/preference_summary.dart';
+import '../domain/property_match.dart';
 import 'customer_card.dart';
 import 'customer_detail_providers.dart';
 import 'pipeline_controller.dart';
 import 'status_sheet.dart';
 
-/// Chi tiết khách: thông tin liên hệ, nhu cầu, môi giới phụ trách, ghi chú và timeline chăm sóc. Có
-/// `customer.edit` thì có nút "Đổi bước". Kéo xuống để tải lại.
+/// Chi tiết khách: thông tin liên hệ, nhu cầu, BĐS phù hợp, môi giới phụ trách, ghi chú và timeline chăm sóc.
+/// Có `customer.edit` thì có nút "Đổi bước". Kéo xuống để tải lại.
 class CustomerDetailScreen extends ConsumerWidget {
   const CustomerDetailScreen({super.key, required this.customerId});
 
@@ -33,6 +39,7 @@ class CustomerDetailScreen extends ConsumerWidget {
     // Kéo xuống tải lại: đang có dữ liệu thì giữ, lỗi thì báo snackbar.
     Future<void> refresh() async {
       ref.invalidate(customerPreferencesProvider(customerId));
+      ref.invalidate(customerMatchesProvider(customerId));
       ref.invalidate(customerActivitiesProvider(customerId));
       ref.invalidate(customerDetailProvider(customerId));
       try {
@@ -166,6 +173,12 @@ class _Body extends ConsumerWidget {
           title: 'Nhu cầu',
           child: _Preferences(customerId: customer.id),
         ),
+        if (ref.watch(sessionProvider).value?.user?.can('property.view') ??
+            false)
+          DetailSection(
+            title: 'BĐS phù hợp',
+            child: _Matches(customerId: customer.id),
+          ),
         DetailSection(
           title: 'Hoạt động',
           child: _Timeline(customerId: customer.id),
@@ -263,6 +276,125 @@ class _Preferences extends ConsumerWidget {
       ),
       _ => const _Loading(),
     };
+  }
+}
+
+/// BĐS đang bán phù hợp với nhu cầu (điểm do luật chấm). AI bật thì mỗi BĐS có nút "AI giải thích" (TASK-135).
+class _Matches extends ConsumerWidget {
+  const _Matches({required this.customerId});
+
+  final String customerId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final muted = context.appColors.mutedForeground;
+    final aiEnabled = ref.watch(aiStatusProvider).value?.enabled ?? false;
+    return switch (ref.watch(customerMatchesProvider(customerId))) {
+      AsyncData(:final value) when value.isEmpty => Text(
+        'Chưa có BĐS đang bán nào phù hợp với nhu cầu của khách.',
+        style: TextStyle(color: muted),
+      ),
+      AsyncData(:final value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final match in value)
+            _MatchTile(
+              customerId: customerId,
+              match: match,
+              aiEnabled: aiEnabled,
+            ),
+        ],
+      ),
+      AsyncError(:final error) => ErrorRetry(
+        error: error,
+        onRetry: () => ref.invalidate(customerMatchesProvider(customerId)),
+      ),
+      _ => const _Loading(),
+    };
+  }
+}
+
+class _MatchTile extends StatelessWidget {
+  const _MatchTile({
+    required this.customerId,
+    required this.match,
+    required this.aiEnabled,
+  });
+
+  final String customerId;
+  final PropertyMatch match;
+  final bool aiEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = context.appColors.mutedForeground;
+    final label = '${match.code} · ${match.title}';
+    return Padding(
+      key: Key('match-${match.propertyId}'),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () =>
+                context.push(AppRoutes.propertyDetail(match.propertyId)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: theme.textTheme.titleSmall,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.s8),
+                    Text(
+                      '${match.score}%',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.s2),
+                Text(
+                  [
+                    vnMoneyShort(match.price),
+                    '${vnDecimal(match.area)} m²',
+                    labelOf(propertyTypeLabels, match.propertyType),
+                  ].join(' · '),
+                  style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                ),
+                if (match.summary.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.s2),
+                  Text(match.summary),
+                ],
+              ],
+            ),
+          ),
+          if (aiEnabled)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => showAiMatchSheet(
+                  context,
+                  customerId: customerId,
+                  propertyId: match.propertyId,
+                  propertyLabel: label,
+                ),
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('AI giải thích'),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
