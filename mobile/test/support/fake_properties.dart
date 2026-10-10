@@ -3,6 +3,7 @@ import 'package:real_estate_os/core/network/page.dart';
 import 'package:real_estate_os/features/properties/data/properties_repository.dart';
 import 'package:real_estate_os/features/properties/domain/property_detail.dart';
 import 'package:real_estate_os/features/properties/domain/property_draft.dart';
+import 'package:real_estate_os/features/properties/domain/property_duplicates.dart';
 import 'package:real_estate_os/features/properties/domain/property_query.dart';
 import 'package:real_estate_os/features/properties/domain/property_summary.dart';
 
@@ -21,6 +22,10 @@ class FakePropertiesRepository implements PropertiesRepository {
   Future<({String id, String code})> Function(PropertyDraft draft) onCreate = (
     draft,
   ) async => (id: 'new-id', code: 'BDS-000099');
+  Future<DuplicateReport> Function(PropertyDraft draft) onDuplicateCheck = (
+    draft,
+  ) async => const DuplicateReport(threshold: 70);
+  final duplicateChecks = <PropertyDraft>[];
   Future<PropertyDetail> Function(String id, PropertyDraft draft) onUpdate = (
     id,
     draft,
@@ -91,6 +96,12 @@ class FakePropertiesRepository implements PropertiesRepository {
   Future<({String id, String code})> create(PropertyDraft draft) {
     created.add(draft);
     return onCreate(draft);
+  }
+
+  @override
+  Future<DuplicateReport> duplicateCheck(PropertyDraft draft) {
+    duplicateChecks.add(draft);
+    return onDuplicateCheck(draft);
   }
 }
 

@@ -177,6 +177,24 @@ export function getProperty(token: string, id: string, deps?: BackendDeps) {
   return callBackend<PropertyDetail>(path(id), { accessToken: token }, deps);
 }
 
+/** BĐS nghi trùng (TASK-144). Người xem không được xem BĐS đó thì `property` null, chỉ có mã. */
+export interface DuplicateMatch {
+  code: string;
+  similarity: number;
+  reasons: string[];
+  property: { id: string; title: string; price: number; area: number; status: string } | null;
+}
+
+export interface DuplicateReport {
+  threshold: number;
+  matches: DuplicateMatch[];
+}
+
+/** BĐS nghi trùng với BĐS `id`, giống nhất trước, để admin quyết định (không tự xoá). */
+export function getPropertyDuplicates(token: string, id: string, deps?: BackendDeps) {
+  return callBackend<DuplicateReport>(path(id, '/duplicates'), { accessToken: token }, deps);
+}
+
 export function getPropertyImages(token: string, id: string, deps?: BackendDeps) {
   return callBackend<PropertyImage[]>(path(id, '/images'), { accessToken: token }, deps);
 }
