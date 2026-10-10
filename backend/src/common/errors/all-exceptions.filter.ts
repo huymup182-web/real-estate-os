@@ -9,6 +9,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { QueryFailedError } from 'typeorm';
 
 import { requestPath } from '../logging/request-logger.middleware.js';
+import { RateLimitedException } from '../rate-limit/rate-limiter.js';
 import {
   getRequestId,
   REQUEST_ID_HEADER,
@@ -142,6 +143,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const { httpAdapter } = this.adapterHost;
     // Lỗi xảy ra trước middleware (vd JSON sai cú pháp ở body parser) thì header chưa được gắn.
     httpAdapter.setHeader(res, REQUEST_ID_HEADER, requestId);
+    if (exception instanceof RateLimitedException) {
+      httpAdapter.setHeader(res, 'Retry-After', String(exception.retryAfterSeconds));
+    }
     httpAdapter.reply(res, body, status);
   }
 }

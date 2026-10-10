@@ -21,11 +21,25 @@ describe('loadAppConfig', () => {
       databaseUrl: DATABASE_URL,
       logLevel: 'log',
       jwtSecret: JWT_SECRET,
+      trustProxyHops: 0,
       mail: null,
       storage: null,
       fcm: null,
       ai: null,
     });
+  });
+
+  it('TASK-155: đọc TRUST_PROXY_HOPS 0–5, từ chối giá trị khác', () => {
+    assert.equal(
+      loadAppConfig({ DATABASE_URL, JWT_SECRET, TRUST_PROXY_HOPS: '1' }).trustProxyHops,
+      1,
+    );
+    for (const value of ['-1', '6', 'true', '1.5', '']) {
+      assert.throws(
+        () => loadAppConfig({ DATABASE_URL, JWT_SECRET, TRUST_PROXY_HOPS: value }),
+        /TRUST_PROXY_HOPS không hợp lệ/,
+      );
+    }
   });
 
   it('đọc PORT và NODE_ENV hợp lệ', () => {

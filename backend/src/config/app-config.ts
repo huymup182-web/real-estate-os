@@ -12,6 +12,11 @@ export interface AppConfig {
   databaseUrl: string;
   logLevel: LogLevel;
   jwtSecret: string;
+  /**
+   * Số proxy tin cậy đứng trước backend (load balancer, reverse proxy), 0 = không có (TASK-155). Dùng để lấy đúng
+   * IP người gọi từ `X-Forwarded-For` cho giới hạn số lần gọi và nhật ký phiên đăng nhập.
+   */
+  trustProxyHops: number;
   /** null khi chưa cấu hình SMTP (chỉ cho phép ngoài production): email không được gửi. */
   mail: MailConfig | null;
   /** null khi chưa cấu hình object storage (chỉ cho phép ngoài production): không upload ảnh được. */
@@ -93,6 +98,8 @@ const DEFAULT_PORT = 3000;
 
 /** Độ dài tối thiểu của khoá ký JWT (docs/environment.md). */
 export const JWT_SECRET_MIN_LENGTH = 32;
+/** Số proxy tin cậy tối đa trong TRUST_PROXY_HOPS. */
+export const MAX_TRUST_PROXY_HOPS = 5;
 
 /** Khoá dev đã commit trong .env.development: không bao giờ được dùng ở production. */
 const DEV_JWT_SECRET = 'dev-only-insecure-jwt-secret-change-me';
@@ -163,12 +170,21 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
 
+  const rawHops = env['TRUST_PROXY_HOPS'] ?? '0';
+  const trustProxyHops = Number(rawHops);
+  if (!/^\d+$/.test(rawHops) || trustProxyHops > MAX_TRUST_PROXY_HOPS) {
+    throw new Error(
+      `TRUST_PROXY_HOPS không hợp lệ: "${rawHops}" (cần số nguyên 0–${MAX_TRUST_PROXY_HOPS})`,
+    );
+  }
+
   return {
     port,
     nodeEnv,
     databaseUrl,
     logLevel: loadLogLevel(env),
     jwtSecret,
+    trustProxyHops,
     mail: loadMailConfig(env, nodeEnv),
     storage: loadStorageConfig(env, nodeEnv),
     fcm: loadFcmConfig(env),
