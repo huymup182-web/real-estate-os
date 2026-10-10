@@ -12,19 +12,26 @@ export interface FakeLlm {
   calls: FakeLlmCall[];
   /** Phản hồi cho các lượt gọi tiếp theo. */
   reply: { status: number; body: unknown };
+  /** Phản hồi lần lượt cho từng lượt gọi (hội thoại nhiều bước, TASK-143); hết thì dùng `reply`. */
+  queue: { status: number; body: unknown }[];
   close(): Promise<void>;
 }
 
 /** Máy chủ Anthropic Messages API giả cho test AI (TASK-133+). */
 export async function startFakeLlm(): Promise<FakeLlm> {
-  const fake: Omit<FakeLlm, 'url' | 'close'> = { calls: [], reply: { status: 200, body: {} } };
+  const fake: Omit<FakeLlm, 'url' | 'close'> = {
+    calls: [],
+    reply: { status: 200, body: {} },
+    queue: [],
+  };
   const server = createServer((req, res) => {
     let raw = '';
     req.on('data', (chunk: Buffer) => (raw += chunk.toString()));
     req.on('end', () => {
       fake.calls.push({ headers: req.headers, body: JSON.parse(raw) as Record<string, unknown> });
-      res.writeHead(fake.reply.status, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(fake.reply.body));
+      const reply = fake.queue.shift() ?? fake.reply;
+      res.writeHead(reply.status, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(reply.body));
     });
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

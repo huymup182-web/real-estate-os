@@ -140,6 +140,14 @@ class _Body extends ConsumerWidget {
                     icon: const Icon(Icons.auto_awesome),
                     label: const Text('AI tóm tắt'),
                   ),
+                if (aiEnabled)
+                  OutlinedButton.icon(
+                    onPressed: () => context.push(
+                      AppRoutes.copilot(customerId: customer.id),
+                    ),
+                    icon: const Icon(Icons.forum_outlined),
+                    label: const Text('Hỏi Copilot'),
+                  ),
               ],
             ),
           ),

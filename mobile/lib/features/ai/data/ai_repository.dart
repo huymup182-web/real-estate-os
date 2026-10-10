@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../domain/ai_copilot.dart';
 import '../domain/ai_customer_summary.dart';
 import '../domain/ai_follow_up.dart';
 import '../domain/ai_listing.dart';
@@ -50,4 +51,19 @@ class AiRepository {
   /// một lượt AI; không có khách nào thì không gọi AI.
   Future<AiFollowUps> followUps() async =>
       AiFollowUps.fromJson((await _api.post('/ai/follow-ups')).object);
+
+  /// Hỏi Copilot (TASK-143). [history] là các lượt trước và câu hỏi mới ở cuối; backend không lưu hội thoại.
+  /// Mỗi lần Copilot gọi LLM tính một lượt AI, một câu hỏi tối đa 4 lượt.
+  Future<CopilotTurn> copilot(
+    List<CopilotTurn> history,
+    CopilotContext context,
+  ) async => CopilotTurn.fromReply(
+    (await _api.post(
+      '/ai/copilot',
+      body: {
+        'messages': [for (final turn in history) turn.toJson()],
+        if (context.toJson().isNotEmpty) 'context': context.toJson(),
+      },
+    )).object,
+  );
 }

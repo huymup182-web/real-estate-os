@@ -1,4 +1,4 @@
-import type { PropertyDetailView } from '../properties/property.response.js';
+import type { PropertyResponse } from '../properties/property.response.js';
 
 /** Nhãn tiếng Việt của giá trị BĐS gửi cho LLM (cùng nhãn admin `admin/src/lib/properties.ts`). */
 export const PROPERTY_TYPE_LABELS: Readonly<Record<string, string>> = {
@@ -35,6 +35,14 @@ export const ROAD_ACCESS_LABELS: Readonly<Record<string, string>> = {
   MOTORBIKE: 'Xe máy',
   WALK: 'Đi bộ',
 };
+export const PROPERTY_STATUS_LABELS: Readonly<Record<string, string>> = {
+  AVAILABLE: 'Đang bán',
+  PENDING: 'Đang giao dịch',
+  SOLD: 'Đã bán',
+  HIDDEN: 'Đã ẩn',
+  EXPIRED: 'Hết hạn',
+  VERIFY_REQUIRED: 'Cần xác minh',
+};
 const TRANSACTION_TYPE_LABELS: Readonly<Record<string, string>> = { SALE: 'Bán', RENT: 'Cho thuê' };
 
 /** "3,3 tỷ", "850 triệu" (giá trị gửi LLM, giữ đúng số trong database). */
@@ -58,7 +66,9 @@ function label(map: Readonly<Record<string, string>>, value: string | null): str
  * Thông số BĐS gửi LLM (TASK-135, TASK-136): chỉ dữ liệu thật trong database, nhãn tiếng Việt. Không có địa chỉ
  * chi tiết, chủ nhà, môi giới, hoa hồng hay mô tả (mô tả do tính năng tự thêm khi cần).
  */
-export function propertyFacts(property: PropertyDetailView): Record<string, unknown> {
+export function propertyFacts(
+  property: PropertyResponse & { provinceName: string; wardName: string },
+): Record<string, unknown> {
   return {
     ma: property.code,
     tieu_de: property.title,

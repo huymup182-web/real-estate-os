@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/ai/domain/ai_copilot.dart';
+import '../../features/ai/presentation/copilot_screen.dart';
 import '../../features/appointments/presentation/calendar_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/session_controller.dart';
@@ -57,6 +59,15 @@ abstract final class AppRoutes {
 
   /// Chi tiết khách, nằm trong tab "Khách hàng".
   static String customerDetail(String id) => '$customers/$id';
+
+  /// Chat Copilot AI (trong tab "Trang chủ", mở được từ mọi tab); kèm khách hoặc BĐS đang xem.
+  static String copilot({String? customerId, String? propertyId}) {
+    final query = {'customerId': ?customerId, 'propertyId': ?propertyId};
+    return Uri(
+      path: '$home/copilot',
+      queryParameters: query.isEmpty ? null : query,
+    ).toString();
+  }
 }
 
 /// Router của app. Chuyển màn hình theo phiên đăng nhập ([sessionProvider]): đang kiểm hoặc lỗi → splash, chưa
@@ -89,6 +100,15 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'calendar',
                 builder: (context, state) => const CalendarScreen(),
+              ),
+              GoRoute(
+                path: 'copilot',
+                builder: (context, state) => CopilotScreen(
+                  context: CopilotContext(
+                    customerId: state.uri.queryParameters['customerId'],
+                    propertyId: state.uri.queryParameters['propertyId'],
+                  ),
+                ),
               ),
             ],
           ),

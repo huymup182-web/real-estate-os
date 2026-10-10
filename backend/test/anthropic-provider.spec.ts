@@ -103,6 +103,51 @@ describe('AnthropicProvider (TASK-133)', () => {
     });
   });
 
+  it('hội thoại nhiều bước: tool_use, tool_result dạng khối; noToolCalls → tool_choice none (TASK-143)', async () => {
+    const { provider, calls } = providerReturning(() => json(200, OK_BODY));
+    await provider.complete({
+      messages: [
+        { role: 'user', content: 'nhà dưới 5 tỷ' },
+        {
+          role: 'assistant',
+          content: 'Để em tìm.',
+          toolCalls: [{ id: 'tu_1', name: 'search_properties', input: { priceMax: 5e9 } }],
+        },
+        {
+          role: 'user',
+          content: '',
+          toolResults: [
+            { toolCallId: 'tu_1', content: '[]' },
+            { toolCallId: 'tu_2', content: 'Không tìm thấy', isError: true },
+          ],
+        },
+      ],
+      tools: [{ name: 'search_properties', description: 'Tìm BĐS', inputSchema: {} }],
+      forceTool: 'search_properties',
+      noToolCalls: true,
+      maxTokens: 10,
+    });
+    const body = JSON.parse(String(calls[0]?.init.body)) as Record<string, unknown>;
+    assert.deepEqual(body['messages'], [
+      { role: 'user', content: 'nhà dưới 5 tỷ' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Để em tìm.' },
+          { type: 'tool_use', id: 'tu_1', name: 'search_properties', input: { priceMax: 5e9 } },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'tu_1', content: '[]' },
+          { type: 'tool_result', tool_use_id: 'tu_2', content: 'Không tìm thấy', is_error: true },
+        ],
+      },
+    ]);
+    assert.deepEqual(body['tool_choice'], { type: 'none' });
+  });
+
   it('đọc chữ, tool call, lý do dừng, số token', async () => {
     const { provider } = providerReturning(() => json(200, OK_BODY));
     const result = await provider.complete({

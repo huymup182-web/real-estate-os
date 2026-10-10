@@ -2,6 +2,20 @@
 export interface LlmMessage {
   role: 'user' | 'assistant';
   content: string;
+  /** Tool LLM đã gọi ở lượt `assistant` này (Copilot gọi tool nhiều bước, TASK-143). */
+  toolCalls?: LlmToolCall[];
+  /** Kết quả các tool backend đã chạy, gửi lại LLM ở lượt `user` (TASK-143). */
+  toolResults?: LlmToolResult[];
+}
+
+/** Kết quả một tool backend đã chạy cho LLM. */
+export interface LlmToolResult {
+  /** `LlmToolCall.id` của lời gọi tool. */
+  toolCallId: string;
+  /** Dữ liệu trả LLM, thường là JSON. */
+  content: string;
+  /** Tool chạy lỗi (vd không tìm thấy, sai tham số): `content` là câu lỗi. */
+  isError?: boolean;
 }
 
 /**
@@ -21,6 +35,8 @@ export interface LlmRequest {
   tools?: LlmTool[];
   /** Tên tool LLM bắt buộc phải gọi (lấy kết quả có cấu trúc); bỏ trống thì LLM tự chọn. */
   forceTool?: string;
+  /** Gửi kèm `tools` (bắt buộc khi hội thoại có tool) nhưng không cho LLM gọi tool nữa, phải trả lời chữ. */
+  noToolCalls?: boolean;
   maxTokens: number;
 }
 

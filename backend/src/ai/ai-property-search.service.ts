@@ -85,6 +85,21 @@ export class AiPropertySearchService {
       );
     }
 
+    const { filters, unresolved } = await this.filtersFrom(input);
+    return {
+      filters,
+      explanation: (text(input['explanation']) ?? '').slice(0, MAX_EXPLANATION_LENGTH),
+      unresolved,
+    };
+  }
+
+  /**
+   * Tham số LLM điền theo schema `propertySearchTool` → bộ lọc đã kiểm của `GET /properties` và tên khu vực
+   * chưa tìm thấy. Dùng chung với Copilot (TASK-143).
+   */
+  async filtersFrom(
+    input: Record<string, unknown>,
+  ): Promise<{ filters: Record<string, unknown>; unresolved: string[] }> {
     const raw: Record<string, unknown> = {};
     for (const key of FILTER_KEYS) {
       const value = input[key];
@@ -103,11 +118,7 @@ export class AiPropertySearchService {
       raw['q'] = keyword.slice(0, MAX_KEYWORD_LENGTH).trim();
     }
 
-    return {
-      filters: validFilters(raw),
-      explanation: (text(input['explanation']) ?? '').slice(0, MAX_EXPLANATION_LENGTH),
-      unresolved,
-    };
+    return { filters: validFilters(raw), unresolved };
   }
 
   /** province/ward/place (tên) → provinceId/wardId. Tên không khớp đúng một khu vực thì ghi vào `unresolved`. */

@@ -93,6 +93,41 @@ export class AiCustomerSummaryService {
     customerId: string,
     scopes: CustomerScopes,
   ): Promise<AiCustomerSummary> {
+    const { facts, activityCount } = await this.facts(actor, customerId, scopes);
+
+    const response = await this.gateway.complete(user, {
+      feature: 'customer_summary',
+      system: CUSTOMER_SUMMARY_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: JSON.stringify(facts) }],
+      tools: [customerSummaryTool],
+      forceTool: CUSTOMER_SUMMARY_TOOL,
+      maxTokens: 1024,
+    });
+    const input = response.toolCalls.find((call) => call.name === CUSTOMER_SUMMARY_TOOL)?.input;
+    const summary = cleanText(input?.['summary']);
+    if (!input || summary === '') {
+      throw new AppException(
+        ErrorCode.SERVICE_UNAVAILABLE,
+        'AI chưa tóm tắt được khách, vui lòng thử lại',
+      );
+    }
+    return {
+      customerId,
+      summary,
+      keyPoints: cleanList(input['keyPoints'], MAX_KEY_POINTS),
+      openQuestions: cleanList(input['openQuestions'], MAX_OPEN_QUESTIONS),
+      activityCount,
+    };
+  }
+
+  /**
+   * Dữ liệu khách gửi LLM: khách ngoài phạm vi `customer.view` → 404. Dùng chung với Copilot (TASK-143).
+   */
+  async facts(
+    actor: Actor,
+    customerId: string,
+    scopes: CustomerScopes,
+  ): Promise<{ facts: Record<string, unknown>; activityCount: number }> {
     const customer = await this.customers.findOne(actor, customerId, scopes);
     const preferences = await this.preferences.findAll(actor, customerId, scopes);
     const query = Object.assign(new PaginationQueryDto(), { pageSize: SUMMARY_ACTIVITY_LIMIT });
@@ -129,28 +164,6 @@ export class AiCustomerSummaryService {
       }),
     };
 
-    const response = await this.gateway.complete(user, {
-      feature: 'customer_summary',
-      system: CUSTOMER_SUMMARY_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: JSON.stringify(facts) }],
-      tools: [customerSummaryTool],
-      forceTool: CUSTOMER_SUMMARY_TOOL,
-      maxTokens: 1024,
-    });
-    const input = response.toolCalls.find((call) => call.name === CUSTOMER_SUMMARY_TOOL)?.input;
-    const summary = cleanText(input?.['summary']);
-    if (!input || summary === '') {
-      throw new AppException(
-        ErrorCode.SERVICE_UNAVAILABLE,
-        'AI chưa tóm tắt được khách, vui lòng thử lại',
-      );
-    }
-    return {
-      customerId: customer.id,
-      summary,
-      keyPoints: cleanList(input['keyPoints'], MAX_KEY_POINTS),
-      openQuestions: cleanList(input['openQuestions'], MAX_OPEN_QUESTIONS),
-      activityCount: activities.length,
-    };
+    return { facts, activityCount: activities.length };
   }
 }

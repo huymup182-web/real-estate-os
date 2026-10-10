@@ -78,30 +78,10 @@ export class AiFollowUpService {
     actor: Actor,
     scopes: CustomerScopes,
   ): Promise<AiFollowUps> {
-    const candidates = await this.customers.followUps(actor, scopes, FOLLOW_UP_LIMIT);
+    const { candidates, facts } = await this.candidates(actor, scopes);
     if (candidates.length === 0) {
       return { thresholdDays: FOLLOW_UP_AFTER_DAYS, items: [] };
     }
-    const now = Date.now();
-    const days = (candidate: FollowUpCandidate) =>
-      Math.floor((now - candidate.lastContactAt.getTime()) / DAY_MS);
-
-    const facts = candidates.map((candidate, index) => ({
-      ma: `K${String(index + 1)}`,
-      buoc: labelOf(CUSTOMER_STATUS_LABELS, candidate.status),
-      muc_dich: labelOf(CUSTOMER_PURPOSE_LABELS, candidate.purpose),
-      thoi_gian_mua: labelOf(PURCHASE_TIMELINE_LABELS, candidate.purchaseTimeline),
-      so_ngay_chua_cham_soc: days(candidate),
-      so_nhu_cau_dang_bat: candidate.activeNeeds,
-      hoat_dong_gan_nhat: candidate.lastActivity
-        ? {
-            loai: labelOf(ACTIVITY_TYPE_LABELS, candidate.lastActivity.type),
-            noi_dung: candidate.lastActivity.content
-              ? hidePhones(candidate.lastActivity.content).slice(0, MAX_FACT_LENGTH)
-              : null,
-          }
-        : null,
-    }));
 
     const response = await this.gateway.complete(user, {
       feature: 'follow_up',
@@ -141,9 +121,46 @@ export class AiFollowUpService {
           agentId: candidate.agentId,
         },
         lastContactAt: candidate.lastContactAt,
-        daysSinceContact: days(candidate),
+        daysSinceContact: candidate.daysSinceContact,
         suggestion: byRef.get(`K${String(index + 1)}`) ?? null,
       })),
     };
+  }
+
+  /**
+   * Khách cần chăm sóc (tối đa `FOLLOW_UP_LIMIT`) và dữ liệu gửi LLM, khách thứ n có mã `Kn`; không có tên,
+   * liên hệ. Dùng chung với Copilot (TASK-143).
+   */
+  async candidates(
+    actor: Actor,
+    scopes: CustomerScopes,
+  ): Promise<{
+    candidates: (FollowUpCandidate & { daysSinceContact: number })[];
+    facts: Record<string, unknown>[];
+  }> {
+    const now = Date.now();
+    const candidates = (await this.customers.followUps(actor, scopes, FOLLOW_UP_LIMIT)).map(
+      (candidate) => ({
+        ...candidate,
+        daysSinceContact: Math.floor((now - candidate.lastContactAt.getTime()) / DAY_MS),
+      }),
+    );
+    const facts = candidates.map((candidate, index) => ({
+      ma: `K${String(index + 1)}`,
+      buoc: labelOf(CUSTOMER_STATUS_LABELS, candidate.status),
+      muc_dich: labelOf(CUSTOMER_PURPOSE_LABELS, candidate.purpose),
+      thoi_gian_mua: labelOf(PURCHASE_TIMELINE_LABELS, candidate.purchaseTimeline),
+      so_ngay_chua_cham_soc: candidate.daysSinceContact,
+      so_nhu_cau_dang_bat: candidate.activeNeeds,
+      hoat_dong_gan_nhat: candidate.lastActivity
+        ? {
+            loai: labelOf(ACTIVITY_TYPE_LABELS, candidate.lastActivity.type),
+            noi_dung: candidate.lastActivity.content
+              ? hidePhones(candidate.lastActivity.content).slice(0, MAX_FACT_LENGTH)
+              : null,
+          }
+        : null,
+    }));
+    return { candidates, facts };
   }
 }

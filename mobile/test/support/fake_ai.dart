@@ -1,4 +1,5 @@
 import 'package:real_estate_os/features/ai/data/ai_repository.dart';
+import 'package:real_estate_os/features/ai/domain/ai_copilot.dart';
 import 'package:real_estate_os/features/ai/domain/ai_customer_summary.dart';
 import 'package:real_estate_os/features/ai/domain/ai_follow_up.dart';
 import 'package:real_estate_os/features/ai/domain/ai_listing.dart';
@@ -69,6 +70,30 @@ class FakeAiRepository implements AiRepository {
     ],
   );
   int followUpCalls = 0;
+  Future<CopilotTurn> Function(List<CopilotTurn> history) onCopilot =
+      (history) async => const CopilotTurn.assistant(
+        'Căn BDS-000001 hợp với khách: đúng phường, trong ngân sách.',
+        properties: [
+          CopilotProperty(
+            id: 'p1',
+            code: 'BDS-000001',
+            title: 'Nhà phố Vĩnh Hải',
+            price: 3500000000,
+            area: 70.5,
+          ),
+        ],
+        customers: [
+          CopilotCustomer(
+            ref: 'K1',
+            id: 'c1',
+            fullName: 'Trần Thị Bình',
+            status: 'VIEWING',
+          ),
+        ],
+      );
+
+  /// Mỗi lần hỏi Copilot: các lượt đã gửi và ngữ cảnh.
+  final copilotCalls = <(List<CopilotTurn>, CopilotContext)>[];
   AiStatus currentStatus;
   Future<AiPropertySearch> Function(String query) onSearch;
   int statusCalls = 0;
@@ -111,5 +136,14 @@ class FakeAiRepository implements AiRepository {
   Future<AiFollowUps> followUps() {
     followUpCalls++;
     return onFollowUps();
+  }
+
+  @override
+  Future<CopilotTurn> copilot(
+    List<CopilotTurn> history,
+    CopilotContext context,
+  ) {
+    copilotCalls.add((List.of(history), context));
+    return onCopilot(history);
   }
 }
