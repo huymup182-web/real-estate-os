@@ -8,7 +8,7 @@ import '../../../core/widgets/error_retry.dart';
 import '../domain/ai_listing.dart';
 import 'ai_providers.dart';
 
-/// Mở ô AI viết tin đăng hoặc bài Facebook cho một BĐS (TASK-136, TASK-137). Tin chỉ để sao chép, không lưu
+/// Mở ô AI viết tin đăng, bài Facebook hoặc tin Zalo cho một BĐS (TASK-136, 137, 138). Tin chỉ để sao chép, không lưu
 /// vào BĐS.
 Future<void> showAiListingSheet(
   BuildContext context, {
@@ -95,16 +95,19 @@ class _AiListingSheetState extends ConsumerState<AiListingSheet> {
             style: theme.textTheme.bodyMedium?.copyWith(color: muted),
           ),
           const SizedBox(height: AppSpacing.s12),
-          SegmentedButton<AiListingStyle>(
-            segments: [
+          Wrap(
+            spacing: AppSpacing.s8,
+            runSpacing: AppSpacing.s8,
+            children: [
               for (final style in AiListingStyle.values)
-                ButtonSegment(value: style, label: Text(style.label)),
+                ChoiceChip(
+                  label: Text(style.label),
+                  selected: style == _style,
+                  onSelected: _loading
+                      ? null
+                      : (_) => setState(() => _style = style),
+                ),
             ],
-            selected: {_style},
-            showSelectedIcon: false,
-            onSelectionChanged: _loading
-                ? null
-                : (selected) => setState(() => _style = selected.first),
           ),
           if (remaining != null) ...[
             const SizedBox(height: AppSpacing.s8),

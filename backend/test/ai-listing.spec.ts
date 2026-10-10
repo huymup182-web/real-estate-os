@@ -231,6 +231,30 @@ describe('AI viết tin đăng POST /api/v1/properties/:id/ai-listing (TASK-136)
     assert.equal(row?.feature, 'facebook_post');
   });
 
+  it('tin Zalo (TASK-138): hướng dẫn riêng, bỏ hết hashtag, ghi lượt là zalo_post', async () => {
+    llm.reply = toolReply({
+      title: 'Em chào anh/chị',
+      description:
+        'Em gửi anh/chị căn nhà phố Vĩnh Hải giá 5 tỷ. #nhapho #vinhhai\nAnh/chị muốn đi xem không ạ?',
+    });
+    const response = await write('admin', { style: 'ZALO' });
+    assert.equal(response.status, 200, await response.clone().text());
+    const { data } = (await response.json()) as { data: { style: string; description: string } };
+    assert.equal(data.style, 'ZALO');
+    assert.equal(
+      data.description,
+      'Em gửi anh/chị căn nhà phố Vĩnh Hải giá 5 tỷ.\nAnh/chị muốn đi xem không ạ?',
+    );
+    const system = String(llm.calls[0]?.body['system']);
+    assert.match(system, /Tin nhắn Zalo/);
+    assert.match(system, /Không dùng hashtag/);
+    assert.doesNotMatch(system, /Bài đăng Facebook/);
+    const [row] = (await db.query(
+      `SELECT feature FROM ai_requests ORDER BY created_at DESC LIMIT 1`,
+    )) as { feature: string }[];
+    assert.equal(row?.feature, 'zalo_post');
+  });
+
   it('cần đăng nhập, quyền property.view, BĐS trong phạm vi xem, style hợp lệ; không gọi LLM khi bị chặn', async () => {
     assert.equal((await write(undefined)).status, 401);
     assert.equal((await write('noRole')).status, 403);
@@ -271,5 +295,6 @@ describe('AI viết tin đăng POST /api/v1/properties/:id/ai-listing (TASK-136)
     assert.equal(limitHashtags('A\n#a #b #c', 2), 'A\n#a #b');
     assert.equal(limitHashtags('#a giữa #b câu #c', 1), '#a giữa câu');
     assert.equal(limitHashtags('#nhàphố #đẹp', 5), '#nhàphố #đẹp');
+    assert.equal(limitHashtags('Giá tốt #a\n#b', 0), 'Giá tốt');
   });
 });
