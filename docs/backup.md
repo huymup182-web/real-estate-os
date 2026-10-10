@@ -2,11 +2,11 @@
 
 ## Cần sao lưu gì
 
-| Dữ liệu                                  | Nằm ở                        | Cách sao lưu                                                                          |
-| ---------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------- |
-| Toàn bộ dữ liệu nghiệp vụ, audit log     | PostgreSQL                   | Lệnh `backup create` dưới đây: bản chụp hằng ngày, gửi ra kho lưu trữ khác            |
-| Ảnh, giấy tờ BĐS                         | Object storage (`STORAGE_*`) | Bật versioning của bucket; nếu nhà cung cấp hỗ trợ thì sao chép sang bucket/vùng khác |
-| Secret (`JWT_SECRET`, khoá storage, AI…) | Hệ thống triển khai          | Lưu trong trình quản lý secret của hạ tầng (TASK-160), không nằm trong bản sao lưu    |
+| Dữ liệu                                  | Nằm ở                        | Cách sao lưu                                                                                       |
+| ---------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| Toàn bộ dữ liệu nghiệp vụ, audit log     | PostgreSQL                   | Lệnh `backup create` dưới đây: bản chụp hằng ngày, gửi ra kho lưu trữ khác                         |
+| Ảnh, giấy tờ BĐS                         | Object storage (`STORAGE_*`) | Bật versioning của bucket; nếu nhà cung cấp hỗ trợ thì sao chép sang bucket/vùng khác              |
+| Secret (`JWT_SECRET`, khoá storage, AI…) | Hệ thống triển khai          | `deploy/production.env` trên máy chủ ([deployment.md](deployment.md)), không nằm trong bản sao lưu |
 
 Bản sao lưu database chỉ có tên file (`storage_key`) của ảnh, không có ảnh. Khôi phục database về một ngày thì ảnh của ngày đó phải còn trên bucket, nên bucket ảnh không được xoá object cũ sớm hơn thời gian giữ bản sao lưu.
 
@@ -41,7 +41,7 @@ npm run backup -- restore <tên> <database>  # khôi phục vào database MỚI
 - **check**: khôi phục vào database tạm `<database>_restore_check`, đếm số bảng, số dòng từng bảng và migration cuối, rồi xoá database tạm. Không đụng tới database đang chạy.
 - **restore**: tạo database mới rồi khôi phục vào đó. Không bao giờ ghi đè: database đích đã có (kể cả database đang chạy) thì dừng. Khôi phục lỗi giữa chừng thì xoá database vừa tạo. Bản tải từ kho được kiểm SHA-256 trước khi dùng.
 
-Lập lịch (ví dụ crontab trên máy chạy backend, cấu hình chính thức ở TASK-160):
+Lập lịch (ví dụ crontab trên máy chạy backend). Ở production, lịch chạy bằng cron của máy chủ qua `docker compose run --rm backup …` ([deploy/crontab.example](../deploy/crontab.example), [deployment.md](deployment.md)):
 
 ```cron
 CRON_TZ=Asia/Ho_Chi_Minh

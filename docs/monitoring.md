@@ -1,6 +1,6 @@
 # Giám sát hệ thống (TASK-158)
 
-Mục tiêu là biết có sự cố trước người dùng: API ngừng chạy, lỗi tăng, chậm, database có vấn đề, job định kỳ hay sao lưu ngừng chạy. Code chỉ cung cấp số liệu và tín hiệu, không thêm thư viện. Công cụ thu thập và nơi nhận cảnh báo chọn khi triển khai (TASK-160). Ví dụ dưới đây dùng Prometheus + Alertmanager, dịch vụ quản lý tương thích Prometheus cũng dùng được.
+Mục tiêu là biết có sự cố trước người dùng: API ngừng chạy, lỗi tăng, chậm, database có vấn đề, job định kỳ hay sao lưu ngừng chạy. Code chỉ cung cấp số liệu và tín hiệu, không thêm thư viện. Ở production (TASK-160, [deployment.md](deployment.md)), Prometheus, Alertmanager (gửi email) và node-exporter chạy cùng Docker Compose (profile `monitoring`). Cấu hình nằm ở `deploy/prometheus/` và `deploy/alertmanager/`; luật cảnh báo đang chạy là `deploy/prometheus/alerts.yml`.
 
 ## Nguồn tín hiệu
 

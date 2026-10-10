@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 import type { NextConfig } from 'next';
 
 /**
@@ -23,6 +25,11 @@ export function securityHeaders(production: boolean): { key: string; value: stri
 
 /** Cấu hình Next.js cho web quản trị (TASK-100). Admin chỉ gọi Backend API, không truy cập database. */
 const nextConfig: NextConfig = {
+  // Gốc là thư mục repo: tsconfig.json của admin kế thừa ../tsconfig.base.json. Đặt rõ để build trong Docker
+  // (chỉ có admin/ và tsconfig.base.json, TASK-160) giống build local.
+  turbopack: { root: fileURLToPath(new URL('..', import.meta.url)) },
+  // Image production (admin/Dockerfile) chỉ chép bản standalone: server.js và đúng các file cần chạy.
+  output: process.env['NEXT_OUTPUT'] === 'standalone' ? 'standalone' : undefined,
   reactStrictMode: true,
   poweredByHeader: false,
   headers: () =>

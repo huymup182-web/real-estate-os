@@ -59,3 +59,8 @@ desktop.ini
 
 # Bản sao lưu database (TASK-157)
 backups/
+
+# Triển khai production (TASK-160): file thật trên máy chủ, có secret
+deploy/production.env
+deploy/secrets/
+deploy/alertmanager/alertmanager.yml
