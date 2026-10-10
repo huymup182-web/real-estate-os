@@ -21,6 +21,7 @@ Cấu hình chỉ qua `--dart-define`, không có secret trong app:
 | -------------- | ---------------------- | ------------------------------------------------------------- |
 | `API_BASE_URL` | `http://10.0.2.2:3000` | Gốc backend, app tự thêm `/api/v1`. Ngoài `local` phải https. |
 | `ENV`          | `local`                | `local`, `staging` hoặc `production`.                         |
+| `APP_VERSION` | `dev` | Phiên bản gửi kèm báo cáo lỗi (TASK-159), vd `1.0.0+1`. |
 
 Giá trị sai thì app báo lỗi ngay khi mở. Gọi http tới backend local: Android chỉ cho phép ở bản debug
 (`android/app/src/debug/AndroidManifest.xml`), iOS cho phép mạng nội bộ (`NSAllowsLocalNetworking`).
@@ -251,6 +252,10 @@ Chi tiết BĐS có nút "AI định giá" dưới giá khi AI bật. Bấm là 
 ## Video AI (TASK-150)
 
 Chi tiết BĐS có nút "AI làm video" dưới giá khi AI bật. Người dùng chọn 15, 30, 45 hoặc 60 giây, bấm "Tạo video" (gọi `POST /properties/:id/ai-video`, tính một lượt AI), app mở trình phát toàn màn hình. Video khung 9:16, mỗi cảnh là một ảnh của BĐS phóng to dần với chữ ở dưới, thanh tiến độ theo cảnh ở trên. Chạm để tạm dừng, phát tiếp, hoặc phát lại khi hết. Code: `lib/features/ai/presentation/ai_video_sheet.dart`, `ai_video_player.dart`.
+
+## Ghi nhận lỗi (TASK-159)
+
+`main.dart` gắn `CrashReporter` vào `FlutterError.onError` và `PlatformDispatcher.onError`. Lỗi chưa xử lý được gửi `POST /crash-reports` kèm loại lỗi, stack, mẫu route và `APP_VERSION`. Mỗi lỗi chỉ gửi một lần, tối đa 10 lỗi mỗi lần mở app. Chi tiết: [docs/crash-reporting.md](../docs/crash-reporting.md).
 
 ## Theme (TASK-114)
 

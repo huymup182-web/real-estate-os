@@ -55,6 +55,7 @@ export class MetricsService implements OnModuleDestroy {
   private readonly requests = new Map<string, HttpSeries>();
   private readonly durations = new Map<string, DurationSeries>();
   private readonly jobs = new Map<string, JobSeries>();
+  private readonly crashes = new Map<string, number>();
   private inFlight = 0;
   private readonly eventLoop = monitorEventLoopDelay({ resolution: 20 });
 
@@ -113,6 +114,11 @@ export class MetricsService implements OnModuleDestroy {
     this.jobs.set(job, series);
   }
 
+  /** Ghi một báo cáo lỗi từ client (TASK-159). */
+  crashReported(platform: string): void {
+    this.crashes.set(platform, (this.crashes.get(platform) ?? 0) + 1);
+  }
+
   /** Text Prometheus (exposition format 0.0.4). */
   render(database: DatabaseStats): string {
     const lines: string[] = [];
@@ -164,6 +170,15 @@ export class MetricsService implements OnModuleDestroy {
           `job_last_success_timestamp_seconds${labels({ job })} ${series.lastSuccessSeconds}`,
         );
       }
+    }
+
+    metric(
+      'crash_reports_total',
+      'counter',
+      'Số báo cáo lỗi từ web quản trị và app, theo nền tảng.',
+    );
+    for (const [platform, count] of this.crashes) {
+      lines.push(`crash_reports_total${labels({ platform })} ${count}`);
     }
 
     metric('db_up', 'gauge', '1 nếu database trả lời SELECT 1, 0 nếu không.');

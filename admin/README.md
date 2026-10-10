@@ -118,6 +118,7 @@ Trang chủ `/` là dashboard tổng quan, lấy số liệu từ `GET /api/v1/r
 | Biến               | Mặc định                | Ý nghĩa                                                                         |
 | ------------------ | ----------------------- | ------------------------------------------------------------------------------- |
 | `API_INTERNAL_URL` | `http://localhost:3000` | Gốc backend khi admin gọi từ phía server; trong Docker là `http://backend:3000` |
+| `APP_VERSION`      | (trống)                 | Phiên bản gửi kèm báo cáo lỗi (TASK-159)                                        |
 
 Admin không giữ secret nào (không đọc `JWT_SECRET`, `STORAGE_*`, `FCM_CONFIG`, `AI_API_KEY`).
 
@@ -155,3 +156,7 @@ Trang `/leaderboard` (menu "Xếp hạng", cần `report.view`) hiển thị b�
 Trang `/analytics` (menu "Phân tích", cần `report.view`) gọi `GET /reports/sales` và hiển thị phân tích doanh số trong phạm vi xem. Gồm doanh số so với kỳ trước, số giao dịch chốt, giá trị trung bình, tỷ lệ thắng, số ngày để chốt, giá trị giao dịch đang mở, doanh số theo tháng, giao dịch đang mở theo bước, theo loại BĐS và theo phường/xã. Kỳ 3, 6 hoặc 12 tháng (`?months=`, mặc định 6). Code: `src/lib/analytics.ts`, `src/app/(app)/analytics/page.tsx`.
 
 Tab "Chuyển đổi" (TASK-153, `?tab=conversion`) gọi `GET /reports/conversion`: phễu khách tạo trong kỳ (lead, đã liên hệ, đã xem nhà, đàm phán, chốt) kèm tỷ lệ so với lead và so với bước trước, số khách thất bại, số ngày để liên hệ và để chốt, bảng theo nguồn khách và theo người phụ trách.
+
+## Ghi nhận lỗi (TASK-159)
+
+Lỗi trong trình duyệt (error boundary `error.tsx`, `global-error.tsx`, `CrashListener` bắt lỗi ngoài React) đi qua server action `reportCrashAction`. Lỗi ở server admin đi qua `onRequestError` trong `src/instrumentation.ts`. Cả hai gửi `POST /crash-reports` về backend. Trang lỗi hiện "Có lỗi xảy ra", mã lỗi và nút thử lại. Chi tiết: [docs/crash-reporting.md](../docs/crash-reporting.md).

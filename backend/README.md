@@ -988,3 +988,7 @@ Kết quả rà soát theo MASTER_PLAN mục 29: [docs/security-audit.md](../doc
 ## Giám sát (TASK-158)
 
 `GET /api/v1/metrics` xuất số liệu dạng Prometheus (request, thời gian xử lý, job định kỳ, database, bộ nhớ) khi đặt `METRICS_TOKEN`, gọi kèm `Authorization: Bearer <token>`. Chưa đặt thì endpoint trả 404. `backup create` gọi `BACKUP_HEARTBEAT_URL` sau mỗi lần sao lưu thành công. Luật cảnh báo đề xuất và quy trình xử lý: [docs/monitoring.md](../docs/monitoring.md).
+
+## Ghi nhận lỗi (TASK-159)
+
+`POST /api/v1/crash-reports` (công khai, có giới hạn số lần) nhận lỗi từ web quản trị và app. Mỗi báo cáo ghi một dòng log `error` (context `CrashReport`) kèm mã nhóm `fingerprint` và tăng `crash_reports_total`. Khi backend dừng vì lỗi không ai bắt, nó ghi log `fatal` trước khi thoát. Chi tiết: [docs/crash-reporting.md](../docs/crash-reporting.md).

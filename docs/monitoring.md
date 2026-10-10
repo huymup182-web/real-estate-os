@@ -29,6 +29,7 @@ Mục tiêu là biết có sự cố trước người dùng: API ngừng chạy
 | `db_pool_connections{state}`, `db_pool_waiting_requests`  | gauge     | Kết nối trong pool (`total`, `idle`) và truy vấn đang chờ kết nối |
 | `process_resident_memory_bytes`, `nodejs_heap_used_bytes` | gauge     | Bộ nhớ                                                            |
 | `nodejs_eventloop_lag_p99_seconds`                        | gauge     | Độ trễ event loop p99 từ lần scrape trước                         |
+| `crash_reports_total{platform}`                           | counter   | Số báo cáo lỗi từ web quản trị, app (TASK-159)                    |
 | `process_uptime_seconds`                                  | gauge     | Thời gian đã chạy, giảm về 0 là instance vừa khởi động lại        |
 
 Cấu hình Prometheus:
@@ -51,18 +52,19 @@ Không mở `/api/v1/metrics` ra Internet nếu không cần: chặn ở reverse
 
 Ngưỡng là mặc định Claude chọn, theo mục tiêu p95 < 1 giây ([performance.md](performance.md), [load-testing.md](load-testing.md)) và lịch job hiện có.
 
-| Cảnh báo               | Điều kiện                                                          | Mức        |
-| ---------------------- | ------------------------------------------------------------------ | ---------- |
-| API không chạy         | Health check từ bên ngoài lỗi 2 lần liên tiếp (2 phút)             | Khẩn cấp   |
-| Database lỗi           | `db_up == 0` trong 2 phút                                          | Khẩn cấp   |
-| Lỗi 5xx tăng           | Tỷ lệ 5xx > 1% trong 5 phút (và có ít nhất 1 request/giây)         | Cao        |
-| API chậm               | p95 toàn bộ > 1 giây trong 10 phút                                 | Cao        |
-| Thiếu kết nối database | `db_pool_waiting_requests > 0` trong 5 phút                        | Cao        |
-| Job ngừng chạy         | Nhắc lịch hẹn quá 15 phút, xác minh BĐS quá 2 giờ không thành công | Cao        |
-| Sao lưu ngừng          | Heartbeat sao lưu quá 26 giờ không đến                             | Cao        |
-| Event loop nghẽn       | `nodejs_eventloop_lag_p99_seconds > 0.5` trong 5 phút              | Trung bình |
-| Bộ nhớ cao             | RSS > 80% giới hạn bộ nhớ của container trong 15 phút              | Trung bình |
-| Ổ đĩa database         | Còn dưới 20% dung lượng                                            | Cao        |
+| Cảnh báo               | Điều kiện                                                                                  | Mức        |
+| ---------------------- | ------------------------------------------------------------------------------------------ | ---------- |
+| API không chạy         | Health check từ bên ngoài lỗi 2 lần liên tiếp (2 phút)                                     | Khẩn cấp   |
+| Database lỗi           | `db_up == 0` trong 2 phút                                                                  | Khẩn cấp   |
+| Lỗi 5xx tăng           | Tỷ lệ 5xx > 1% trong 5 phút (và có ít nhất 1 request/giây)                                 | Cao        |
+| API chậm               | p95 toàn bộ > 1 giây trong 10 phút                                                         | Cao        |
+| Thiếu kết nối database | `db_pool_waiting_requests > 0` trong 5 phút                                                | Cao        |
+| Job ngừng chạy         | Nhắc lịch hẹn quá 15 phút, xác minh BĐS quá 2 giờ không thành công                         | Cao        |
+| Sao lưu ngừng          | Heartbeat sao lưu quá 26 giờ không đến                                                     | Cao        |
+| Lỗi ứng dụng tăng      | `crash_reports_total` tăng hơn 20 trong 15 phút ([crash-reporting.md](crash-reporting.md)) | Trung bình |
+| Event loop nghẽn       | `nodejs_eventloop_lag_p99_seconds > 0.5` trong 5 phút                                      | Trung bình |
+| Bộ nhớ cao             | RSS > 80% giới hạn bộ nhớ của container trong 15 phút                                      | Trung bình |
+| Ổ đĩa database         | Còn dưới 20% dung lượng                                                                    | Cao        |
 
 Luật Prometheus tương ứng:
 
@@ -97,6 +99,9 @@ groups:
         expr: time() - max(job_last_success_timestamp_seconds{job="property-verification"}) > 7200
         for: 10m
         labels: { severity: high }
+      - alert: ClientCrashesRising
+        expr: sum(increase(crash_reports_total[15m])) > 20
+        labels: { severity: medium }
       - alert: EventLoopLag
         expr: nodejs_eventloop_lag_p99_seconds > 0.5
         for: 5m
