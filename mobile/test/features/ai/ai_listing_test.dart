@@ -105,6 +105,26 @@ void main() {
     },
   );
 
+  testWidgets(
+    'bài Facebook (TASK-137): gửi kiểu FACEBOOK, hiện dòng mở đầu và thân bài',
+    (tester) async {
+      await open(tester);
+      await openSheet(tester);
+      await tester.tap(find.text('Facebook'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Viết tin'));
+      await tester.pumpAndSettle();
+      expect(ai.listings, [('p1', AiListingStyle.facebook)]);
+      expect(find.text('Dòng mở đầu'), findsOneWidget);
+      expect(find.text('Thân bài'), findsOneWidget);
+      expect(find.text('Tiêu đề'), findsNothing);
+      await tester.tap(find.byTooltip('Sao chép dòng mở đầu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Đã sao chép dòng mở đầu.'), findsOneWidget);
+      expect(copied, ['Bán nhà phố Vĩnh Hải (Facebook)']);
+    },
+  );
+
   testWidgets('AI lỗi thì báo lỗi, vẫn bấm lại được', (tester) async {
     ai.onListing = (propertyId, style) async => throw const ApiException(
       code: ErrorCodes.serviceUnavailable,

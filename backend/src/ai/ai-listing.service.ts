@@ -11,8 +11,10 @@ import {
 import { AiGatewayService } from './ai-gateway.service.js';
 import {
   LISTING_DESCRIPTION_MAX,
+  LISTING_FEATURES,
   LISTING_TITLE_MAX,
   LISTING_WRITER_TOOL,
+  MAX_FACEBOOK_HASHTAGS,
   type ListingStyle,
   listingWriterSystemPrompt,
   listingWriterTool,
@@ -39,8 +41,18 @@ export function hidePhones(text: string): string {
   return text.replace(PHONE, HIDDEN_PHONE);
 }
 
+/** Giữ [max] hashtag đầu tiên, bỏ các hashtag sau (bài Facebook, TASK-137). */
+export function limitHashtags(text: string, max: number): string {
+  let count = 0;
+  return text
+    .replace(/#[\p{L}\p{N}_]+/gu, (tag) => (++count <= max ? tag : ''))
+    .replace(/ {2,}/g, ' ')
+    .replace(/[ \t]+$/gm, '')
+    .trim();
+}
+
 /**
- * AI viết tin đăng từ dữ liệu thật của BĐS (TASK-136, MASTER_PLAN mục 18). Không gửi LLM địa chỉ chi tiết,
+ * AI viết tin đăng từ dữ liệu thật của BĐS (TASK-136, MASTER_PLAN mục 18), cả bài Facebook (TASK-137). Không gửi LLM địa chỉ chi tiết,
  * chủ nhà, môi giới, hoa hồng; mô tả gửi kèm đã ẩn số điện thoại.
  */
 @Injectable()
@@ -64,7 +76,7 @@ export class AiListingService {
     };
 
     const response = await this.gateway.complete(user, {
-      feature: 'listing_writer',
+      feature: LISTING_FEATURES[style],
       system: listingWriterSystemPrompt(style),
       messages: [{ role: 'user', content: JSON.stringify(facts) }],
       tools: [listingWriterTool],
@@ -73,7 +85,10 @@ export class AiListingService {
     });
     const input = response.toolCalls.find((call) => call.name === LISTING_WRITER_TOOL)?.input;
     const title = clean(input?.['title'], LISTING_TITLE_MAX).replace(/\s+/g, ' ');
-    const description = clean(input?.['description'], LISTING_DESCRIPTION_MAX);
+    let description = clean(input?.['description'], LISTING_DESCRIPTION_MAX);
+    if (style === 'FACEBOOK') {
+      description = limitHashtags(description, MAX_FACEBOOK_HASHTAGS);
+    }
     if (title === '' || description === '') {
       throw new AppException(
         ErrorCode.SERVICE_UNAVAILABLE,

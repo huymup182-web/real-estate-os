@@ -7,7 +7,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import type { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-import { hidePhones } from '../src/ai/ai-listing.service.js';
+import { hidePhones, limitHashtags } from '../src/ai/ai-listing.service.js';
 import { createApp } from '../src/app.factory.js';
 import { hashPassword } from '../src/auth/password.js';
 import { type FakeLlm, setEnv, startFakeLlm } from './support/fake-llm.js';
@@ -207,13 +207,37 @@ describe('AI viết tin đăng POST /api/v1/properties/:id/ai-listing (TASK-136)
     assert.doesNotMatch(system, /Kiểu chuyên nghiệp/);
   });
 
+  it('bài Facebook (TASK-137): hướng dẫn riêng, tối đa 5 hashtag, ghi lượt là facebook_post', async () => {
+    llm.reply = toolReply({
+      title: 'Nhà phố Vĩnh Hải giá 5 tỷ',
+      description:
+        'Nhà mới xây gần chợ.\nNhắn tin để xem nhà.\n#nhapho #vinhhai #nhatrang #khanhhoa #bannha #sotieng #muaban',
+    });
+    const response = await write('admin', { style: 'FACEBOOK' });
+    assert.equal(response.status, 200, await response.clone().text());
+    const { data } = (await response.json()) as { data: { style: string; description: string } };
+    assert.equal(data.style, 'FACEBOOK');
+    assert.equal(
+      data.description,
+      'Nhà mới xây gần chợ.\nNhắn tin để xem nhà.\n#nhapho #vinhhai #nhatrang #khanhhoa #bannha',
+    );
+    const system = String(llm.calls[0]?.body['system']);
+    assert.match(system, /Bài đăng Facebook/);
+    assert.match(system, /tối đa 5 hashtag/);
+    assert.doesNotMatch(system, /không dùng emoji/);
+    const [row] = (await db.query(
+      `SELECT feature FROM ai_requests ORDER BY created_at DESC LIMIT 1`,
+    )) as { feature: string }[];
+    assert.equal(row?.feature, 'facebook_post');
+  });
+
   it('cần đăng nhập, quyền property.view, BĐS trong phạm vi xem, style hợp lệ; không gọi LLM khi bị chặn', async () => {
     assert.equal((await write(undefined)).status, 401);
     assert.equal((await write('noRole')).status, 403);
     assert.equal((await write('otherAdmin')).status, 404);
     assert.equal((await write('admin', {}, MISSING)).status, 404);
     assert.equal((await write('admin', {}, 'abc')).status, 400);
-    assert.equal((await write('admin', { style: 'FACEBOOK' })).status, 400);
+    assert.equal((await write('admin', { style: 'INSTAGRAM' })).status, 400);
     assert.equal(llm.calls.length, 0);
   });
 
@@ -241,5 +265,11 @@ describe('AI viết tin đăng POST /api/v1/properties/:id/ai-listing (TASK-136)
     }
     const kept = 'Giá 5.000.000.000 đồng, 80 m², xây năm 2024, hẻm 3 m, mã 01234';
     assert.equal(hidePhones(kept), kept);
+  });
+
+  it('limitHashtags giữ số hashtag đầu, bỏ phần còn lại', () => {
+    assert.equal(limitHashtags('A\n#a #b #c', 2), 'A\n#a #b');
+    assert.equal(limitHashtags('#a giữa #b câu #c', 1), '#a giữa câu');
+    assert.equal(limitHashtags('#nhàphố #đẹp', 5), '#nhàphố #đẹp');
   });
 });

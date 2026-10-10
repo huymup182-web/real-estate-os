@@ -32,6 +32,7 @@ class FakeAiRepository implements AiRepository {
   final explanations = <(String, String)>[];
   Future<AiListing> Function(String propertyId, AiListingStyle style)
   onListing = (propertyId, style) async => AiListing(
+    style: style,
     title: 'Bán nhà phố Vĩnh Hải (${style.label})',
     description: 'Nhà mới xây gần chợ.\nGiá 3,5 tỷ, 70,5 m².',
   );

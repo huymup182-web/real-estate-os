@@ -14,7 +14,7 @@ export class AiListingController {
   constructor(private readonly listings: AiListingService) {}
 
   /**
-   * `POST /api/v1/properties/:id/ai-listing` `{style?: PROFESSIONAL | SHORT}` → {property, style, title,
+   * `POST /api/v1/properties/:id/ai-listing` `{style?: PROFESSIONAL | SHORT | FACEBOOK}` → {property, style, title,
    * description}. BĐS ngoài phạm vi `property.view` → 404. Chỉ trả bản nháp, không sửa BĐS.
    */
   @Post('properties/:id/ai-listing')
