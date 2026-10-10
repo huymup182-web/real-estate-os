@@ -883,3 +883,11 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - `matches[]`: `{code, similarity, reasons, property}`, giống nhất trước, tối đa 5. Người hỏi không xem được BĐS đó (vd BĐS đã ẩn của người khác) thì `property` null, chỉ có mã. Không trả SĐT chủ nhà.
 - So trong cả công ty: cùng loại giao dịch, cùng loại BĐS, cùng phường/xã hoặc cách tối đa 300 m (200 BĐS mới nhất). Độ giống (`src/properties/duplicate-score.ts`) là tổng điểm các tiêu chí có dữ liệu ở cả hai BĐS chia tổng trọng số của chúng: phường/xã 10, toạ độ 15 (≤ 30 m / 100 m / 300 m), giá 15 và diện tích 15 (lệch ≤ 2% / 5% / 10%), SĐT chủ nhà 20 (chỉ khi BĐS đã có chủ nhà), địa chỉ 15 và mô tả 10 (độ giống trigram không dấu, dưới 0,4 coi như khác).
 - Ngưỡng `DUPLICATE_THRESHOLD` = 70% (Huy Lê chọn ngày 2026-10-10). Ảnh chưa so (PRD: trùng bằng ảnh để sau MVP).
+
+## Thống kê giá thị trường (TASK-145)
+
+`GET /api/v1/reports/market/prices?provinceId&wardId&propertyType&groupBy&months` (`property.view`) → `{period, groupBy, statuses, minSample, overall, groups}`. Code: `src/reports/market-stats.service.ts`. Giao diện làm ở TASK-148.
+
+- Tính BĐS bán trong phạm vi `property.view` của người hỏi, trong công ty của họ, đăng trong `months` tháng gần nhất (1–36, mặc định 12), trạng thái Đang bán, Đang giao dịch, Đã bán (Huy Lê chọn ngày 2026-10-10). Tin ẩn, hết hạn, chờ xác minh không tính.
+- `overall` và mỗi nhóm: `count`, `avgPrice`, `medianPrice`, `minPrice`, `maxPrice` (đồng), `avgArea` (m²). Nhóm có dưới `minSample` = 3 tin chỉ có `count`, các số khác null (tránh số liệu lệch và lộ giá một căn).
+- `groupBy=ward` (mặc định, `name` là tên phường/xã) hoặc `propertyType` (`name` null). Nhiều tin trước. Tham số sai → 400.
