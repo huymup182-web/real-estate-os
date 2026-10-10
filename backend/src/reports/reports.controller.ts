@@ -4,6 +4,10 @@ import type { RequestUser } from '../auth/jwt-auth.guard.js';
 import { RequirePermission } from '../auth/permission.guard.js';
 import { TenantId } from '../auth/tenant.guard.js';
 import { actorOf, scopesOf } from '../properties/properties.controller.js';
+import {
+  type ConversionAnalytics,
+  ConversionAnalyticsService,
+} from './conversion-analytics.service.js';
 import { DashboardQueryDto } from './dto/dashboard-query.dto.js';
 import { MarketPriceQueryDto } from './dto/market-price-query.dto.js';
 import { type Leaderboard, LeaderboardService } from './leaderboard.service.js';
@@ -24,6 +28,7 @@ export class ReportsController {
     private readonly market: MarketStatsService,
     private readonly leaderboards: LeaderboardService,
     private readonly salesAnalytics: SalesAnalyticsService,
+    private readonly conversionAnalytics: ConversionAnalyticsService,
   ) {}
 
   /** `GET /api/v1/reports/dashboard?from&to` → số liệu tổng và phễu trong phạm vi `report.view`. */
@@ -67,6 +72,21 @@ export class ReportsController {
   ): Promise<SalesAnalytics> {
     const scope = req.user.permissions['report.view'] ?? 'OWN';
     return this.salesAnalytics.sales(actorOf(tenantId, req.user), query, scope);
+  }
+
+  /**
+   * `GET /api/v1/reports/conversion?from&to` → phễu chuyển đổi của khách tạo trong kỳ, trong phạm vi `report.view`
+   * (TASK-153): lead, đã liên hệ, đã đi xem, đàm phán, chốt; theo nguồn và người phụ trách.
+   */
+  @Get('conversion')
+  @RequirePermission('report.view')
+  conversion(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Query() query: DashboardQueryDto,
+  ): Promise<ConversionAnalytics> {
+    const scope = req.user.permissions['report.view'] ?? 'OWN';
+    return this.conversionAnalytics.conversion(actorOf(tenantId, req.user), query, scope);
   }
 
   /**
