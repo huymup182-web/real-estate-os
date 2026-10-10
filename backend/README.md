@@ -826,7 +826,7 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 
 ## AI viết tin đăng (TASK-136)
 
-`POST /api/v1/properties/:id/ai-listing` (`property.view`) `{style?}` → `{property {id, code}, style, title, description}`. `style` là `PROFESSIONAL` (mặc định, 150–300 từ) hoặc `SHORT` (tối đa 60 từ). Theo MASTER_PLAN mục 18: AI chỉ dùng dữ liệu thật, không bịa giá, diện tích, pháp lý, vị trí, tiện ích. Kết quả chỉ là bản nháp để môi giới sao chép, không lưu vào BĐS. Mỗi lần gọi tính một lượt AI.
+`POST /api/v1/properties/:id/ai-listing` (`property.view`) `{style?}` → `{property {id, code}, style, title, description}`. `style` là `PROFESSIONAL` (mặc định, 150–300 từ), `SHORT` (tối đa 60 từ) hoặc `FACEBOOK` (bài Facebook, TASK-137: `title` là dòng mở đầu, `description` là thân bài 80–200 từ, được dùng tối đa 5 emoji, dòng cuối tối đa 5 hashtag; backend bỏ các hashtag thừa). `ai_requests.feature` là `listing_writer` hoặc `facebook_post`. Theo MASTER_PLAN mục 18: AI chỉ dùng dữ liệu thật, không bịa giá, diện tích, pháp lý, vị trí, tiện ích. Kết quả chỉ là bản nháp để môi giới sao chép, không lưu vào BĐS. Mỗi lần gọi tính một lượt AI.
 
 - BĐS ngoài phạm vi `property.view` → 404, không gọi AI.
 - LLM nhận thông số BĐS như TASK-135 (`src/ai/property-facts.ts`) và mô tả môi giới đã nhập (nguồn duy nhất của tiện ích, đặc điểm). Không gửi địa chỉ chi tiết, chủ nhà, môi giới, hoa hồng.

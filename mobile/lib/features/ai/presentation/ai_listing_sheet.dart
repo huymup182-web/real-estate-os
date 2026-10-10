@@ -8,7 +8,8 @@ import '../../../core/widgets/error_retry.dart';
 import '../domain/ai_listing.dart';
 import 'ai_providers.dart';
 
-/// Mở ô AI viết tin đăng cho một BĐS (TASK-136). Tin chỉ để sao chép, không lưu vào BĐS.
+/// Mở ô AI viết tin đăng hoặc bài Facebook cho một BĐS (TASK-136, TASK-137). Tin chỉ để sao chép, không lưu
+/// vào BĐS.
 Future<void> showAiListingSheet(
   BuildContext context, {
   required String propertyId,
@@ -100,6 +101,7 @@ class _AiListingSheetState extends ConsumerState<AiListingSheet> {
                 ButtonSegment(value: style, label: Text(style.label)),
             ],
             selected: {_style},
+            showSelectedIcon: false,
             onSelectionChanged: _loading
                 ? null
                 : (selected) => setState(() => _style = selected.first),
@@ -138,15 +140,19 @@ class _AiListingSheetState extends ConsumerState<AiListingSheet> {
           if (result != null) ...[
             const SizedBox(height: AppSpacing.s16),
             _Block(
-              label: 'Tiêu đề',
+              label: result.style.titleLabel,
               text: result.title,
-              onCopy: () => _copy(result.title, 'tiêu đề'),
+              onCopy: () =>
+                  _copy(result.title, result.style.titleLabel.toLowerCase()),
             ),
             const SizedBox(height: AppSpacing.s12),
             _Block(
-              label: 'Nội dung',
+              label: result.style.bodyLabel,
               text: result.description,
-              onCopy: () => _copy(result.description, 'nội dung'),
+              onCopy: () => _copy(
+                result.description,
+                result.style.bodyLabel.toLowerCase(),
+              ),
             ),
             const SizedBox(height: AppSpacing.s12),
             OutlinedButton.icon(

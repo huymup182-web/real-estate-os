@@ -3,9 +3,19 @@ import type { LlmTool } from './llm-provider.js';
 /** Tool LLM phải gọi để trả tin đăng có cấu trúc (TASK-136). */
 export const LISTING_WRITER_TOOL = 'property_listing';
 
-/** Kiểu tin (MASTER_PLAN mục 18): chuyên nghiệp (đầy đủ) hoặc ngắn gọn. */
-export const LISTING_STYLES = ['PROFESSIONAL', 'SHORT'] as const;
+/** Kiểu tin (MASTER_PLAN mục 18): chuyên nghiệp (đầy đủ), ngắn gọn, bài Facebook (TASK-137). */
+export const LISTING_STYLES = ['PROFESSIONAL', 'SHORT', 'FACEBOOK'] as const;
 export type ListingStyle = (typeof LISTING_STYLES)[number];
+
+/** Tên tính năng ghi vào `ai_requests` theo kiểu tin, để thống kê lượt dùng từng loại. */
+export const LISTING_FEATURES: Record<ListingStyle, string> = {
+  PROFESSIONAL: 'listing_writer',
+  SHORT: 'listing_writer',
+  FACEBOOK: 'facebook_post',
+};
+
+/** Số hashtag tối đa của bài Facebook. */
+export const MAX_FACEBOOK_HASHTAGS = 5;
 
 /** Cùng giới hạn với `title`, `description` của BĐS (`CreatePropertyDto`), để dán thẳng vào tin. */
 export const LISTING_TITLE_MAX = 255;
@@ -36,6 +46,13 @@ const STYLE_RULES: Record<ListingStyle, string> = {
     'Kiểu chuyên nghiệp: 150–300 từ. Mở đầu bằng điểm nổi bật, sau đó thông số (giá, diện tích, phòng, hướng, pháp lý, đường vào, khu vực) theo từng dòng, cuối cùng một câu mời liên hệ xem nhà.',
   SHORT:
     'Kiểu ngắn gọn: tối đa 60 từ, 3–5 dòng, chỉ nêu giá, diện tích, khu vực và 1–2 điểm nổi bật, cuối cùng một câu mời liên hệ.',
+  FACEBOOK: `Bài đăng Facebook: "title" là dòng mở đầu gây chú ý (tối đa 100 ký tự). "description" là thân bài 80–200 từ, câu ngắn, mỗi ý một dòng, thông số chính mỗi dòng một ý, cuối bài một câu kêu gọi nhắn tin hoặc bình luận để xem nhà, dòng cuối cùng tối đa ${MAX_FACEBOOK_HASHTAGS} hashtag không dấu liên quan tới loại BĐS và khu vực (ví dụ #nhaphonhatrang). Được dùng tối đa 5 emoji ở đầu dòng.`,
+};
+
+const EMOJI_RULES: Record<ListingStyle, string> = {
+  PROFESSIONAL: 'không dùng emoji',
+  SHORT: 'không dùng emoji',
+  FACEBOOK: 'emoji chỉ theo quy tắc bài Facebook ở trên',
 };
 
 export function listingWriterSystemPrompt(style: ListingStyle): string {
@@ -47,5 +64,5 @@ Quy tắc:
 - Tiện ích, đặc điểm chỉ lấy từ "mo_ta".
 - Không ghi số điện thoại, tên chủ nhà, địa chỉ số nhà; phần liên hệ chỉ ghi chung, ví dụ "Liên hệ để xem nhà".
 - ${STYLE_RULES[style]}
-- Viết tiếng Việt có dấu, lịch sự, không phóng đại, không dùng emoji, không dùng markdown.`;
+- Viết tiếng Việt có dấu, lịch sự, không phóng đại, ${EMOJI_RULES[style]}, không dùng markdown.`;
 }
