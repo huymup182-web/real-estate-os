@@ -1,0 +1,55 @@
+# Triển khai lên VPS (TASK-160, docs/deployment.md). Chỉ chạy tay: Actions → Deploy → Run workflow.
+# Cần environment "production" với secret DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS và
+# biến DEPLOY_PATH (vd /opt/real-estate-os). Có thể bật "Required reviewers" cho environment này.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Commit git cần triển khai (đã có image từ workflow Release). Để trống = commit đang chọn.
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Triển khai production
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+      - name: Chuẩn bị SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Chép cấu hình triển khai, kéo image, chạy deploy.sh
+        env:
+          HOST: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          TAG: ${{ inputs.tag || github.sha }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          ssh_run() { ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$HOST" "$@"; }
+          # Chỉ file trong repo; deploy/.env, production.env, secrets/ trên máy chủ không bị đụng tới.
+          tar -czf - -C deploy . | ssh_run "mkdir -p '$DEPLOY_PATH/deploy' && tar -xzf - -C '$DEPLOY_PATH/deploy'"
+          # Token chỉ sống trong lúc job chạy, đủ để kéo image private trên GHCR.
+          printf '%s' "$REGISTRY_TOKEN" | ssh_run "docker login ghcr.io -u '$REGISTRY_USER' --password-stdin"
+          status=0
+          ssh_run "cd '$DEPLOY_PATH/deploy' && ./deploy.sh '$TAG'" || status=$?
+          ssh_run "docker logout ghcr.io" || true
+          exit "$status"

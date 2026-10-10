@@ -1,0 +1,5 @@
+# Lịch sao lưu trên máy chủ (TASK-157, TASK-160, docs/backup.md). Cài: crontab -e rồi dán (sửa đường dẫn).
+# Giờ theo UTC (cron mặc định của máy chủ): 19:00 UTC = 02:00 giờ Việt Nam.
+0 19 * * *  cd /opt/real-estate-os/deploy && docker compose run --rm -T backup create >> /var/log/real-estate-os-backup.log 2>&1
+# Diễn tập khôi phục mỗi tuần: 20:30 UTC thứ Bảy = 03:30 Chủ nhật giờ Việt Nam
+30 20 * * 6 cd /opt/real-estate-os/deploy && docker compose run --rm -T backup check  >> /var/log/real-estate-os-backup.log 2>&1

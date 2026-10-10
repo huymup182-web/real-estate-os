@@ -1,0 +1,73 @@
+# Luật cảnh báo (TASK-158, TASK-160). Ngưỡng là mặc định Claude chọn, giải thích ở docs/monitoring.md.
+groups:
+  - name: real-estate-os
+    rules:
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Prometheus không đọc được /metrics của backend trong 2 phút
+      - alert: DatabaseDown
+        expr: db_up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Database không trả lời SELECT 1
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.01
+          and sum(rate(http_requests_total[5m])) > 1
+        for: 5m
+        labels: { severity: high }
+        annotations:
+          summary: Hơn 1% request lỗi 5xx trong 5 phút
+      - alert: SlowRequests
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{route!="unmatched"}[5m]))) > 1
+        for: 10m
+        labels: { severity: high }
+        annotations:
+          summary: p95 thời gian xử lý trên 1 giây trong 10 phút
+      - alert: DatabasePoolExhausted
+        expr: max(db_pool_waiting_requests) > 0
+        for: 5m
+        labels: { severity: high }
+        annotations:
+          summary: Truy vấn phải chờ kết nối database trong 5 phút
+      - alert: AppointmentReminderStale
+        expr: time() - max(job_last_success_timestamp_seconds{job="appointment-reminder"}) > 900
+        for: 5m
+        labels: { severity: high }
+        annotations:
+          summary: Job nhắc lịch hẹn quá 15 phút không chạy thành công
+      - alert: PropertyVerificationStale
+        expr: time() - max(job_last_success_timestamp_seconds{job="property-verification"}) > 7200
+        for: 10m
+        labels: { severity: high }
+        annotations:
+          summary: Job xác minh BĐS quá 2 giờ không chạy thành công
+      - alert: ClientCrashesRising
+        expr: sum(increase(crash_reports_total[15m])) > 20
+        labels: { severity: medium }
+        annotations:
+          summary: Hơn 20 báo cáo lỗi từ web quản trị và app trong 15 phút (docs/crash-reporting.md)
+      - alert: EventLoopLag
+        expr: nodejs_eventloop_lag_p99_seconds > 0.5
+        for: 5m
+        labels: { severity: medium }
+        annotations:
+          summary: Event loop của backend nghẽn trên 0,5 giây
+      - alert: HighMemory
+        expr: process_resident_memory_bytes > 1.5e9
+        for: 15m
+        labels: { severity: medium }
+        annotations:
+          summary: Backend dùng hơn 1,5 GB bộ nhớ trong 15 phút
+      - alert: DiskSpaceLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} < 0.2
+        for: 10m
+        labels: { severity: high }
+        annotations:
+          summary: Ổ đĩa máy chủ còn dưới 20% (database, sao lưu, log)

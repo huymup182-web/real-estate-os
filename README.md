@@ -14,6 +14,7 @@ Một nền tảng giúp môi giới và công ty BĐS quản lý trọn quy tr�
 ├── database/   # Thiết kế, migration, seed PostgreSQL
 ├── docs/       # Tài liệu dự án
 ├── scripts/    # Script hỗ trợ phát triển
+├── deploy/     # Triển khai production: Docker Compose, Caddy, giám sát (docs/deployment.md)
 ├── docker-compose.yml
 ├── eslint.config.mjs   # ESLint dùng chung
 ├── tsconfig.base.json  # TypeScript strict dùng chung

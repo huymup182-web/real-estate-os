@@ -1,0 +1,113 @@
+# Kiểm tra mỗi pull request và mỗi lần đẩy lên main (TASK-160, docs/deployment.md):
+# lint/format/typecheck, test backend + database (PostgreSQL thật), test và build admin, test mobile, build image.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, format, typecheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+      - run: npm ci
+      - run: npm ci --prefix database
+      - run: npm ci --prefix backend
+      - run: npm ci --prefix admin
+      - run: npm run check
+
+  backend:
+    name: Test backend và database
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: real_estate_os
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+      # pg_dump/pg_restore 16 cho test sao lưu (test/backup.spec.ts)
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client-16
+      - run: npm ci --prefix database
+      - run: npm ci --prefix backend
+      # Dùng .env.development (database postgres/postgres ở localhost:5432, như service ở trên)
+      - run: npm test --prefix database
+      - run: npm run build --prefix backend
+      - run: npm test --prefix backend
+        timeout-minutes: 30
+
+  admin:
+    name: Test và build admin
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+      - run: npm ci --prefix admin
+      - run: npm test --prefix admin
+      - run: npm run build --prefix admin
+
+  mobile:
+    name: Test mobile
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
+
+  images:
+    name: Build image Docker
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        image:
+          - { name: backend, dockerfile: backend/Dockerfile }
+          - { name: admin, dockerfile: admin/Dockerfile }
+          - { name: migrate, dockerfile: database/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
