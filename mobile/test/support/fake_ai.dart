@@ -5,9 +5,10 @@ import 'package:real_estate_os/features/ai/domain/ai_follow_up.dart';
 import 'package:real_estate_os/features/ai/domain/ai_listing.dart';
 import 'package:real_estate_os/features/ai/domain/ai_match.dart';
 import 'package:real_estate_os/features/ai/domain/ai_search.dart';
+import 'package:real_estate_os/features/ai/domain/ai_valuation.dart';
 
 /// AiRepository giả: [status] trả về từ `GET /ai/status`; [onSearch] trả kết quả tìm bằng AI; [onExplain] trả
-/// lời AI giải thích matching; [onListing] trả tin AI viết.
+/// lời AI giải thích matching; [onListing] trả tin AI viết; [onValuation] trả định giá AI.
 class FakeAiRepository implements AiRepository {
   FakeAiRepository({
     this.currentStatus = const AiStatus(
@@ -40,6 +41,53 @@ class FakeAiRepository implements AiRepository {
     description: 'Nhà mới xây gần chợ.\nGiá 3,5 tỷ, 70,5 m².',
   );
   final listings = <(String, AiListingStyle)>[];
+  Future<AiValuation> Function(String propertyId) onValuation =
+      (propertyId) async => AiValuation.fromJson(const {
+        'estimate': {'price': 5060000000, 'pricePerM2': 63250000},
+        'range': {'low': 4730000000, 'high': 5500000000},
+        'base': {'price': 4600000000, 'pricePerM2': 57500000},
+        'adjustmentPercent': 10,
+        'maxAdjustmentPercent': 10,
+        'confidence': 'MEDIUM',
+        'factors': [
+          {
+            'factor': 'Pháp lý',
+            'impact': 'UP',
+            'note': 'Sổ riêng, tốt hơn căn sổ chung.',
+          },
+          {
+            'factor': 'Diện tích',
+            'impact': 'NEUTRAL',
+            'note': 'Gần bằng các căn tương tự.',
+          },
+        ],
+        'summary': 'Giá ước tính dựa trên 4 BĐS tương tự cùng khu vực.',
+        'comparables': [
+          {
+            'id': 'p2',
+            'code': 'BDS-000002',
+            'title': 'Nhà phố Vĩnh Hải',
+            'status': 'SOLD',
+            'price': 4000000000,
+            'area': 80,
+            'pricePerM2': 50000000,
+            'sameWard': true,
+          },
+          {
+            'id': 'p3',
+            'code': 'BDS-000003',
+            'title': 'Nhà phố Lộc Thọ',
+            'status': 'AVAILABLE',
+            'price': 6300000000,
+            'area': 90,
+            'pricePerM2': 70000000,
+            'sameWard': false,
+          },
+        ],
+        'askingPrice': 5000000000,
+        'askingVsEstimatePercent': -1.2,
+      });
+  final valuations = <String>[];
   Future<AiCustomerSummary> Function(String customerId) onSummary =
       (customerId) async => const AiCustomerSummary(
         summary:
@@ -124,6 +172,12 @@ class FakeAiRepository implements AiRepository {
   Future<AiListing> listing(String propertyId, AiListingStyle style) {
     listings.add((propertyId, style));
     return onListing(propertyId, style);
+  }
+
+  @override
+  Future<AiValuation> valuation(String propertyId) {
+    valuations.add(propertyId);
+    return onValuation(propertyId);
   }
 
   @override
