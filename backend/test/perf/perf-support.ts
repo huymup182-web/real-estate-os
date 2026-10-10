@@ -173,6 +173,107 @@ export async function seedProperties(
   );
 }
 
+/**
+ * Khách, nhu cầu, hoạt động, lịch hẹn, giao dịch bằng generate_series. Khách thứ n tạo cách đây n × 400/N
+ * ngày; 1/25 chưa giao cho ai. Giá trị rải bằng hàm băm để lặp lại được giữa các lần chạy.
+ */
+export async function seedCrm(db: DataSource, tenantId: string, customers: number): Promise<void> {
+  await db.transaction(async (manager) => {
+    await manager.query(HASH_FUNCTION);
+    await manager.query(
+      `WITH agents AS (
+         SELECT array_agg(u.id ORDER BY u.email) AS ids FROM users u WHERE u.tenant_id = $1
+       ), words AS (
+         SELECT ARRAY['Nguyễn Văn', 'Trần Thị', 'Lê Văn', 'Phạm Thị', 'Hoàng Văn', 'Võ Thị', 'Đặng Văn', 'Bùi Thị'] AS families,
+                ARRAY['An', 'Bình', 'Cường', 'Dung', 'Hải', 'Hoa', 'Khánh', 'Lan', 'Minh', 'Nam'] AS names,
+                ARRAY['REFERRAL','WALK_IN','FACEBOOK','ZALO','TIKTOK','WEBSITE','BROKER_PARTNER','OLD_CUSTOMER','OTHER'] AS sources,
+                ARRAY['NEW','CONTACTED','QUALIFIED','VIEWING','NEGOTIATING','DEPOSIT','WON','LOST'] AS statuses
+       )
+       INSERT INTO customers (tenant_id, full_name, phone, source, agent_id, status, created_by, created_at)
+       SELECT $1,
+              words.families[1 + pg_temp.h(n) % 8] || ' ' || words.names[1 + pg_temp.h(n * 3) % 10],
+              '+849' || lpad(n::text, 8, '0'),
+              CASE WHEN n % 11 = 0 THEN NULL ELSE words.sources[1 + pg_temp.h(n * 7) % 9] END,
+              CASE WHEN n % 25 = 0 THEN NULL ELSE agents.ids[1 + n % array_length(agents.ids, 1)] END,
+              words.statuses[1 + pg_temp.h(n * 11) % 8],
+              agents.ids[1 + n % array_length(agents.ids, 1)],
+              now() - make_interval(secs => n * 400 * 86400.0 / $2)
+         FROM generate_series(1, $2::int) n, agents, words`,
+      [tenantId, customers],
+    );
+    // Số thứ tự khách theo lúc tạo (mới nhất là 1) để rải hoạt động, lịch hẹn, giao dịch.
+    await manager.query(
+      `CREATE TEMP TABLE perf_customers ON COMMIT DROP AS
+       SELECT c.id, c.agent_id, c.created_at, c.status,
+              row_number() OVER (ORDER BY c.created_at DESC)::int AS n
+         FROM customers c WHERE c.tenant_id = $1`,
+      [tenantId],
+    );
+    await manager.query(
+      `CREATE TEMP TABLE perf_properties ON COMMIT DROP AS
+       SELECT p.id, p.property_type, p.price, p.area, p.province_id,
+              row_number() OVER (ORDER BY p.code)::int AS n
+         FROM properties p WHERE p.tenant_id = $1`,
+      [tenantId],
+    );
+    const [{ properties }] = (await manager.query(
+      'SELECT count(*)::int AS properties FROM perf_properties',
+    )) as [{ properties: number }];
+    await manager.query(
+      `INSERT INTO customer_preferences (tenant_id, customer_id, property_types, budget_min, budget_max,
+         area_min, area_max, province_ids)
+       SELECT $1, c.id, ARRAY[p.property_type], p.price * 0.7, p.price * 1.3, p.area * 0.7, p.area * 1.3,
+              ARRAY[p.province_id]
+         FROM perf_customers c
+         JOIN perf_properties p ON p.n = 1 + pg_temp.h(c.n * 13) % $2
+        WHERE c.n % 2 = 0`,
+      [tenantId, properties],
+    );
+    await manager.query(
+      `WITH agents AS (
+         SELECT array_agg(u.id ORDER BY u.email) AS ids FROM users u WHERE u.tenant_id = $1
+       ), types AS (
+         SELECT ARRAY['CALL','MESSAGE','PROPERTY_SENT','VIEWING','NEGOTIATION','DEPOSIT','NOTE','STATUS_CHANGE','ASSIGNMENT'] AS ids
+       )
+       INSERT INTO customer_activities (tenant_id, customer_id, user_id, type, content, occurred_at, created_at)
+       SELECT $1, c.id, coalesce(c.agent_id, agents.ids[1]), types.ids[1 + pg_temp.h(c.n * 17 + k) % 9],
+              'Hoạt động ' || k,
+              c.created_at + make_interval(hours => k * 20),
+              c.created_at + make_interval(hours => k * 20)
+         FROM perf_customers c
+         CROSS JOIN agents CROSS JOIN types
+         CROSS JOIN LATERAL generate_series(1, pg_temp.h(c.n * 19) % 12) k
+        WHERE c.created_at + make_interval(hours => k * 20) < now()`,
+      [tenantId],
+    );
+    await manager.query(
+      `INSERT INTO appointments (tenant_id, customer_id, property_id, agent_id, scheduled_at, status, created_by, created_at)
+       SELECT $1, c.id, p.id, coalesce(c.agent_id, (SELECT u.id FROM users u WHERE u.tenant_id = $1 ORDER BY u.email LIMIT 1)),
+              c.created_at + make_interval(days => 1 + pg_temp.h(c.n * 23) % 10),
+              CASE WHEN c.created_at + make_interval(days => 1 + pg_temp.h(c.n * 23) % 10) > now() THEN 'SCHEDULED'
+                   WHEN c.n % 10 = 3 THEN 'CANCELLED' ELSE 'COMPLETED' END,
+              c.agent_id, c.created_at
+         FROM perf_customers c
+         JOIN perf_properties p ON p.n = 1 + pg_temp.h(c.n * 29) % $2
+        WHERE c.n % 5 IN (0, 3)`,
+      [tenantId, properties],
+    );
+    await manager.query(
+      `INSERT INTO deals (tenant_id, customer_id, property_id, agent_id, stage, deal_price, closed_at, created_by, created_at)
+       SELECT $1, c.id, p.id, coalesce(c.agent_id, (SELECT u.id FROM users u WHERE u.tenant_id = $1 ORDER BY u.email LIMIT 1)),
+              s.stage, CASE WHEN s.stage = 'WON' THEN p.price END,
+              CASE WHEN s.stage IN ('WON', 'LOST') THEN least(now(), c.created_at + make_interval(days => 5 + pg_temp.h(c.n * 31) % 40)) END,
+              c.agent_id, c.created_at + make_interval(days => 3)
+         FROM perf_customers c
+         JOIN perf_properties p ON p.n = 1 + pg_temp.h(c.n * 37) % $2
+         CROSS JOIN LATERAL (SELECT (ARRAY['WON','WON','LOST','NEGOTIATING','DEPOSIT','CONTRACT','WON','LOST','NEGOTIATING','WON'])
+                               [1 + pg_temp.h(c.n * 41) % 10] AS stage) s
+        WHERE c.n % 5 = 0 AND c.created_at + make_interval(days => 3) < now()`,
+      [tenantId, properties],
+    );
+  });
+}
+
 export async function register(baseUrl: string, email: string): Promise<string> {
   const data = (await post(baseUrl, '/auth/register', {
     companyName: `Công ty ${email}`,
