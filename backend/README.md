@@ -891,3 +891,10 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - Tính BĐS bán trong phạm vi `property.view` của người hỏi, trong công ty của họ, đăng trong `months` tháng gần nhất (1–36, mặc định 12), trạng thái Đang bán, Đang giao dịch, Đã bán (Huy Lê chọn ngày 2026-10-10). Tin ẩn, hết hạn, chờ xác minh không tính.
 - `overall` và mỗi nhóm: `count`, `avgPrice`, `medianPrice`, `minPrice`, `maxPrice` (đồng), `avgArea` (m²). Nhóm có dưới `minSample` = 3 tin chỉ có `count`, các số khác null (tránh số liệu lệch và lộ giá một căn).
 - `groupBy=ward` (mặc định, `name` là tên phường/xã) hoặc `propertyType` (`name` null). Nhiều tin trước. Tham số sai → 400.
+
+## Giá/m² (TASK-146)
+
+`GET /api/v1/reports/market/price-per-m2?provinceId&wardId&propertyType&groupBy&months` (`property.view`) → `{period, groupBy, statuses, minSample, overall, groups, trend}`. Cùng tập BĐS và tham số với `market/prices` (TASK-145). Giá/m² là cột `price_per_m2` (giá chia diện tích, đồng/m²).
+
+- `overall`, mỗi nhóm và mỗi tháng: `count`, `avgPricePerM2`, `medianPricePerM2`, `minPricePerM2`, `maxPricePerM2`. Dưới 3 tin thì chỉ có `count`.
+- `trend`: mọi tháng trong kỳ theo ngày đăng tin, giờ Việt Nam (`YYYY-MM`, cũ trước). Tháng không có tin có `count` 0.
