@@ -30,6 +30,6 @@ import { TenantGuard } from './tenant.guard.js';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
   ],
-  exports: [AccessTokenService, PermissionService],
+  exports: [AccessTokenService, PermissionService, RateLimiter],
 })
 export class AuthModule {}

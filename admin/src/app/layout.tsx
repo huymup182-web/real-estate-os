@@ -3,6 +3,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
+import { CrashListener } from './crash-listener.tsx';
+
 export const metadata: Metadata = {
   title: 'Quản trị · AI Real Estate OS',
   description: 'Web quản trị nội bộ của AI Real Estate OS',
@@ -12,7 +14,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="vi">
-      <body>{children}</body>
+      <body>
+        <CrashListener />
+        {children}
+      </body>
     </html>
   );
 }
