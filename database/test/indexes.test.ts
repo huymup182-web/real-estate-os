@@ -18,6 +18,7 @@ const EXPECTED: readonly (readonly [string, string])[] = [
   ['properties', 'idx_properties_search_vector'],
   ['properties', 'idx_properties_search_vector_public'],
   ['properties', 'idx_properties_tenant_id_last_verified_at'],
+  ['properties', 'idx_properties_tenant_id_created_at_id'],
   ['customers', 'idx_customers_tenant_id_agent_id_status'],
   ['customers', 'idx_customers_tenant_id_phone'],
   ['customer_activities', 'idx_customer_activities_customer_id_occurred_at'],
@@ -75,7 +76,12 @@ describe('TASK-026: index truy vấn', () => {
         ORDER BY created_at DESC LIMIT 20`,
       [TENANT],
     );
-    assert.match(result, /idx_properties_tenant_id_status_created_at/);
+    // Bảng rỗng thì planner chọn ngang nhau giữa index theo trạng thái và index mới nhất (TASK-156).
+    assert.match(
+      result,
+      /idx_properties_tenant_id_status_created_at|idx_properties_tenant_id_created_at_id/,
+    );
+    assert.doesNotMatch(result, /Sort/);
   });
 
   it('lọc + sắp xếp theo giá, full text search và bán kính bản đồ dùng index', async () => {
@@ -120,6 +126,27 @@ describe('TASK-026: index truy vấn', () => {
         [TENANT, USER],
       ),
       /idx_appointments_tenant_id_property_id_scheduled_at/,
+    );
+  });
+
+  it('TASK-156: danh sách BĐS mới nhất trước dùng index, không sắp xếp cả bảng', async () => {
+    const text = await plan(
+      `SELECT id FROM properties
+        WHERE tenant_id = $1 AND deleted_at IS NULL AND (status <> 'HIDDEN' OR agent_id = $2)
+        ORDER BY created_at DESC, id DESC LIMIT 20`,
+      [TENANT, USER],
+    );
+    assert.match(text, /idx_properties_tenant_id_created_at_id/);
+    assert.doesNotMatch(text, /Sort/);
+    // Đếm tổng của danh sách không cần đọc bảng.
+    assert.match(
+      await plan(
+        `SELECT count(1) FROM properties
+          WHERE tenant_id = $1 AND deleted_at IS NULL
+            AND (status <> 'HIDDEN' OR agent_id = $2 OR created_by = $2)`,
+        [TENANT, USER],
+      ),
+      /Index Only Scan using idx_properties_tenant_id_created_at_id/,
     );
   });
 

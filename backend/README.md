@@ -976,3 +976,7 @@ Kết quả rà soát theo MASTER_PLAN mục 29: [docs/security-audit.md](../doc
   - Bộ đếm nằm trong bộ nhớ từng instance (`src/common/rate-limit/rate-limiter.ts`).
 - Mọi response có header bảo mật (`src/common/security/security-headers.ts`), HSTS ở production, không có `X-Powered-By`. Không bật CORS.
 - Chạy sau load balancer/reverse proxy: đặt `TRUST_PROXY_HOPS` bằng số proxy để lấy đúng IP người gọi.
+
+## Kiểm thử tải (TASK-156)
+
+`npm run perf:load` cho 50 người dùng ảo cùng thao tác 60 giây trên công ty 100.000 BĐS, 50.000 khách (database riêng `<db>_backend_load`). Đạt khi p95 từng thao tác < 1 giây và lỗi < 1%. Kết quả, điểm nghẽn đã sửa và sức chịu: [docs/load-testing.md](../docs/load-testing.md).
