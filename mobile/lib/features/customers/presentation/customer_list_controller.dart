@@ -32,6 +32,9 @@ class CustomerQueryController extends Notifier<CustomerQuery> {
 
   void clearStatuses() => _set(state.withStatuses(const {}));
 
+  /// Chỉ lọc một bước (mở từ màn pipeline).
+  void showOnly(String status) => _set(state.withStatuses({status}));
+
   void _set(CustomerQuery next) {
     if (next != state) {
       state = next;

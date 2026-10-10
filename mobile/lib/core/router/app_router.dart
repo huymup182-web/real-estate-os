@@ -6,6 +6,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/session_controller.dart';
 import '../../features/customers/presentation/customer_detail_screen.dart';
 import '../../features/customers/presentation/customers_screen.dart';
+import '../../features/customers/presentation/pipeline_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -37,6 +38,8 @@ abstract final class AppRoutes {
   static String propertyEdit(String id) => '$properties/$id/edit';
 
   static String propertyImages(String id) => '$properties/$id/images';
+
+  static const customerPipeline = '$customers/pipeline';
 
   /// Chi tiết khách, nằm trong tab "Khách hàng".
   static String customerDetail(String id) => '$customers/$id';
@@ -105,6 +108,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             AppRoutes.customers,
             const CustomersScreen(),
             routes: [
+              // Trước ':id' để "pipeline" không bị hiểu là id.
+              GoRoute(
+                path: 'pipeline',
+                builder: (context, state) => const PipelineScreen(),
+              ),
               GoRoute(
                 path: ':id',
                 builder: (context, state) => CustomerDetailScreen(

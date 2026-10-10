@@ -106,17 +106,22 @@ class CustomerActivity {
     required this.occurredAt,
     this.content,
     this.userName,
+    this.fromStatus,
+    this.toStatus,
   });
 
-  factory CustomerActivity.fromJson(Map<String, dynamic> json) =>
-      CustomerActivity(
-        id: json['id'] as String,
-        type: json['type'] as String,
-        occurredAt: DateTime.parse(json['occurredAt'] as String),
-        content: json['content'] as String?,
-        userName:
-            (json['user'] as Map<String, dynamic>?)?['fullName'] as String?,
-      );
+  factory CustomerActivity.fromJson(Map<String, dynamic> json) {
+    final metadata = json['metadata'] as Map<String, dynamic>? ?? const {};
+    return CustomerActivity(
+      id: json['id'] as String,
+      type: json['type'] as String,
+      occurredAt: DateTime.parse(json['occurredAt'] as String),
+      content: json['content'] as String?,
+      userName: (json['user'] as Map<String, dynamic>?)?['fullName'] as String?,
+      fromStatus: metadata['fromStatus'] as String?,
+      toStatus: metadata['toStatus'] as String?,
+    );
+  }
 
   final String id;
   final String type;
@@ -125,6 +130,10 @@ class CustomerActivity {
 
   /// Người ghi.
   final String? userName;
+
+  /// Bước trước và sau, với hoạt động đổi bước (`STATUS_CHANGE`).
+  final String? fromStatus;
+  final String? toStatus;
 }
 
 List<String> _strings(Object? value) =>
