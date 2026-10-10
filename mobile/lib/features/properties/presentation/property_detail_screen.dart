@@ -12,6 +12,7 @@ import '../../../core/widgets/error_retry.dart';
 import '../../ai/presentation/ai_listing_sheet.dart';
 import '../../ai/presentation/ai_providers.dart';
 import '../../ai/presentation/ai_valuation_sheet.dart';
+import '../../ai/presentation/ai_video_sheet.dart';
 import '../domain/property_detail.dart';
 import '../domain/property_labels.dart';
 import 'favorite_button.dart';
@@ -20,7 +21,7 @@ import 'property_detail_providers.dart';
 import 'property_gallery.dart';
 
 /// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Thanh tiêu đề có nút
-/// yêu thích, AI bật thì có nút "AI viết tin" (TASK-136) và nút "AI định giá" dưới giá (TASK-149); sửa được (`canEdit`) thì có thêm nút quản lý ảnh và nút
+/// yêu thích, AI bật thì có nút "AI viết tin" (TASK-136) và nút "AI định giá" (TASK-149), "AI làm video" (TASK-150) dưới giá; sửa được (`canEdit`) thì có thêm nút quản lý ảnh và nút
 /// sửa.
 class PropertyDetailScreen extends ConsumerWidget {
   const PropertyDetailScreen({super.key, required this.propertyId});
@@ -173,15 +174,32 @@ class _Body extends StatelessWidget {
                 style: theme.textTheme.bodyMedium?.copyWith(color: muted),
               ),
               if (aiEnabled)
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  icon: const Icon(Icons.price_check),
-                  label: const Text('AI định giá'),
-                  onPressed: () =>
-                      showAiValuationSheet(context, propertyId: property.id),
+                Wrap(
+                  spacing: AppSpacing.s16,
+                  children: [
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.price_check),
+                      label: const Text('AI định giá'),
+                      onPressed: () => showAiValuationSheet(
+                        context,
+                        propertyId: property.id,
+                      ),
+                    ),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.movie_creation_outlined),
+                      label: const Text('AI làm video'),
+                      onPressed: () =>
+                          showAiVideoSheet(context, propertyId: property.id),
+                    ),
+                  ],
                 ),
               const SizedBox(height: AppSpacing.s8),
               Text(property.title, style: theme.textTheme.titleLarge),

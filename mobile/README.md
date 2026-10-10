@@ -248,6 +248,10 @@ lib/
 
 Chi tiết BĐS có nút "AI định giá" dưới giá khi AI bật. Bấm là gọi `POST /properties/:id/ai-valuation` một lần và mở sheet: giá ước tính, khoảng giá, giá/m², độ tin cậy, so với giá chào bán, nhận xét, yếu tố ảnh hưởng, các BĐS tương tự và mức AI đã chỉnh. Chưa đủ BĐS tương tự thì hiện lý do, không có nút thử lại. Code: `lib/features/ai/presentation/ai_valuation_sheet.dart`.
 
+## Video AI (TASK-150)
+
+Chi tiết BĐS có nút "AI làm video" dưới giá khi AI bật. Người dùng chọn 15, 30, 45 hoặc 60 giây, bấm "Tạo video" (gọi `POST /properties/:id/ai-video`, tính một lượt AI), app mở trình phát toàn màn hình. Video khung 9:16, mỗi cảnh là một ảnh của BĐS phóng to dần với chữ ở dưới, thanh tiến độ theo cảnh ở trên. Chạm để tạm dừng, phát tiếp, hoặc phát lại khi hết. Code: `lib/features/ai/presentation/ai_video_sheet.dart`, `ai_video_player.dart`.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

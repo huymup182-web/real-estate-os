@@ -22,6 +22,8 @@ import { AiPropertySearchService } from './ai-property-search.service.js';
 import { AiSalesAssistantService } from './ai-sales-assistant.service.js';
 import { AiValuationController } from './ai-valuation.controller.js';
 import { AiValuationService } from './ai-valuation.service.js';
+import { AiVideoController } from './ai-video.controller.js';
+import { AiVideoService } from './ai-video.service.js';
 import { AnthropicProvider } from './anthropic.provider.js';
 import type { LlmProvider } from './llm-provider.js';
 
@@ -48,6 +50,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
  * TASK-142: trợ lý bán hàng `POST /deals/:id/ai-assistant` (`AiSalesAssistantService`).
  * TASK-143: AI Copilot chat `POST /ai/copilot` (`AiCopilotService`), LLM gọi tool, backend chạy qua service.
  * TASK-149: định giá AI `POST /properties/:id/ai-valuation` (`AiValuationService`).
+ * TASK-150: video AI `POST /properties/:id/ai-video` (`AiVideoService`), app phát kịch bản cảnh.
  */
 @Module({
   imports: [AuthModule, CustomersModule, DealsModule, MatchingModule, PropertiesModule],
@@ -58,6 +61,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
     AiCustomerController,
     AiDealController,
     AiValuationController,
+    AiVideoController,
   ],
   providers: [
     AiGatewayService,
@@ -69,6 +73,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
     AiSalesAssistantService,
     AiCopilotService,
     AiValuationService,
+    AiVideoService,
     { provide: LLM_PROVIDER, inject: [APP_CONFIG], useFactory: llmProviderFor },
   ],
   exports: [AiGatewayService],
