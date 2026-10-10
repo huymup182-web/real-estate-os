@@ -141,3 +141,7 @@ src/
 ├── lib/         # backend.ts (gọi Backend API), auth/ (cookie phiên, đường dẫn, gọi API auth)
 └── proxy.ts     # Chặn trang khi chưa đăng nhập, tự làm mới phiên
 ```
+
+## Thị trường (TASK-148)
+
+Trang `/market` (menu "Thị trường", cần `property.view`) gom ba API thị trường của backend (TASK-145–147): giá giữa, giá/m² giữa và xu hướng theo tháng, cung, số căn đã bán, tỷ lệ bán kèm mức thanh khoản, và bảng xếp hạng theo phường/xã hoặc loại BĐS. Lọc theo tỉnh/thành, loại BĐS, cách chia nhóm và kỳ 3, 6, 12 hoặc 24 tháng (`?provinceId&propertyType&groupBy&months`). Code: `src/lib/market.ts`, `src/app/(app)/market/page.tsx`.

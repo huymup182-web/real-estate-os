@@ -24,5 +24,11 @@ describe('permissions', () => {
       navItemsFor({ permissions: [{ code: 'audit.view', scope: 'OWN' }] }).map((item) => item.href),
       ['/', '/notifications', '/audit-logs'],
     );
+    assert.deepEqual(
+      navItemsFor({ permissions: [{ code: 'property.view', scope: 'OWN' }] }).map(
+        (item) => item.href,
+      ),
+      ['/', '/notifications', '/properties', '/market'],
+    );
   });
 });
