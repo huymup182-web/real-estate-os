@@ -227,6 +227,16 @@ lib/
 - Chưa nhận tin đẩy (FCM) trên điện thoại: cần cấu hình Firebase của dự án (`google-services.json`,
   `GoogleService-Info.plist`) và thư viện `firebase_messaging`, làm khi có cấu hình.
 
+## Tài khoản (TASK-131)
+
+- Tab "Tài khoản": ảnh đại diện (hoặc chữ viết tắt họ tên), tên, công ty, email, số điện thoại, vai trò từ
+  `GET /auth/me`; kéo xuống để đọc lại (lỗi thì giữ hồ sơ, báo snackbar). Sửa hồ sơ do quản trị viên làm trên web
+  (backend chưa có API tự sửa hồ sơ).
+- "Đổi mật khẩu" (`/profile/password`, khi tài khoản có email): "Gửi mã" → `POST /auth/forgot-password` gửi mã 6
+  số tới email; nhập mã, mật khẩu mới (≥ 8 ký tự) hai lần → `POST /auth/reset-password`. Máy chủ thu hồi mọi phiên,
+  nên app đăng xuất và về màn đăng nhập. Mã sai hoặc hết hạn thì báo lỗi, có "Gửi lại mã".
+- Đăng xuất cần xác nhận.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

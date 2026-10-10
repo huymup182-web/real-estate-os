@@ -10,6 +10,7 @@ import '../../features/customers/presentation/customers_screen.dart';
 import '../../features/customers/presentation/pipeline_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/profile/presentation/change_password_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/properties/presentation/favorites_screen.dart';
 import '../../features/properties/presentation/properties_screen.dart';
@@ -32,6 +33,8 @@ abstract final class AppRoutes {
 
   /// Lịch hẹn theo tháng, mở từ trang chủ.
   static const calendar = '$home/calendar';
+
+  static const changePassword = '$profile/password';
 
   static const propertyCreate = '$properties/new';
   static const propertyFavorites = '$properties/favorites';
@@ -135,7 +138,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           _branch(AppRoutes.notifications, const NotificationsScreen()),
-          _branch(AppRoutes.profile, const ProfileScreen()),
+          _branch(
+            AppRoutes.profile,
+            const ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'password',
+                builder: (context, state) => const ChangePasswordScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
