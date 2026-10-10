@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../domain/ai_listing.dart';
 import '../domain/ai_match.dart';
 import '../domain/ai_search.dart';
 
@@ -27,4 +28,13 @@ class AiRepository {
       '/customers/$customerId/matching-properties/$propertyId/ai-explanation',
     )).object,
   );
+
+  /// AI viết tin đăng cho BĐS [propertyId] (cần `property.view`). Mỗi lần gọi tính một lượt AI.
+  Future<AiListing> listing(String propertyId, AiListingStyle style) async =>
+      AiListing.fromJson(
+        (await _api.post(
+          '/properties/$propertyId/ai-listing',
+          body: {'style': style.code},
+        )).object,
+      );
 }

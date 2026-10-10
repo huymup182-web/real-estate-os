@@ -823,3 +823,12 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - Khách chưa có nhu cầu đang bật cùng loại giao dịch với BĐS → 422 `BUSINESS_RULE_VIOLATION`, không gọi AI.
 - LLM chỉ nhận thông số BĐS (mã, tiêu đề, loại, giá, diện tích, phòng, hướng, pháp lý, đường vào, phường/tỉnh), nhu cầu của khách và điểm từng tiêu chí. Không gửi tên, số điện thoại, email, ghi chú của khách, liên hệ chủ nhà, địa chỉ chi tiết hay mô tả BĐS.
 - LLM bắt buộc gọi tool `match_explanation` (`src/ai/match-explanation.tool.ts`). Mỗi câu tối đa 500 ký tự, tối đa 4 điểm hợp, 3 điểm lưu ý. Không gọi tool hoặc thiếu `summary` → 503.
+
+## AI viết tin đăng (TASK-136)
+
+`POST /api/v1/properties/:id/ai-listing` (`property.view`) `{style?}` → `{property {id, code}, style, title, description}`. `style` là `PROFESSIONAL` (mặc định, 150–300 từ) hoặc `SHORT` (tối đa 60 từ). Theo MASTER_PLAN mục 18: AI chỉ dùng dữ liệu thật, không bịa giá, diện tích, pháp lý, vị trí, tiện ích. Kết quả chỉ là bản nháp để môi giới sao chép, không lưu vào BĐS. Mỗi lần gọi tính một lượt AI.
+
+- BĐS ngoài phạm vi `property.view` → 404, không gọi AI.
+- LLM nhận thông số BĐS như TASK-135 (`src/ai/property-facts.ts`) và mô tả môi giới đã nhập (nguồn duy nhất của tiện ích, đặc điểm). Không gửi địa chỉ chi tiết, chủ nhà, môi giới, hoa hồng.
+- Số điện thoại Việt Nam (`0…`, `+84…`, có khoảng trắng, chấm, gạch) bị thay bằng "[đã ẩn số điện thoại]" trong mô tả gửi LLM và trong tin trả về, vì tin để đăng công khai.
+- LLM bắt buộc gọi tool `property_listing` (`src/ai/listing-writer.tool.ts`). Tiêu đề tối đa 255 ký tự, nội dung tối đa 5000 ký tự (cùng giới hạn của BĐS). Tiêu đề hoặc nội dung trống → 503.

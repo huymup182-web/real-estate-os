@@ -7,7 +7,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import type { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-import { vnMoney } from '../src/ai/ai-match-explanation.service.js';
+import { vnMoney } from '../src/ai/property-facts.js';
 import { createApp } from '../src/app.factory.js';
 import { hashPassword } from '../src/auth/password.js';
 import { type FakeLlm, setEnv, startFakeLlm } from './support/fake-llm.js';
