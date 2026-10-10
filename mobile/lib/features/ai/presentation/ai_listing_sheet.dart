@@ -8,7 +8,7 @@ import '../../../core/widgets/error_retry.dart';
 import '../domain/ai_listing.dart';
 import 'ai_providers.dart';
 
-/// Mở ô AI viết tin đăng, bài Facebook hoặc tin Zalo cho một BĐS (TASK-136, 137, 138). Tin chỉ để sao chép, không lưu
+/// Mở ô AI viết tin đăng, bài Facebook, tin Zalo hoặc kịch bản TikTok cho một BĐS (TASK-136 đến 139). Tin chỉ để sao chép, không lưu
 /// vào BĐS.
 Future<void> showAiListingSheet(
   BuildContext context, {
