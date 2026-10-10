@@ -149,3 +149,7 @@ Trang `/market` (menu "Thị trường", cần `property.view`) gom ba API thị
 ## Xếp hạng (TASK-151)
 
 Trang `/leaderboard` (menu "Xếp hạng", cần `report.view`) hiển thị bảng xếp hạng môi giới trong phạm vi xem. Có bốn bảng: Top môi giới (theo điểm), Top doanh số, Top tin đăng, Top giao dịch (`?by=points|revenue|listings|deals`). Kỳ 7, 30 hoặc 90 ngày (`?days=`). Mỗi dòng có điểm, tin đăng, chăm sóc, dẫn khách, giao dịch chốt và doanh số. Bằng chỉ số thì cùng hạng. Code: `src/lib/leaderboard.ts`, `src/app/(app)/leaderboard/page.tsx`.
+
+## Phân tích (TASK-152)
+
+Trang `/analytics` (menu "Phân tích", cần `report.view`) gọi `GET /reports/sales` và hiển thị phân tích doanh số trong phạm vi xem. Gồm doanh số so với kỳ trước, số giao dịch chốt, giá trị trung bình, tỷ lệ thắng, số ngày để chốt, giá trị giao dịch đang mở, doanh số theo tháng, giao dịch đang mở theo bước, theo loại BĐS và theo phường/xã. Kỳ 3, 6 hoặc 12 tháng (`?months=`, mặc định 6). Code: `src/lib/analytics.ts`, `src/app/(app)/analytics/page.tsx`.

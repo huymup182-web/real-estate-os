@@ -934,3 +934,13 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - Người dùng đang hoạt động trong phạm vi `report.view` (OWN chỉ mình, DEPARTMENT cả phòng ban, COMPANY cả công ty).
 - `listings`: BĐS mình phụ trách, tạo trong kỳ. `careDays`: số lượt (khách, ngày theo giờ Việt Nam) có hoạt động chăm sóc mình ghi trong kỳ. Một khách một ngày chỉ tính một lần; không tính đổi trạng thái, giao khách, khách đã xoá. `viewings`: lịch dẫn khách hoàn thành, hẹn trong kỳ. `dealsWon`, `revenue`: giao dịch WON chốt trong kỳ và tổng `deal_price`.
 - Điểm (mặc định đề xuất, chờ Huy Lê xác nhận): tin đăng 5, chăm sóc 1, dẫn khách 3, giao dịch chốt 20. "Hỗ trợ đồng đội" chưa có dữ liệu nên chưa tính. Bằng điểm thì cùng hạng (1, 1, 3), xếp theo doanh số, số giao dịch rồi tên.
+
+## Phân tích doanh số (TASK-152)
+
+`GET /api/v1/reports/sales?from&to` (`report.view`) → `{period, scope, summary, previous, pipeline, trend, byPropertyType, byWard}`. Kỳ như dashboard: mặc định 30 ngày, dài nhất 366 ngày. Chỉ tính giao dịch trong phạm vi `report.view` (theo người phụ trách hoặc người tạo, như dashboard). Code: `src/reports/sales-analytics.service.ts`.
+
+- `summary`: `wonCount`, `revenue` là giao dịch WON chốt trong kỳ (theo `closed_at`) và tổng `deal_price`. `avgDealValue` = revenue / wonCount. `lostCount` là giao dịch LOST đóng trong kỳ. `winRate` = won / (won + lost), %. `medianDaysToClose` là số ngày giữa từ lúc tạo đến lúc chốt của các giao dịch WON. Không có dữ liệu thì các số này là null.
+- `previous`: số giao dịch WON và doanh số của kỳ liền trước cùng độ dài.
+- `pipeline`: giao dịch đang mở hiện tại theo bước (đàm phán, đặt cọc, hợp đồng), kèm số lượng và tổng giá trị.
+- `trend`: mọi tháng trong kỳ (giờ Việt Nam), kể cả tháng không có giao dịch.
+- `byPropertyType`, `byWard` (10 phường/xã đầu): số giao dịch WON và doanh số, doanh số cao trước.

@@ -108,15 +108,15 @@ const MONTH_FORMAT = new Intl.DateTimeFormat('en-CA', {
   month: '2-digit',
 });
 
-/** Tháng `YYYY-MM` của [date] theo giờ Việt Nam. */
-function monthOf(date: Date): string {
+/** Tháng `YYYY-MM` của [date] theo giờ Việt Nam (dùng chung cho phân tích doanh số TASK-152). */
+export function monthOf(date: Date): string {
   const parts = MONTH_FORMAT.formatToParts(date);
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
   return `${part('year')}-${part('month')}`;
 }
 
 /** Các tháng từ [first] đến [last] (gồm), dạng `YYYY-MM`. */
-function monthsBetween(first: string, last: string): string[] {
+export function monthsBetween(first: string, last: string): string[] {
   const result: string[] = [];
   let [year, month] = first.split('-').map(Number) as [number, number];
   for (let current = first; current <= last;) {

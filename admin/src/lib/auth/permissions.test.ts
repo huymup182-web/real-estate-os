@@ -34,7 +34,7 @@ describe('permissions', () => {
       navItemsFor({ permissions: [{ code: 'report.view', scope: 'OWN' }] }).map(
         (item) => item.href,
       ),
-      ['/', '/notifications', '/leaderboard'],
+      ['/', '/notifications', '/analytics', '/leaderboard'],
     );
   });
 });
