@@ -61,7 +61,14 @@ interface BackendBody {
  */
 export async function callBackend<T>(
   path: string,
-  init: { method?: string; body?: unknown; accessToken?: string; userAgent?: string | null } = {},
+  init: {
+    method?: string;
+    body?: unknown;
+    accessToken?: string;
+    userAgent?: string | null;
+    /** Mặc định `BACKEND_TIMEOUT_MS`; gọi AI cần lâu hơn (`AI_TIMEOUT_MS` trong `ai.ts`). */
+    timeoutMs?: number;
+  } = {},
   { fetchImpl = fetch, env = process.env }: BackendDeps = {},
 ): Promise<BackendResult<T>> {
   const headers: Record<string, string> = { accept: 'application/json' };
@@ -83,7 +90,7 @@ export async function callBackend<T>(
       headers,
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       cache: 'no-store',
-      signal: AbortSignal.timeout(BACKEND_TIMEOUT_MS),
+      signal: AbortSignal.timeout(init.timeoutMs ?? BACKEND_TIMEOUT_MS),
     });
     body = response.status === 204 ? null : ((await response.json()) as BackendBody | null);
   } catch {

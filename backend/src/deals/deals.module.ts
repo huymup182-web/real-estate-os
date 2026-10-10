@@ -13,5 +13,6 @@ import { DealsService } from './deals.service.js';
   imports: [TypeOrmModule.forFeature([Deal]), AuditModule, CustomersModule, PropertiesModule],
   controllers: [DealsController],
   providers: [DealsService],
+  exports: [DealsService],
 })
 export class DealsModule {}

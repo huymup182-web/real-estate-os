@@ -521,6 +521,20 @@ fieldset.field {
   gap: 12px;
 }
 
+.ai-result {
+  margin-top: 16px;
+}
+
+.ai-result h3 {
+  margin: 16px 0 4px;
+  font-size: 1rem;
+}
+
+.ai-result ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
 .inline-form {
   display: flex;
   flex-wrap: wrap;

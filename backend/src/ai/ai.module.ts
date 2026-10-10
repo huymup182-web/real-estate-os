@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module.js';
 import { CustomersModule } from '../customers/customers.module.js';
+import { DealsModule } from '../deals/deals.module.js';
 import { APP_CONFIG } from '../config/app-config.module.js';
 import type { AppConfig } from '../config/app-config.js';
 import { MatchingModule } from '../matching/matching.module.js';
@@ -9,6 +10,7 @@ import { PropertiesModule } from '../properties/properties.module.js';
 import { AiController } from './ai.controller.js';
 import { AiCustomerController } from './ai-customer.controller.js';
 import { AiCustomerSummaryService } from './ai-customer-summary.service.js';
+import { AiDealController } from './ai-deal.controller.js';
 import { AiFollowUpService } from './ai-follow-up.service.js';
 import { AiListingController } from './ai-listing.controller.js';
 import { AiListingService } from './ai-listing.service.js';
@@ -16,6 +18,7 @@ import { AiMatchExplanationService } from './ai-match-explanation.service.js';
 import { AiMatchingController } from './ai-matching.controller.js';
 import { AiGatewayService, LLM_PROVIDER } from './ai-gateway.service.js';
 import { AiPropertySearchService } from './ai-property-search.service.js';
+import { AiSalesAssistantService } from './ai-sales-assistant.service.js';
 import { AnthropicProvider } from './anthropic.provider.js';
 import type { LlmProvider } from './llm-provider.js';
 
@@ -39,10 +42,17 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
  * Facebook, Zalo, TikTok.
  * TASK-140: AI tóm tắt khách `POST /customers/:id/ai-summary` (`AiCustomerSummaryService`).
  * TASK-141: AI gợi ý chăm sóc `POST /ai/follow-ups` (`AiFollowUpService`).
+ * TASK-142: trợ lý bán hàng `POST /deals/:id/ai-assistant` (`AiSalesAssistantService`).
  */
 @Module({
-  imports: [AuthModule, CustomersModule, MatchingModule, PropertiesModule],
-  controllers: [AiController, AiMatchingController, AiListingController, AiCustomerController],
+  imports: [AuthModule, CustomersModule, DealsModule, MatchingModule, PropertiesModule],
+  controllers: [
+    AiController,
+    AiMatchingController,
+    AiListingController,
+    AiCustomerController,
+    AiDealController,
+  ],
   providers: [
     AiGatewayService,
     AiPropertySearchService,
@@ -50,6 +60,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
     AiListingService,
     AiCustomerSummaryService,
     AiFollowUpService,
+    AiSalesAssistantService,
     { provide: LLM_PROVIDER, inject: [APP_CONFIG], useFactory: llmProviderFor },
   ],
   exports: [AiGatewayService],

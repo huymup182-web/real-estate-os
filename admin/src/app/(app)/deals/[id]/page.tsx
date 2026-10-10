@@ -1,13 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { getAiStatus } from '../../../../lib/ai.ts';
 import { currentUser } from '../../../../lib/auth/auth-api.ts';
 import { hasPermission } from '../../../../lib/auth/permissions.ts';
 import { accessToken } from '../../../../lib/auth/server-session.ts';
 import { DEAL_STAGE_LABELS, formatMoney, getDeal } from '../../../../lib/deals.ts';
 import { getUser } from '../../../../lib/users.ts';
 import { DeleteButton } from '../../delete-button.tsx';
-import { changeStageAction, deleteDealAction } from '../actions.ts';
+import { aiAssistAction, changeStageAction, deleteDealAction } from '../actions.ts';
+import { AiAssistant } from '../ai-assistant.tsx';
 import { StageForm } from '../stage-form.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +30,7 @@ const dateFormat = new Intl.DateTimeFormat('vi-VN', {
 const day = (iso: string | null): string => (iso ? dateFormat.format(new Date(iso)) : '—');
 
 /**
- * Chi tiết giao dịch (TASK-110) và các thao tác. Nút chỉ hiện khi có `deal.manage`; backend vẫn kiểm phạm
+ * Chi tiết giao dịch (TASK-110) và các thao tác; AI bật thì có trợ lý bán hàng (TASK-142). Nút chỉ hiện khi có `deal.manage`; backend vẫn kiểm phạm
  * vi theo từng giao dịch và báo lỗi cạnh nút.
  */
 export default async function DealPage({
@@ -41,7 +43,11 @@ export default async function DealPage({
   const { id } = await params;
   const { saved } = await searchParams;
   const token = await accessToken();
-  const [me, deal] = await Promise.all([currentUser(token), getDeal(token, id)]);
+  const [me, deal, ai] = await Promise.all([
+    currentUser(token),
+    getDeal(token, id),
+    getAiStatus(token),
+  ]);
   if (!deal.ok && (deal.status === 404 || deal.status === 400)) {
     notFound();
   }
@@ -126,6 +132,17 @@ export default async function DealPage({
         </dl>
         {data.notes && <p className="prewrap">{data.notes}</p>}
       </section>
+
+      {ai.ok && ai.data.enabled && (
+        <section className="card">
+          <h2>Trợ lý bán hàng AI</h2>
+          <p className="muted">
+            AI đọc giao dịch, BĐS, nhu cầu và hoạt động gần nhất của khách rồi gợi ý cách đưa giao
+            dịch sang bước tiếp theo. Mỗi lần hỏi tính một lượt AI.
+          </p>
+          <AiAssistant action={aiAssistAction.bind(null, data.id)} remaining={ai.data.remaining} />
+        </section>
+      )}
 
       {can('deal.manage') && (
         <section className="card">

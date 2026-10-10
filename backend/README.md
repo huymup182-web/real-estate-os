@@ -849,3 +849,11 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - Không có khách nào thì `items` rỗng, không gọi AI và không tính lượt.
 - AI gợi ý một việc cho mỗi khách (`CALL`, `MESSAGE`, `SEND_PROPERTIES`, `SCHEDULE_VIEWING`), lý do và câu mở đầu. LLM nhận khách dưới mã K1, K2…, chỉ có bước, mục đích, thời gian mua, số ngày chưa chăm sóc, số nhu cầu đang bật và hoạt động gần nhất (số điện thoại bị ẩn). Không gửi tên, liên hệ.
 - Gợi ý có mã lạ, việc lạ hoặc thiếu câu bị bỏ; khách đó có `suggestion: null`. LLM không trả danh sách → 503.
+
+## Trợ lý bán hàng AI (TASK-142)
+
+`POST /api/v1/deals/:id/ai-assistant` (`deal.view`) → `{dealId, situation, nextSteps, talkingPoints, risks}`. Theo MASTER_PLAN mục 20 ("Gợi ý cách chốt khách"). Chỉ trả gợi ý, không lưu, không đổi bước giao dịch. Mỗi lần gọi tính một lượt AI. Admin web hiện ở thẻ "Trợ lý bán hàng AI" trên trang chi tiết giao dịch khi AI đang bật.
+
+- Giao dịch ngoài phạm vi `deal.view` → 404, không gọi AI.
+- LLM nhận bước giao dịch, giá chốt, tiền cọc, ngày cọc, ngày tạo, ghi chú (số điện thoại bị ẩn), thông số BĐS như TASK-136 và, nếu người hỏi xem được khách, bước pipeline, mục đích, thời gian mua, nhu cầu và tối đa 10 hoạt động gần nhất. Người không có `property.view`/`customer.view` với BĐS/khách đó chỉ gửi mã và tiêu đề BĐS, không gửi khách. Không gửi tên, liên hệ khách, chủ nhà, địa chỉ chi tiết.
+- LLM bắt buộc gọi tool `sales_assistant` (`src/ai/sales-assistant.tool.ts`). Tối đa 4 việc nên làm, 4 ý nói với khách, 3 rủi ro, mỗi câu tối đa 500 ký tự. Nhận định trống → 503.
