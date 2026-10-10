@@ -237,6 +237,13 @@ lib/
   nên app đăng xuất và về màn đăng nhập. Mã sai hoặc hết hạn thì báo lỗi, có "Gửi lại mã".
 - Đăng xuất cần xác nhận.
 
+## Nhóm (TASK-132)
+
+- Tab "Tài khoản" có mục "Nhóm" khi có `team.view` → `/profile/teams` (`GET /teams`): các nhóm xem được theo phạm
+  vi quyền (môi giới: nhóm của mình), có phòng ban, trưởng nhóm, số thành viên. Chạm → `/profile/teams/:id`
+  (`GET /teams/:id`): thông tin và thành viên (trưởng nhóm lên đầu, đánh dấu "(bạn)", tài khoản không hoạt động
+  thì ghi trạng thái). Tạo, sửa nhóm làm trên web admin (TASK-106).
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

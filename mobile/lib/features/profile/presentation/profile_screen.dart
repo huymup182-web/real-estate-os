@@ -11,8 +11,8 @@ import '../../../core/widgets/error_retry.dart';
 import '../../auth/domain/current_user.dart';
 import '../../auth/presentation/session_controller.dart';
 
-/// Tab "Tài khoản": hồ sơ của người đang đăng nhập (tên, email, số điện thoại, công ty, vai trò), đổi mật khẩu
-/// (khi tài khoản có email) và đăng xuất. Kéo xuống để đọc lại hồ sơ từ máy chủ. Sửa hồ sơ do quản trị viên làm
+/// Tab "Tài khoản": hồ sơ của người đang đăng nhập (tên, email, số điện thoại, công ty, vai trò), nhóm (khi có
+/// `team.view`), đổi mật khẩu (khi tài khoản có email) và đăng xuất. Kéo xuống để đọc lại hồ sơ từ máy chủ. Sửa hồ sơ do quản trị viên làm
 /// trên web admin.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -77,6 +77,13 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.s8),
               const Divider(),
+              if (user.can('team.view'))
+                ListTile(
+                  leading: const Icon(Icons.groups_outlined),
+                  title: const Text('Nhóm'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push(AppRoutes.teams),
+                ),
               if (user.email != null)
                 ListTile(
                   leading: const Icon(Icons.lock_reset),

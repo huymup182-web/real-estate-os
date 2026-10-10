@@ -20,6 +20,8 @@ import '../../features/properties/presentation/property_edit_screen.dart';
 import '../../features/properties/presentation/property_images_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/teams/presentation/team_detail_screen.dart';
+import '../../features/teams/presentation/teams_screen.dart';
 
 /// Đường dẫn các màn hình; màn hình mới thêm vào đây.
 abstract final class AppRoutes {
@@ -35,6 +37,11 @@ abstract final class AppRoutes {
   static const calendar = '$home/calendar';
 
   static const changePassword = '$profile/password';
+
+  /// Nhóm, mở từ tab "Tài khoản".
+  static const teams = '$profile/teams';
+
+  static String teamDetail(String id) => '$teams/$id';
 
   static const propertyCreate = '$properties/new';
   static const propertyFavorites = '$properties/favorites';
@@ -145,6 +152,17 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'password',
                 builder: (context, state) => const ChangePasswordScreen(),
+              ),
+              GoRoute(
+                path: 'teams',
+                builder: (context, state) => const TeamsScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) =>
+                        TeamDetailScreen(teamId: state.pathParameters['id']!),
+                  ),
+                ],
               ),
             ],
           ),
