@@ -26,7 +26,7 @@ Future<PropertyQuery?> showPropertyFilterSheet(
   ),
 );
 
-/// Bộ lọc và sắp xếp: loại, giá (tỷ), diện tích (m²), tỉnh/thành, phường/xã, phòng ngủ, pháp lý, hướng.
+/// Bộ lọc và sắp xếp: loại, giá (tỷ), diện tích (m²), tỉnh/thành, phường/xã, phòng ngủ, pháp lý, hướng, đường vào.
 class PropertyFilterSheet extends ConsumerStatefulWidget {
   const PropertyFilterSheet({super.key, required this.initial});
 
@@ -63,6 +63,7 @@ class _PropertyFilterSheetState extends ConsumerState<PropertyFilterSheet> {
   late int? _bedroomsMin = widget.initial.bedroomsMin;
   late final Set<String> _legal = {...widget.initial.legalStatuses};
   late final Set<String> _directions = {...widget.initial.directions};
+  late final Set<String> _roads = {...widget.initial.roadAccesses};
   var _priceKey = GlobalKey();
   var _areaKey = GlobalKey();
 
@@ -86,6 +87,7 @@ class _PropertyFilterSheetState extends ConsumerState<PropertyFilterSheet> {
       _bedroomsMin = null;
       _legal.clear();
       _directions.clear();
+      _roads.clear();
       _formKey = GlobalKey<FormState>();
       _priceKey = GlobalKey();
       _areaKey = GlobalKey();
@@ -124,6 +126,7 @@ class _PropertyFilterSheetState extends ConsumerState<PropertyFilterSheet> {
         bedroomsMin: _bedroomsMin,
         legalStatuses: {..._legal},
         directions: {..._directions},
+        roadAccesses: {..._roads},
       ),
     );
   }
@@ -228,6 +231,15 @@ class _PropertyFilterSheetState extends ConsumerState<PropertyFilterSheet> {
                       isSelected: _directions.contains,
                       onSelected: (value) =>
                           setState(() => _toggle(_directions, value)),
+                    ),
+                  ),
+                  _Section(
+                    title: 'Đường vào',
+                    child: _Chips(
+                      options: roadAccessLabels,
+                      isSelected: _roads.contains,
+                      onSelected: (value) =>
+                          setState(() => _toggle(_roads, value)),
                     ),
                   ),
                 ],

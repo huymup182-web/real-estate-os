@@ -8,6 +8,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
 import '../../../core/widgets/load_more_footer.dart';
+import '../../ai/presentation/ai_providers.dart';
+import '../../ai/presentation/ai_search_sheet.dart';
 import '../../auth/presentation/session_controller.dart';
 import '../domain/property_query.dart';
 import 'property_card.dart';
@@ -16,7 +18,7 @@ import 'property_list_controller.dart';
 import 'property_search_field.dart';
 
 /// Tab "BĐS": ô tìm kiếm và danh sách BĐS trong phạm vi xem (mới tạo trước, có từ khoá thì khớp nhiều hơn trước).
-/// Nút "Bộ lọc" mở bộ lọc, sắp xếp; nút tim trên thanh tiêu đề mở danh sách yêu thích. Có `property.create` thì có nút "Thêm BĐS". Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
+/// Nút "Bộ lọc" mở bộ lọc, sắp xếp; AI bật thì có nút "Tìm bằng AI" (TASK-134) đổi câu tự nhiên thành bộ lọc; nút tim trên thanh tiêu đề mở danh sách yêu thích. Có `property.create` thì có nút "Thêm BĐS". Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
 class PropertiesScreen extends ConsumerWidget {
   const PropertiesScreen({super.key});
 
@@ -35,11 +37,26 @@ class PropertiesScreen extends ConsumerWidget {
 
     final canCreate =
         ref.watch(sessionProvider).value?.user?.can('property.create') ?? false;
+    final aiEnabled = ref.watch(aiStatusProvider).value?.enabled ?? false;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bất động sản'),
         actions: [
+          if (aiEnabled)
+            IconButton(
+              tooltip: 'Tìm bằng AI',
+              icon: const Icon(Icons.auto_awesome),
+              onPressed: () async {
+                final result = await showAiSearchSheet(context);
+                if (result != null && context.mounted) {
+                  ref
+                      .read(propertyQueryProvider.notifier)
+                      .replace(result.query);
+                  ref.read(aiSearchResultProvider.notifier).show(result);
+                }
+              },
+            ),
           IconButton(
             tooltip: 'BĐS yêu thích',
             icon: const Icon(Icons.favorite_border),
@@ -71,6 +88,7 @@ class PropertiesScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const _AiSearchBanner(),
           Expanded(child: _body(context, ref, list, controller, refresh)),
         ],
       ),
@@ -233,6 +251,81 @@ class _FilterButton extends ConsumerWidget {
             ref.read(propertyQueryProvider.notifier).applyFilters(filters);
           }
         },
+      ),
+    );
+  }
+}
+
+/// Câu AI giải thích lần tìm gần nhất. Ẩn khi người dùng đổi từ khoá/bộ lọc hoặc bấm đóng.
+class _AiSearchBanner extends ConsumerWidget {
+  const _AiSearchBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final result = ref.watch(aiSearchResultProvider);
+    final query = ref.watch(propertyQueryProvider);
+    if (result == null || result.query != query) {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    final muted = context.appColors.mutedForeground;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        0,
+        AppSpacing.gutter,
+        AppSpacing.s8,
+      ),
+      child: Card(
+        key: const Key('ai-search-banner'),
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s12,
+            AppSpacing.s8,
+            0,
+            AppSpacing.s8,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.s4),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      result.explanation.isEmpty
+                          ? 'AI đã đổi câu tìm thành bộ lọc.'
+                          : result.explanation,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    if (result.unresolved.isNotEmpty)
+                      Text(
+                        'Chưa lọc theo khu vực: ${result.unresolved.join(', ')}. Chọn tỉnh, phường trong Bộ lọc nếu cần.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: muted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Ẩn giải thích của AI',
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: ref.read(aiSearchResultProvider.notifier).dismiss,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

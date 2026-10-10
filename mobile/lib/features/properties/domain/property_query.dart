@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart' show immutable, setEquals;
 
-/// Điều kiện tìm BĐS gửi lên `GET /properties`: từ khoá (TASK-119), bộ lọc và sắp xếp (TASK-120).
+import 'property_labels.dart';
+
+/// Điều kiện tìm BĐS gửi lên `GET /properties`: từ khoá (TASK-119), bộ lọc và sắp xếp (TASK-120), đường vào
+/// (TASK-134).
 @immutable
 class PropertyQuery {
   const PropertyQuery({
@@ -16,7 +19,49 @@ class PropertyQuery {
     this.bedroomsMin,
     this.legalStatuses = const {},
     this.directions = const {},
+    this.roadAccesses = const {},
   });
+
+  /// Bộ lọc dạng tham số của `GET /properties` (vd `filters` của tìm bằng AI, TASK-134). Bỏ qua trường lạ
+  /// hoặc sai kiểu.
+  factory PropertyQuery.fromFilters(Map<String, dynamic> filters) {
+    int? integer(String key) => switch (filters[key]) {
+      final int value => value,
+      final double value when value == value.roundToDouble() => value.toInt(),
+      _ => null,
+    };
+    double? decimal(String key) => switch (filters[key]) {
+      final num value => value.toDouble(),
+      _ => null,
+    };
+    String? text(String key) => switch (filters[key]) {
+      final String value when value.isNotEmpty => value,
+      _ => null,
+    };
+    Set<String> values(String key, Map<String, String> allowed) =>
+        switch (filters[key]) {
+          final List<dynamic> list =>
+            list.whereType<String>().where(allowed.containsKey).toSet(),
+          _ => const {},
+        };
+    final provinceId = text('provinceId');
+    final sort = text('sort');
+    return PropertyQuery(
+      keyword: normalizeKeyword(text('q') ?? ''),
+      sort: propertySortLabels.containsKey(sort) ? sort : null,
+      propertyTypes: values('propertyType', propertyTypeLabels),
+      priceMin: integer('priceMin'),
+      priceMax: integer('priceMax'),
+      areaMin: decimal('areaMin'),
+      areaMax: decimal('areaMax'),
+      provinceId: provinceId,
+      wardId: provinceId == null ? null : text('wardId'),
+      bedroomsMin: integer('bedroomsMin'),
+      legalStatuses: values('legalStatus', legalStatusLabels),
+      directions: values('direction', directionLabels),
+      roadAccesses: values('roadAccess', roadAccessLabels),
+    );
+  }
 
   /// Từ khoá (mã BĐS hoặc chữ trong tiêu đề, mô tả, địa chỉ), đã chuẩn hoá bằng [normalizeKeyword].
   final String keyword;
@@ -40,6 +85,9 @@ class PropertyQuery {
   final Set<String> legalStatuses;
   final Set<String> directions;
 
+  /// Đường vào (TASK-134), khớp một trong các loại đã chọn.
+  final Set<String> roadAccesses;
+
   static const maxKeywordLength = 200;
 
   /// Số nhóm lọc/sắp xếp đang khác mặc định (hiện trên nút "Bộ lọc").
@@ -52,6 +100,7 @@ class PropertyQuery {
     bedroomsMin != null,
     legalStatuses.isNotEmpty,
     directions.isNotEmpty,
+    roadAccesses.isNotEmpty,
   ].where((active) => active).length;
 
   bool get hasFilters => filterCount > 0;
@@ -76,6 +125,7 @@ class PropertyQuery {
         bedroomsMin: filters.bedroomsMin,
         legalStatuses: filters.legalStatuses,
         directions: filters.directions,
+        roadAccesses: filters.roadAccesses,
       );
 
   PropertyQuery withoutFilters() => PropertyQuery(keyword: keyword);
@@ -93,6 +143,7 @@ class PropertyQuery {
     'bedroomsMin': ?bedroomsMin,
     if (legalStatuses.isNotEmpty) 'legalStatus': _csv(legalStatuses),
     if (directions.isNotEmpty) 'direction': _csv(directions),
+    if (roadAccesses.isNotEmpty) 'roadAccess': _csv(roadAccesses),
     'sort': ?sort,
   };
 
@@ -119,7 +170,8 @@ class PropertyQuery {
       other.wardId == wardId &&
       other.bedroomsMin == bedroomsMin &&
       setEquals(other.legalStatuses, legalStatuses) &&
-      setEquals(other.directions, directions);
+      setEquals(other.directions, directions) &&
+      setEquals(other.roadAccesses, roadAccesses);
 
   @override
   int get hashCode => Object.hash(
@@ -135,6 +187,7 @@ class PropertyQuery {
     bedroomsMin,
     Object.hashAllUnordered(legalStatuses),
     Object.hashAllUnordered(directions),
+    Object.hashAllUnordered(roadAccesses),
   );
 }
 

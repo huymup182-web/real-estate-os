@@ -14,7 +14,12 @@ import {
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../common/response/pagination-query.dto.js';
-import { DIRECTIONS, LEGAL_STATUSES, PROPERTY_TYPES } from '../properties/property-values.js';
+import {
+  DIRECTIONS,
+  LEGAL_STATUSES,
+  PROPERTY_TYPES,
+  ROAD_ACCESSES,
+} from '../properties/property-values.js';
 import { MAX_KEYWORD_LENGTH } from './keyword.js';
 
 /** Diện tích lớn nhất cột `properties.area` nhận (numeric(12, 2)). */
@@ -183,6 +188,17 @@ export class PropertySearchQueryDto extends PaginationQueryDto {
     message: `direction phải là một hoặc nhiều hướng trong: ${DIRECTIONS.join(', ')}`,
   })
   direction?: string[];
+
+  /** Đường vào (TASK-134), một hoặc nhiều loại: `?roadAccess=CAR`; BĐS chưa ghi đường vào không khớp. */
+  @IsOptional()
+  @Transform(commaList)
+  @IsArray({ message: 'roadAccess phải là danh sách loại đường vào' })
+  @ArrayNotEmpty({ message: 'roadAccess không được để trống' })
+  @IsIn(ROAD_ACCESSES, {
+    each: true,
+    message: `roadAccess phải là một hoặc nhiều giá trị trong: ${ROAD_ACCESSES.join(', ')}`,
+  })
+  roadAccess?: string[];
 
   /** Độ rộng đường/hẻm trước nhà nhỏ nhất, mét (TASK-072), gồm cả mốc này. BĐS chưa ghi độ rộng không khớp. */
   @IsOptional()
