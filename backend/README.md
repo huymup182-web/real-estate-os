@@ -984,3 +984,7 @@ Kết quả rà soát theo MASTER_PLAN mục 29: [docs/security-audit.md](../doc
 ## Sao lưu (TASK-157)
 
 `npm run backup -- create | list | check | restore <tên> <database mới>` (sau `npm run build`, cần `pg_dump`/`pg_restore` 16). Sao lưu toàn bộ database, gửi lên bucket riêng (`BACKUP_*`), diễn tập khôi phục và khôi phục vào database mới, không bao giờ ghi đè. Lịch, thời gian giữ và quy trình khi có sự cố: [docs/backup.md](../docs/backup.md).
+
+## Giám sát (TASK-158)
+
+`GET /api/v1/metrics` xuất số liệu dạng Prometheus (request, thời gian xử lý, job định kỳ, database, bộ nhớ) khi đặt `METRICS_TOKEN`, gọi kèm `Authorization: Bearer <token>`. Chưa đặt thì endpoint trả 404. `backup create` gọi `BACKUP_HEARTBEAT_URL` sau mỗi lần sao lưu thành công. Luật cảnh báo đề xuất và quy trình xử lý: [docs/monitoring.md](../docs/monitoring.md).

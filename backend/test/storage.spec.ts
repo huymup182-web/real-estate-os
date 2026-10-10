@@ -24,6 +24,7 @@ function serviceWith(storage: StorageConfig | null): StorageService {
     logLevel: 'log',
     jwtSecret: 'khoa-test-du-dai-it-nhat-32-ky-tu-abc',
     trustProxyHops: 0,
+    metricsToken: null,
     mail: null,
     storage,
     fcm: null,

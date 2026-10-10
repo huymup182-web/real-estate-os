@@ -1,13 +1,34 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { after, before, describe, it } from 'node:test';
 
 import { DataSource } from 'typeorm';
+
+/** Chạy lệnh sao lưu đã build (`backup.cli.js`) như cron chạy, với biến môi trường `env`. */
+function runCli(
+  args: string[],
+  env: Record<string, string>,
+): Promise<{ code: number | null; output: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [fileURLToPath(new URL('../src/backup/backup.cli.js', import.meta.url)), ...args],
+      { env: { PATH: process.env['PATH'] ?? '', ...env }, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    let output = '';
+    child.stdout.on('data', (chunk: Buffer) => (output += chunk.toString()));
+    child.stderr.on('data', (chunk: Buffer) => (output += chunk.toString()));
+    child.on('error', reject);
+    child.on('close', (code) => resolve({ code, output }));
+  });
+}
 
 import { type BackupConfig, loadBackupConfig } from '../src/backup/backup-config.js';
 import {
@@ -39,6 +60,7 @@ describe('TASK-157: cấu hình sao lưu', () => {
     assert.equal(config.keepDays, 7);
     assert.equal(config.dir, join(process.cwd(), 'backups'));
     assert.equal(config.storage, null);
+    assert.equal(config.heartbeatUrl, null);
   });
 
   it('kho lưu trữ dùng khoá riêng BACKUP_*, tiền tố luôn kết thúc bằng /', () => {
@@ -87,6 +109,17 @@ describe('TASK-157: cấu hình sao lưu', () => {
       /BACKUP_BUCKET/,
     );
     assert.ok(loadBackupConfig({ DATABASE_URL: URL_OK, NODE_ENV: 'production', ...BUCKET_ENV }));
+    assert.throws(
+      () => loadBackupConfig({ DATABASE_URL: URL_OK, BACKUP_HEARTBEAT_URL: 'khong-phai-url' }),
+      /BACKUP_HEARTBEAT_URL/,
+    );
+    assert.equal(
+      loadBackupConfig({
+        DATABASE_URL: URL_OK,
+        BACKUP_HEARTBEAT_URL: 'https://hc.example.com/p/abc',
+      }).heartbeatUrl,
+      'https://hc.example.com/p/abc',
+    );
   });
 });
 
@@ -153,7 +186,7 @@ describe('TASK-157: sao lưu và khôi phục database', () => {
   before(async () => {
     sourceUrl = await prepareTestDatabase('backend_backup');
     dir = await mkdtemp(join(tmpdir(), 'sao-luu-db-'));
-    config = { databaseUrl: sourceUrl, dir, keepDays: 7, storage: null };
+    config = { databaseUrl: sourceUrl, dir, keepDays: 7, storage: null, heartbeatUrl: null };
     restored = `${databaseName(sourceUrl)}_restored`;
     const db = new DataSource({ type: 'postgres', url: sourceUrl });
     await db.initialize();
@@ -223,6 +256,42 @@ describe('TASK-157: sao lưu và khôi phục database', () => {
     } finally {
       await db.destroy();
       await rm(broken);
+    }
+  });
+
+  it('TASK-158: lệnh create gọi heartbeat sau khi sao lưu xong; sao lưu lỗi thì không gọi, exit code 1', async () => {
+    const hits: string[] = [];
+    const server = createServer((req, res) => {
+      hits.push(req.url ?? '');
+      res.writeHead(200).end('OK');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const heartbeat = `http://127.0.0.1:${(server.address() as AddressInfo).port}/ping/sao-luu`;
+    const cliDir = await mkdtemp(join(tmpdir(), 'sao-luu-cli-'));
+    try {
+      const ok = await runCli(['create'], {
+        DATABASE_URL: sourceUrl,
+        BACKUP_DIR: cliDir,
+        BACKUP_HEARTBEAT_URL: heartbeat,
+      });
+      assert.equal(ok.code, 0, ok.output);
+      assert.match(ok.output, /Đã sao lưu database/);
+      assert.deepEqual(hits, ['/ping/sao-luu']);
+      assert.equal((await listLocalBackups(cliDir)).length, 1);
+
+      const broken = new URL(sourceUrl);
+      broken.pathname = '/khong_co_database_nay';
+      const failed = await runCli(['create'], {
+        DATABASE_URL: broken.toString(),
+        BACKUP_DIR: cliDir,
+        BACKUP_HEARTBEAT_URL: heartbeat,
+      });
+      assert.equal(failed.code, 1);
+      assert.match(failed.output, /Sao lưu lỗi/);
+      assert.deepEqual(hits, ['/ping/sao-luu']);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+      await rm(cliDir, { recursive: true, force: true });
     }
   });
 
