@@ -70,6 +70,33 @@ class AuthRepository {
     await _tokens.clear();
   }
 
+  /// Đọc lại người dùng hiện tại (`GET /auth/me`), ví dụ khi kéo tải lại màn tài khoản.
+  Future<CurrentUser> me() => _me();
+
+  /// `POST /auth/forgot-password`: gửi mã 6 số tới [email]. Trả số giây mã còn hiệu lực.
+  Future<int> requestPasswordReset(String email) async =>
+      ((await _api.post(
+                '/auth/forgot-password',
+                body: {'email': email},
+                auth: false,
+              )).object['expiresIn']
+              as num)
+          .toInt();
+
+  /// `POST /auth/reset-password`: đặt [newPassword] bằng mã [code]. Xong thì máy chủ thu hồi mọi phiên đăng nhập
+  /// (cả phiên này). Mã sai hoặc hết hạn → `ApiException` `VALIDATION_ERROR`.
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _api.post(
+      '/auth/reset-password',
+      body: {'email': email, 'code': code, 'newPassword': newPassword},
+      auth: false,
+    );
+  }
+
   Future<CurrentUser> _me() async =>
       CurrentUser.fromJson((await _api.get('/auth/me')).object);
 }

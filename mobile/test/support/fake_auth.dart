@@ -34,6 +34,31 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async => signOutCalls++;
+
+  Future<CurrentUser> Function()? onMe;
+  Future<int> Function(String email)? onRequestReset;
+  Future<void> Function(String email, String code, String password)? onReset;
+  final resetRequests = <String>[];
+  final resets = <(String, String, String)>[];
+
+  @override
+  Future<CurrentUser> me() => onMe!();
+
+  @override
+  Future<int> requestPasswordReset(String email) {
+    resetRequests.add(email);
+    return onRequestReset?.call(email) ?? Future.value(900);
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) {
+    resets.add((email, code, newPassword));
+    return onReset?.call(email, code, newPassword) ?? Future.value();
+  }
 }
 
 const testUser = CurrentUser(

@@ -54,6 +54,12 @@ class SessionController extends AsyncNotifier<Session> {
     state = AsyncData(Session(user));
   }
 
+  /// Đọc lại hồ sơ, quyền từ máy chủ; lỗi ném cho màn hình báo, phiên giữ nguyên.
+  Future<void> reload() async {
+    final user = await ref.read(authRepositoryProvider).me();
+    state = AsyncData(Session(user));
+  }
+
   Future<void> signOut() async {
     await ref.read(authRepositoryProvider).signOut();
     state = const AsyncData(Session(null));

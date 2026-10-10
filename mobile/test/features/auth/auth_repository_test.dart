@@ -39,6 +39,15 @@ void main() {
       (options) => switch (options.path) {
         '/auth/login' => login(),
         '/auth/logout' => logout(),
+        '/auth/forgot-password' => (
+          200,
+          {
+            'success': true,
+            'data': {'expiresIn': 900},
+            'message': null,
+          },
+        ),
+        '/auth/reset-password' => (204, null),
         _ => me(),
       },
     );
@@ -157,4 +166,30 @@ void main() {
       expect(await tokens.read(), isNull);
     },
   );
+
+  test('đổi mật khẩu: gửi mã rồi đặt mật khẩu mới, không kèm token', () async {
+    expect(await repository.requestPasswordReset('an@demo.vn'), 900);
+    await repository.resetPassword(
+      email: 'an@demo.vn',
+      code: '123456',
+      newPassword: 'MatKhauMoi1',
+    );
+    expect(adapter.requests.map((r) => r.options.path), [
+      '/auth/forgot-password',
+      '/auth/reset-password',
+    ]);
+    expect(adapter.requests.map((r) => r.body), [
+      {'email': 'an@demo.vn'},
+      {'email': 'an@demo.vn', 'code': '123456', 'newPassword': 'MatKhauMoi1'},
+    ]);
+    for (final request in adapter.requests) {
+      expect(request.options.headers['authorization'], isNull);
+    }
+  });
+
+  test('me: đọc lại /auth/me', () async {
+    final user = await repository.me();
+    expect(adapter.requests.single.options.path, '/auth/me');
+    expect(user.fullName, 'Nguyễn Văn An');
+  });
 }
