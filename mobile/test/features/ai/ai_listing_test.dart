@@ -125,6 +125,21 @@ void main() {
     },
   );
 
+  testWidgets('tin Zalo (TASK-138): gửi kiểu ZALO, hiện lời chào và tin nhắn', (
+    tester,
+  ) async {
+    await open(tester);
+    await openSheet(tester);
+    await tester.tap(find.text('Zalo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Viết tin'));
+    await tester.pumpAndSettle();
+    expect(ai.listings, [('p1', AiListingStyle.zalo)]);
+    expect(find.text('Lời chào'), findsOneWidget);
+    expect(find.text('Tin nhắn'), findsOneWidget);
+    expect(find.text('Bán nhà phố Vĩnh Hải (Zalo)'), findsOneWidget);
+  });
+
   testWidgets('AI lỗi thì báo lỗi, vẫn bấm lại được', (tester) async {
     ai.onListing = (propertyId, style) async => throw const ApiException(
       code: ErrorCodes.serviceUnavailable,

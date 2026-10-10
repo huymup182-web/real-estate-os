@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show immutable;
 
-/// Kiểu tin AI viết (TASK-136), bài Facebook (TASK-137).
+/// Kiểu tin AI viết (TASK-136), bài Facebook (TASK-137), tin Zalo (TASK-138).
 enum AiListingStyle {
   professional('PROFESSIONAL', 'Chuyên nghiệp'),
   short('SHORT', 'Ngắn gọn'),
@@ -9,7 +9,8 @@ enum AiListingStyle {
     'Facebook',
     titleLabel: 'Dòng mở đầu',
     bodyLabel: 'Thân bài',
-  );
+  ),
+  zalo('ZALO', 'Zalo', titleLabel: 'Lời chào', bodyLabel: 'Tin nhắn');
 
   const AiListingStyle(
     this.code,
