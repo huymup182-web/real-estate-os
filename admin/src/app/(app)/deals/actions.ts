@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+import { assistDeal, getAiStatus } from '../../../lib/ai.ts';
 import { accessToken } from '../../../lib/auth/server-session.ts';
 import {
   changeDealStage,
@@ -17,6 +18,7 @@ import {
   validateDealForm,
 } from '../../../lib/deals.ts';
 import { fieldErrorsFrom } from '../../../lib/users.ts';
+import type { AiAssistState } from './ai-assistant.tsx';
 
 interface ActionState {
   error: string | null;
@@ -103,4 +105,17 @@ export async function deleteDealAction(id: string): Promise<ActionState> {
   }
   revalidatePath('/deals');
   redirect('/deals?saved=deleted');
+}
+
+/** Trợ lý bán hàng AI cho giao dịch `id` (TASK-142): chỉ đọc, không sửa giao dịch. */
+export async function aiAssistAction(id: string, previous: AiAssistState): Promise<AiAssistState> {
+  const token = await accessToken();
+  const result = await assistDeal(token, id);
+  // Số lượt còn lại đổi sau mỗi lần hỏi; không đọc được thì giữ số đang hiện.
+  const status = await getAiStatus(token);
+  const remaining = status.ok ? status.data.remaining : previous.remaining;
+  if (!result.ok) {
+    return { error: result.message, result: previous.result, remaining };
+  }
+  return { error: null, result: result.data, remaining };
 }

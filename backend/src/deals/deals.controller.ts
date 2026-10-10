@@ -26,7 +26,7 @@ import {
   UpdateDealDto,
 } from './dto/deal.dto.js';
 
-function dealScopesOf(user: RequestUser): DealScopes {
+export function dealScopesOf(user: RequestUser): DealScopes {
   return { view: user.permissions['deal.view'], manage: user.permissions['deal.manage'] };
 }
 
