@@ -112,7 +112,9 @@ class _AiCustomerSummarySheetState
               ),
             const SizedBox(height: AppSpacing.s16),
             Text(
-              'AI đọc nhu cầu, ghi chú và ${result.activityCount} hoạt động gần nhất của khách. Nên kiểm lại với lịch sử bên dưới.',
+              result.activityCount == 0
+                  ? 'AI đọc nhu cầu và ghi chú; khách chưa có hoạt động nào. Nên kiểm lại với thông tin bên dưới.'
+                  : 'AI đọc nhu cầu, ghi chú và ${result.activityCount} hoạt động gần nhất của khách. Nên kiểm lại với lịch sử bên dưới.',
               style: theme.textTheme.bodySmall?.copyWith(color: muted),
             ),
           ],

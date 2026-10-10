@@ -840,3 +840,12 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - Khách ngoài phạm vi `customer.view` → 404, không gọi AI.
 - LLM nhận bước pipeline, mục đích, thời gian mua, nguồn, ghi chú, lý do mất khách, mọi nhu cầu (kể cả đang tạm dừng, `src/ai/customer-facts.ts`) và tối đa 30 hoạt động gần nhất theo thứ tự thời gian (giờ Việt Nam, loại, nội dung, đổi bước). Không gửi tên, số điện thoại, email của khách hay tên người chăm sóc. Số điện thoại trong ghi chú và nội dung hoạt động bị ẩn (`src/ai/redact.ts`).
 - LLM bắt buộc gọi tool `customer_summary` (`src/ai/customer-summary.tool.ts`). Tối đa 5 ý chính, 3 câu nên hỏi thêm, mỗi câu tối đa 500 ký tự. Tóm tắt trống → 503.
+
+## AI gợi ý chăm sóc khách (TASK-141)
+
+`POST /api/v1/ai/follow-ups` (`customer.view`) → `{thresholdDays, items: [{customer {id, fullName, status, agentId}, lastContactAt, daysSinceContact, suggestion {action, reason, message} | null}]}`. Theo MASTER_PLAN mục 20 ("Khách nào cần follow-up hôm nay?").
+
+- Luật chọn khách (`CustomersService.followUps`), cùng luật `followUpNeeded` của dashboard: khách trong phạm vi xem, chưa WON/LOST, không có hoạt động nào (tính cả lúc tạo) trong `FOLLOW_UP_AFTER_DAYS` (14) ngày. Khách ở bước gần chốt hơn đứng trước, cùng bước thì lâu chưa chăm sóc hơn đứng trước. Tối đa 10 khách.
+- Không có khách nào thì `items` rỗng, không gọi AI và không tính lượt.
+- AI gợi ý một việc cho mỗi khách (`CALL`, `MESSAGE`, `SEND_PROPERTIES`, `SCHEDULE_VIEWING`), lý do và câu mở đầu. LLM nhận khách dưới mã K1, K2…, chỉ có bước, mục đích, thời gian mua, số ngày chưa chăm sóc, số nhu cầu đang bật và hoạt động gần nhất (số điện thoại bị ẩn). Không gửi tên, liên hệ.
+- Gợi ý có mã lạ, việc lạ hoặc thiếu câu bị bỏ; khách đó có `suggestion: null`. LLM không trả danh sách → 503.

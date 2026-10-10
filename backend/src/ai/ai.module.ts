@@ -9,6 +9,7 @@ import { PropertiesModule } from '../properties/properties.module.js';
 import { AiController } from './ai.controller.js';
 import { AiCustomerController } from './ai-customer.controller.js';
 import { AiCustomerSummaryService } from './ai-customer-summary.service.js';
+import { AiFollowUpService } from './ai-follow-up.service.js';
 import { AiListingController } from './ai-listing.controller.js';
 import { AiListingService } from './ai-listing.service.js';
 import { AiMatchExplanationService } from './ai-match-explanation.service.js';
@@ -37,6 +38,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
  * TASK-136: AI viết tin đăng `POST /properties/:id/ai-listing` (`AiListingService`); TASK-137..139 thêm kiểu
  * Facebook, Zalo, TikTok.
  * TASK-140: AI tóm tắt khách `POST /customers/:id/ai-summary` (`AiCustomerSummaryService`).
+ * TASK-141: AI gợi ý chăm sóc `POST /ai/follow-ups` (`AiFollowUpService`).
  */
 @Module({
   imports: [AuthModule, CustomersModule, MatchingModule, PropertiesModule],
@@ -47,6 +49,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
     AiMatchExplanationService,
     AiListingService,
     AiCustomerSummaryService,
+    AiFollowUpService,
     { provide: LLM_PROVIDER, inject: [APP_CONFIG], useFactory: llmProviderFor },
   ],
   exports: [AiGatewayService],

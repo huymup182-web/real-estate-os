@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:real_estate_os/app.dart';
 import 'package:real_estate_os/core/error/api_exception.dart';
 import 'package:real_estate_os/core/router/app_router.dart';
-import 'package:real_estate_os/features/ai/domain/ai_customer_summary.dart';
+import 'package:real_estate_os/features/ai/domain/ai_follow_up.dart';
 import 'package:real_estate_os/features/ai/domain/ai_search.dart';
 import 'package:real_estate_os/features/ai/presentation/ai_providers.dart';
 import 'package:real_estate_os/features/auth/domain/current_user.dart';
@@ -25,7 +25,9 @@ void main() {
   late FakeAiRepository ai;
 
   setUp(() {
-    customers = FakeCustomersRepository();
+    customers = FakeCustomersRepository(
+      (page) async => customerPage([customer(1)], total: 1),
+    );
     ai = FakeAiRepository();
   });
 
@@ -59,62 +61,78 @@ void main() {
     );
     await tester.pumpAndSettle();
     GoRouter.of(tester.element(find.byType(NavigationBar)))
-        .go(AppRoutes.customerDetail('c1'));
+        .go(AppRoutes.customers);
     await tester.pumpAndSettle();
   }
 
-  testWidgets('AI tắt thì không có nút "AI tóm tắt"', (tester) async {
+  Future<void> openSheet(WidgetTester tester) async {
+    await tester.tap(find.byTooltip('Khách cần chăm sóc'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('AI tắt thì không có nút "Khách cần chăm sóc"', (tester) async {
     ai.currentStatus = const AiStatus(enabled: false);
     await open(tester);
-    expect(find.text('Trần Thị Bình'), findsWidgets);
-    expect(find.text('AI tóm tắt'), findsNothing);
+    expect(find.text('1 khách'), findsOneWidget);
+    expect(find.byTooltip('Khách cần chăm sóc'), findsNothing);
   });
 
-  testWidgets(
-    '"AI tóm tắt" gọi AI một lần, hiện tóm tắt, ý chính, câu nên hỏi',
-    (tester) async {
-      await open(tester);
-      // Không có customer.edit: chỉ có nút AI, không có "Đổi bước".
-      expect(find.text('Đổi bước'), findsNothing);
-      expect(ai.summaries, isEmpty);
-      await tester.tap(find.text('AI tóm tắt'));
-      await tester.pumpAndSettle();
-      expect(ai.summaries, ['c1']);
-      expect(
-        find.text(
-          'Khách cần nhà phố ở Vĩnh Hải 4–6 tỷ, đã hẹn xem nhà cuối tuần.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Ý chính'), findsOneWidget);
-      expect(find.text('Muốn gần trường học.'), findsOneWidget);
-      expect(find.text('Nên hỏi thêm'), findsOneWidget);
-      expect(find.text('Khách cần mấy phòng tắm?'), findsOneWidget);
-      expect(find.textContaining('2 hoạt động gần nhất'), findsOneWidget);
-    },
-  );
+  testWidgets('hiện khách cần chăm sóc và gợi ý; chạm tên mở chi tiết khách', (
+    tester,
+  ) async {
+    await open(tester);
+    expect(ai.followUpCalls, 0);
+    await openSheet(tester);
+    expect(ai.followUpCalls, 1);
+    expect(
+      find.textContaining('quá 14 ngày chưa có hoạt động'),
+      findsOneWidget,
+    );
+    expect(find.text('16 ngày chưa chăm sóc'), findsOneWidget);
+    expect(
+      find.text('Gọi điện: Khách đã đi xem, 16 ngày chưa gọi.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('"Em chào chị, chị còn quan tâm căn Vĩnh Hải không ạ?"'),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('follow-up-c2')),
+        matching: find.text('AI chưa có gợi ý cho khách này.'),
+      ),
+      findsOneWidget,
+    );
 
-  testWidgets('AI lỗi thì "Thử lại" gọi lại', (tester) async {
+    await tester.tap(find.text('Lê Văn Cường'));
+    await tester.pumpAndSettle();
+    expect(customers.detailCalls, ['c2']);
+    expect(find.text('Khách cần chăm sóc'), findsNothing);
+  });
+
+  testWidgets('không có khách cần chăm sóc thì báo; lỗi thì "Thử lại"', (
+    tester,
+  ) async {
     var fail = true;
-    ai.onSummary = (customerId) async {
+    ai.onFollowUps = () async {
       if (fail) {
         throw const ApiException(
           code: ErrorCodes.serviceUnavailable,
-          message: 'AI chưa tóm tắt được khách, vui lòng thử lại',
+          message: 'AI chưa gợi ý được việc chăm sóc, vui lòng thử lại',
         );
       }
-      return const AiCustomerSummary(summary: 'Khách mới, chưa có nhu cầu.');
+      return const AiFollowUps(thresholdDays: 14);
     };
     await open(tester);
-    await tester.tap(find.text('AI tóm tắt'));
-    await tester.pumpAndSettle();
+    await openSheet(tester);
     expect(find.text('Thử lại'), findsOneWidget);
     fail = false;
     await tester.tap(find.text('Thử lại'));
     await tester.pumpAndSettle();
-    expect(find.text('Khách mới, chưa có nhu cầu.'), findsOneWidget);
-    expect(find.text('Ý chính'), findsNothing);
-    expect(find.textContaining('khách chưa có hoạt động nào'), findsOneWidget);
-    expect(ai.summaries, hasLength(2));
+    expect(
+      find.text('Không có khách nào quá 14 ngày chưa chăm sóc.'),
+      findsOneWidget,
+    );
   });
 }

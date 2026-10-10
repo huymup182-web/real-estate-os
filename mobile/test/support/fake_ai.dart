@@ -1,5 +1,6 @@
 import 'package:real_estate_os/features/ai/data/ai_repository.dart';
 import 'package:real_estate_os/features/ai/domain/ai_customer_summary.dart';
+import 'package:real_estate_os/features/ai/domain/ai_follow_up.dart';
 import 'package:real_estate_os/features/ai/domain/ai_listing.dart';
 import 'package:real_estate_os/features/ai/domain/ai_match.dart';
 import 'package:real_estate_os/features/ai/domain/ai_search.dart';
@@ -47,6 +48,27 @@ class FakeAiRepository implements AiRepository {
         activityCount: 2,
       );
   final summaries = <String>[];
+  Future<AiFollowUps> Function() onFollowUps = () async => const AiFollowUps(
+    thresholdDays: 14,
+    items: [
+      AiFollowUpItem(
+        customerId: 'c1',
+        fullName: 'Trần Thị Bình',
+        status: 'VIEWING',
+        daysSinceContact: 16,
+        action: 'CALL',
+        reason: 'Khách đã đi xem, 16 ngày chưa gọi.',
+        message: 'Em chào chị, chị còn quan tâm căn Vĩnh Hải không ạ?',
+      ),
+      AiFollowUpItem(
+        customerId: 'c2',
+        fullName: 'Lê Văn Cường',
+        status: 'NEW',
+        daysSinceContact: 20,
+      ),
+    ],
+  );
+  int followUpCalls = 0;
   AiStatus currentStatus;
   Future<AiPropertySearch> Function(String query) onSearch;
   int statusCalls = 0;
@@ -83,5 +105,11 @@ class FakeAiRepository implements AiRepository {
   Future<AiCustomerSummary> customerSummary(String customerId) {
     summaries.add(customerId);
     return onSummary(customerId);
+  }
+
+  @override
+  Future<AiFollowUps> followUps() {
+    followUpCalls++;
+    return onFollowUps();
   }
 }

@@ -1,5 +1,6 @@
 import '../../../core/network/api_client.dart';
 import '../domain/ai_customer_summary.dart';
+import '../domain/ai_follow_up.dart';
 import '../domain/ai_listing.dart';
 import '../domain/ai_match.dart';
 import '../domain/ai_search.dart';
@@ -44,4 +45,9 @@ class AiRepository {
       AiCustomerSummary.fromJson(
         (await _api.post('/customers/$customerId/ai-summary')).object,
       );
+
+  /// Tối đa 10 khách cần chăm sóc trong phạm vi xem, kèm gợi ý của AI (cần `customer.view`). Có khách thì tính
+  /// một lượt AI; không có khách nào thì không gọi AI.
+  Future<AiFollowUps> followUps() async =>
+      AiFollowUps.fromJson((await _api.post('/ai/follow-ups')).object);
 }

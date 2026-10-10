@@ -9,6 +9,8 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/debounced_search_field.dart';
 import '../../../core/widgets/error_retry.dart';
 import '../../../core/widgets/load_more_footer.dart';
+import '../../ai/presentation/ai_follow_up_sheet.dart';
+import '../../ai/presentation/ai_providers.dart';
 import '../domain/customer_labels.dart';
 import '../domain/customer_query.dart';
 import 'customer_card.dart';
@@ -16,7 +18,7 @@ import 'customer_list_controller.dart';
 
 /// Tab "Khách hàng": tìm theo tên, số điện thoại, email; lọc theo bước pipeline (chọn nhiều); danh sách khách
 /// trong phạm vi xem, mới tạo trước. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết;
-/// nút trên thanh tiêu đề mở pipeline.
+/// nút trên thanh tiêu đề mở pipeline; AI bật thì có nút "Khách cần chăm sóc" (TASK-141).
 class CustomersScreen extends ConsumerWidget {
   const CustomersScreen({super.key});
 
@@ -25,11 +27,18 @@ class CustomersScreen extends ConsumerWidget {
     final list = ref.watch(customerListProvider);
     final query = ref.watch(customerQueryProvider);
     final queryController = ref.read(customerQueryProvider.notifier);
+    final aiEnabled = ref.watch(aiStatusProvider).value?.enabled ?? false;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Khách hàng'),
         actions: [
+          if (aiEnabled)
+            IconButton(
+              tooltip: 'Khách cần chăm sóc',
+              icon: const Icon(Icons.auto_awesome),
+              onPressed: () => showAiFollowUpSheet(context),
+            ),
           IconButton(
             tooltip: 'Pipeline',
             icon: const Icon(Icons.view_kanban_outlined),
