@@ -202,6 +202,18 @@ lib/
   sửa (409) thì báo và tải lại. Xong thì chi tiết, timeline, danh sách, pipeline đều tải lại. Timeline hiện
   "bước trước → bước sau".
 
+## Lịch hẹn (TASK-129)
+
+- Trang chủ có nút "Lịch hẹn" (thanh tiêu đề) và "Xem lịch" (mục lịch hẹn sắp tới) khi có `appointment.view` →
+  `/home/calendar`. Lưới tháng theo giờ Việt Nam (tuần bắt đầu thứ 2), mỗi ngày hiện số lịch; hôm nay viền màu,
+  ngày đang chọn tô màu; nút tháng trước/sau và "Hôm nay". Bên dưới là lịch của ngày đang chọn.
+- `GET /appointments?from&to` với from/to là 0 giờ (giờ Việt Nam) đầu tháng và đầu tháng sau, tải hết các trang
+  (100 dòng/trang), nhóm theo ngày giờ Việt Nam.
+- Chạm một lịch → bảng chi tiết. Có `appointment.manage` thì đổi được trạng thái; "Đã xem" (kèm kết quả nếu có,
+  không bắt buộc theo TASK-084) và "Khách không đến" chỉ chọn được khi đã tới giờ hẹn.
+  `POST /appointments/:id/status` kèm `expectedUpdatedAt`; người khác vừa sửa (409) thì báo và tải lại. Xong thì
+  lịch tháng và lịch sắp tới ở trang chủ tải lại.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/appointments/presentation/calendar_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/session_controller.dart';
 import '../../features/customers/presentation/customer_detail_screen.dart';
@@ -28,6 +29,9 @@ abstract final class AppRoutes {
   static const customers = '/customers';
   static const notifications = '/notifications';
   static const profile = '/profile';
+
+  /// Lịch hẹn theo tháng, mở từ trang chủ.
+  static const calendar = '$home/calendar';
 
   static const propertyCreate = '$properties/new';
   static const propertyFavorites = '$properties/favorites';
@@ -68,7 +72,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),
         branches: [
-          _branch(AppRoutes.home, const HomeScreen()),
+          _branch(
+            AppRoutes.home,
+            const HomeScreen(),
+            routes: [
+              GoRoute(
+                path: 'calendar',
+                builder: (context, state) => const CalendarScreen(),
+              ),
+            ],
+          ),
           _branch(
             AppRoutes.properties,
             const PropertiesScreen(),
