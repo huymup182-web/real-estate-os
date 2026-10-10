@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
 import type { PermissionScope } from '../auth/permission.service.js';
 import { CUSTOMER_SOURCES } from '../customers/customer-values.js';
@@ -108,7 +109,10 @@ function group(key: string | null, name: string | null, rows: CohortRow[]): Conv
  */
 @Injectable()
 export class ConversionAnalyticsService {
-  constructor(private readonly reports: ReportsService) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly reports: ReportsService,
+  ) {}
 
   async conversion(
     actor: Actor,
@@ -117,58 +121,94 @@ export class ConversionAnalyticsService {
   ): Promise<ConversionAnalytics> {
     assertTenant(actor.tenantId);
     const period = reportPeriod(query);
-    const contactAt = `LEAST(
-        (SELECT min(a.created_at) FROM customer_activities a
-          WHERE a.tenant_id = c.tenant_id AND a.customer_id = c.id AND a.type IN (:...contactTypes)),
-        (SELECT min(ap.created_at) FROM appointments ap
-          WHERE ap.tenant_id = c.tenant_id AND ap.customer_id = c.id AND ap.deleted_at IS NULL),
-        (SELECT min(d.created_at) FROM deals d
-          WHERE d.tenant_id = c.tenant_id AND d.customer_id = c.id AND d.deleted_at IS NULL))`;
-    const hasDeal = `EXISTS (SELECT 1 FROM deals d
-          WHERE d.tenant_id = c.tenant_id AND d.customer_id = c.id AND d.deleted_at IS NULL)`;
-    const wonAt = `(SELECT min(d.closed_at) FROM deals d
-          WHERE d.tenant_id = c.tenant_id AND d.customer_id = c.id AND d.deleted_at IS NULL AND d.stage = 'WON')`;
-    const isWon = `(${wonAt} IS NOT NULL OR c.status = 'WON')`;
-    const isNegotiated = `(${hasDeal} OR c.status IN ('NEGOTIATING', 'DEPOSIT') OR ${isWon})`;
-    const isViewed = `(EXISTS (SELECT 1 FROM appointments ap
-          WHERE ap.tenant_id = c.tenant_id AND ap.customer_id = c.id AND ap.deleted_at IS NULL
-            AND ap.status = 'COMPLETED') OR c.status = 'VIEWING' OR ${isNegotiated})`;
-    const isContacted = `(${contactAt} IS NOT NULL OR c.status <> 'NEW' OR ${isViewed})`;
-    const cohort = () =>
-      this.reports
-        .scoped(actor, scope, 'customers', 'c')
-        .andWhere('c.created_at >= :from AND c.created_at < :to')
-        .setParameters({ ...period, contactTypes: CONTACT_ACTIVITY_TYPES });
+    // Mỗi khách tính các mốc một lần trong bảng con `f` (TASK-154), rồi mới đếm theo bước. Hoạt động, lịch hẹn,
+    // giao dịch gom theo khách một lần (chỉ khách tạo trong kỳ) rồi nối vào, thay vì tìm lại cho từng khách.
+    const cohortIds = `SELECT k.id FROM customers k
+      WHERE k.tenant_id = :conversionTenant AND k.created_at >= :from AND k.created_at < :to`;
+    const facts = this.reports
+      .scoped(actor, scope, 'customers', 'c')
+      .andWhere('c.created_at >= :from AND c.created_at < :to')
+      .leftJoin(
+        (activities) =>
+          activities
+            .select('a.customer_id', 'customer_id')
+            .addSelect('min(a.created_at)', 'first_at')
+            .from('customer_activities', 'a')
+            .where('a.tenant_id = :conversionTenant AND a.type IN (:...contactTypes)')
+            .andWhere(`a.customer_id IN (${cohortIds})`)
+            .groupBy('a.customer_id'),
+        'fa',
+        'fa.customer_id = c.id',
+      )
+      .leftJoin(
+        (appointments) =>
+          appointments
+            .select('ap.customer_id', 'customer_id')
+            .addSelect('min(ap.created_at)', 'first_at')
+            .addSelect(`bool_or(ap.status = 'COMPLETED')`, 'completed')
+            .from('appointments', 'ap')
+            .where('ap.tenant_id = :conversionTenant AND ap.deleted_at IS NULL')
+            .andWhere(`ap.customer_id IN (${cohortIds})`)
+            .groupBy('ap.customer_id'),
+        'fap',
+        'fap.customer_id = c.id',
+      )
+      .leftJoin(
+        (deals) =>
+          deals
+            .select('d.customer_id', 'customer_id')
+            .addSelect('min(d.created_at)', 'first_at')
+            .addSelect(`min(d.closed_at) FILTER (WHERE d.stage = 'WON')`, 'won_at')
+            .from('deals', 'd')
+            .where('d.tenant_id = :conversionTenant AND d.deleted_at IS NULL')
+            .andWhere(`d.customer_id IN (${cohortIds})`)
+            .groupBy('d.customer_id'),
+        'fd',
+        'fd.customer_id = c.id',
+      )
+      .select('c.source', 'source')
+      .addSelect('c.agent_id', 'agent_id')
+      .addSelect('c.status', 'status')
+      .addSelect('c.created_at', 'created_at')
+      .addSelect('LEAST(fa.first_at, fap.first_at, fd.first_at)', 'contact_at')
+      .addSelect('fd.won_at', 'won_at')
+      .addSelect('fd.customer_id IS NOT NULL', 'has_deal')
+      .addSelect('coalesce(fap.completed, false)', 'has_viewing')
+      .setParameters({
+        ...period,
+        contactTypes: CONTACT_ACTIVITY_TYPES,
+        conversionTenant: actor.tenantId,
+      });
+    const isWon = `(f.won_at IS NOT NULL OR f.status = 'WON')`;
+    const isNegotiated = `(f.has_deal OR f.status IN ('NEGOTIATING', 'DEPOSIT') OR ${isWon})`;
+    const isViewed = `(f.has_viewing OR f.status = 'VIEWING' OR ${isNegotiated})`;
+    const isContacted = `(f.contact_at IS NOT NULL OR f.status <> 'NEW' OR ${isViewed})`;
+    const medianDays = (column: string): string =>
+      `percentile_cont(0.5) WITHIN GROUP (ORDER BY GREATEST(extract(epoch FROM ${column} - f.created_at), 0) / 86400)
+         FILTER (WHERE ${column} IS NOT NULL)`;
 
-    const [rows, timing] = await Promise.all([
-      cohort()
-        .leftJoin('users', 'u', 'u.tenant_id = c.tenant_id AND u.id = c.agent_id')
-        .select('c.source', 'source')
-        .addSelect('c.agent_id', 'agent_id')
-        .addSelect('u.full_name', 'agent_name')
-        .addSelect('count(*)::int', 'leads')
-        .addSelect(`(count(*) FILTER (WHERE ${isContacted}))::int`, 'contacted')
-        .addSelect(`(count(*) FILTER (WHERE ${isViewed}))::int`, 'viewed')
-        .addSelect(`(count(*) FILTER (WHERE ${isNegotiated}))::int`, 'negotiated')
-        .addSelect(`(count(*) FILTER (WHERE ${isWon}))::int`, 'won')
-        .addSelect(`(count(*) FILTER (WHERE c.status = 'LOST' AND NOT ${isWon}))::int`, 'lost')
-        .groupBy('c.source')
-        .addGroupBy('c.agent_id')
-        .addGroupBy('u.full_name')
-        .getRawMany<CohortRow>(),
-      cohort()
-        .select(
-          `(percentile_cont(0.5) WITHIN GROUP (ORDER BY GREATEST(extract(epoch FROM ${contactAt} - c.created_at), 0) / 86400)
-              FILTER (WHERE ${contactAt} IS NOT NULL))::text`,
-          'days_to_contact',
-        )
-        .addSelect(
-          `(percentile_cont(0.5) WITHIN GROUP (ORDER BY GREATEST(extract(epoch FROM ${wonAt} - c.created_at), 0) / 86400)
-              FILTER (WHERE ${wonAt} IS NOT NULL))::text`,
-          'days_to_win',
-        )
-        .getRawOne<TimingRow>(),
-    ]);
+    // Từng nhóm (nguồn × người phụ trách) và tổng chung (cho số ngày giữa) trong một truy vấn.
+    const all = await this.dataSource
+      .createQueryBuilder()
+      .from(`(${facts.getQuery()})`, 'f')
+      .setParameters(facts.getParameters())
+      .leftJoin('users', 'u', 'u.tenant_id = :conversionTenant AND u.id = f.agent_id')
+      .select('f.source', 'source')
+      .addSelect('f.agent_id', 'agent_id')
+      .addSelect('u.full_name', 'agent_name')
+      .addSelect('GROUPING(f.source, f.agent_id, u.full_name) <> 0', 'overall')
+      .addSelect('count(*)::int', 'leads')
+      .addSelect(`(count(*) FILTER (WHERE ${isContacted}))::int`, 'contacted')
+      .addSelect(`(count(*) FILTER (WHERE ${isViewed}))::int`, 'viewed')
+      .addSelect(`(count(*) FILTER (WHERE ${isNegotiated}))::int`, 'negotiated')
+      .addSelect(`(count(*) FILTER (WHERE ${isWon}))::int`, 'won')
+      .addSelect(`(count(*) FILTER (WHERE f.status = 'LOST' AND NOT ${isWon}))::int`, 'lost')
+      .addSelect(`(${medianDays('f.contact_at')})::text`, 'days_to_contact')
+      .addSelect(`(${medianDays('f.won_at')})::text`, 'days_to_win')
+      .groupBy('GROUPING SETS ((f.source, f.agent_id, u.full_name), ())')
+      .getRawMany<CohortRow & TimingRow & { overall: boolean }>();
+    const rows = all.filter((row) => !row.overall);
+    const timing = all.find((row) => row.overall);
 
     const counts: Record<ConversionStep, number> = {
       LEAD: sum(rows, 'leads'),

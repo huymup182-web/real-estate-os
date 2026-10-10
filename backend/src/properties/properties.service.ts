@@ -947,9 +947,7 @@ export class PropertiesService {
           return page;
         }
         return page.addOrderBy(
-          `ts_rank(to_tsvector('simple', immutable_unaccent(
-             coalesce(p.title, '') || ' ' || coalesce(p.description, ''))),
-           to_tsquery('simple', :keywordQuery))`,
+          `ts_rank(p.search_vector_public, to_tsquery('simple', :keywordQuery))`,
           'DESC',
         );
       case 'newest':
@@ -967,12 +965,12 @@ export class PropertiesService {
     if (keywordTsQuery(keyword) === null) {
       return 'p.code = :keywordCode';
     }
-    return `(p.code = :keywordCode OR (
-      p.search_vector @@ to_tsquery('simple', :keywordQuery)
-      AND ((${this.scopeOrFalse(scopes.contact)})
-        OR to_tsvector('simple', immutable_unaccent(
-             coalesce(p.title, '') || ' ' || coalesce(p.description, '')))
-           @@ to_tsquery('simple', :keywordQuery))))`;
+    // `search_vector_public` (tiêu đề + mô tả, TASK-154) là tập con của `search_vector`, nên điều kiện dưới
+    // tương đương "khớp search_vector và (được xem liên hệ hoặc khớp tiêu đề/mô tả)", mà cả hai nhánh dùng index.
+    return `(p.code = :keywordCode
+      OR p.search_vector_public @@ to_tsquery('simple', :keywordQuery)
+      OR ((${this.scopeOrFalse(scopes.contact)})
+        AND p.search_vector @@ to_tsquery('simple', :keywordQuery)))`;
   }
 
   /** BĐS không xem được (không có, đã xoá, công ty khác, ngoài phạm vi, HIDDEN với người không sửa được) → 404. */

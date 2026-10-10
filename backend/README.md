@@ -484,6 +484,10 @@ Luật:
 
 `npm run perf:search` sinh 100.000 BĐS cho một công ty (database riêng `<db>_backend_perf`) và đo các kiểu tìm kiếm qua HTTP. Truy vấn nào có p95 ≥ 1 giây thì báo lỗi. Cách đo và kết quả: [docs/search-performance.md](../docs/search-performance.md).
 
+## Tối ưu hiệu năng (TASK-154)
+
+`npm run perf:crm` sinh 100.000 BĐS, 50.000 khách cùng hoạt động, lịch hẹn, giao dịch, nhu cầu (database riêng `<db>_backend_perf_crm`). Script đo dashboard, doanh số, chuyển đổi, xếp hạng, thị trường, danh sách CRM và matching qua HTTP, cùng ngưỡng p95 < 1 giây. Đã sửa các chỗ chậm: thanh khoản, xếp hạng, chuyển đổi, BĐS phù hợp với khách, tìm từ khoá của môi giới. Backend tắt JIT của PostgreSQL cho kết nối của mình (`src/database/database.module.ts`). Chi tiết và kết quả: [docs/performance.md](../docs/performance.md).
+
 ## Tìm kiếm đã lưu (TASK-075)
 
 Module `src/notifications` (bảng `saved_searches`, phase0/02-ARCHITECTURE.md mục 2.1). Mọi route cần `property.view`; mỗi người chỉ thấy và sửa tìm kiếm của mình (người khác, cấp trên, công ty khác → 404).
@@ -926,6 +930,7 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - Mỗi cảnh dài ít nhất 3 giây, nên video 15 giây có tối đa 2 cảnh nổi bật, 30 giây có tối đa 6. Tổng thời lượng các cảnh đúng bằng `durationSeconds`; giây dư dồn cho cảnh thông tin.
 - AI (tool `property_video`, `src/ai/video.tool.ts`) chỉ viết câu mở đầu, điểm nổi bật, lời mời, mỗi dòng tối đa 60 ký tự. Backend ẩn số điện thoại và bỏ hashtag. AI không xem ảnh. LLM không nhận địa chỉ chi tiết, chủ nhà, môi giới, hoa hồng hay link ảnh.
 - BĐS chưa có ảnh → 422, không gọi AI. Câu mở đầu hoặc lời mời trống → 503.
+- Video phát trong app (ảnh + chữ chạy theo kịch bản), không xuất file MP4 (Huy Lê chọn ngày 2026-10-10).
 
 ## Bảng xếp hạng môi giới (TASK-151)
 
@@ -933,7 +938,7 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 
 - Người dùng đang hoạt động trong phạm vi `report.view` (OWN chỉ mình, DEPARTMENT cả phòng ban, COMPANY cả công ty).
 - `listings`: BĐS mình phụ trách, tạo trong kỳ. `careDays`: số lượt (khách, ngày theo giờ Việt Nam) có hoạt động chăm sóc mình ghi trong kỳ. Một khách một ngày chỉ tính một lần; không tính đổi trạng thái, giao khách, khách đã xoá. `viewings`: lịch dẫn khách hoàn thành, hẹn trong kỳ. `dealsWon`, `revenue`: giao dịch WON chốt trong kỳ và tổng `deal_price`.
-- Điểm (mặc định đề xuất, chờ Huy Lê xác nhận): tin đăng 5, chăm sóc 1, dẫn khách 3, giao dịch chốt 20. "Hỗ trợ đồng đội" chưa có dữ liệu nên chưa tính. Bằng điểm thì cùng hạng (1, 1, 3), xếp theo doanh số, số giao dịch rồi tên.
+- Điểm (Huy Lê chọn ngày 2026-10-10): tin đăng 5, chăm sóc 1, dẫn khách 3, giao dịch chốt 20. "Hỗ trợ đồng đội" chưa có dữ liệu nên chưa tính. Bằng điểm thì cùng hạng (1, 1, 3), xếp theo doanh số, số giao dịch rồi tên.
 
 ## Phân tích doanh số (TASK-152)
 

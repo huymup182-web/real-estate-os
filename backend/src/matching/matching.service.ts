@@ -11,7 +11,12 @@ import {
 } from '../properties/properties.service.js';
 import type { PropertyDetailView } from '../properties/property.response.js';
 import { explainMatch, type MatchExplanation } from './match-explanation.js';
-import { type CriterionScore, type MatchPreference, scoreMatch } from './match-score.js';
+import {
+  type CriterionScore,
+  type MatchPreference,
+  type MatchProperty,
+  scoreMatch,
+} from './match-score.js';
 
 /** Điểm tối thiểu để tính là phù hợp (mặc định Claude chọn ở TASK-087). */
 export const MIN_MATCH_SCORE = 50;
@@ -172,41 +177,61 @@ export class MatchingService {
       .andWhere('p.transactionType IN (:...transactionTypes)', {
         transactionTypes: [...new Set(preferences.map((row) => row.transactionType))],
       })
-      .getMany();
+      // Chỉ đọc cột cần để chấm điểm và trả về, dạng thô (TASK-154): công ty lớn có hàng chục nghìn BĐS đang
+      // bán, dựng entity đầy đủ cho từng BĐS mất vài giây.
+      .select('p.id', 'id')
+      .addSelect('p.code', 'code')
+      .addSelect('p.title', 'title')
+      .addSelect('p.transaction_type', 'transactionType')
+      .addSelect('p.property_type', 'propertyType')
+      .addSelect('p.price', 'price')
+      .addSelect('p.area', 'area')
+      .addSelect('p.bedrooms', 'bedrooms')
+      .addSelect('p.province_id', 'provinceId')
+      .addSelect('p.district_id', 'districtId')
+      .addSelect('p.ward_id', 'wardId')
+      .addSelect('p.legal_status', 'legalStatus')
+      .addSelect('p.road_access', 'roadAccess')
+      .addSelect('p.updated_at', 'updatedAt')
+      .getRawMany<MatchPropertyRow>();
 
-    const matches: { score: number; updatedAt: Date; match: PropertyMatch }[] = [];
-    for (const property of properties) {
+    const wanted = preferences.map((row) => ({ row, preference: toPreference(row) }));
+    const matches: {
+      score: number;
+      updatedAt: Date;
+      property: MatchPropertyRow;
+      best: { row: PreferenceRow; criteria: CriterionScore[] };
+    }[] = [];
+    for (const raw of properties) {
+      const property = { ...raw, price: Number(raw.price), area: Number(raw.area) };
       let best: { row: PreferenceRow; score: number; criteria: CriterionScore[] } | undefined;
-      for (const row of preferences) {
-        const result = scoreMatch(toPreference(row), property);
+      for (const { row, preference } of wanted) {
+        const result = scoreMatch(preference, property);
         if (result.eligible && (!best || result.score > best.score)) {
           best = { row, score: result.score, criteria: result.criteria };
         }
       }
       if (best) {
-        matches.push({
-          score: best.score,
-          updatedAt: property.updatedAt,
-          match: {
-            property: {
-              id: property.id,
-              code: property.code,
-              title: property.title,
-              propertyType: property.propertyType,
-              transactionType: property.transactionType,
-              price: property.price,
-              area: property.area,
-            },
-            preferenceId: best.row.preferenceId,
-            score: best.score,
-            criteria: best.criteria,
-            explanation: explainMatch(best.score, best.criteria),
-          },
-        });
+        matches.push({ score: best.score, updatedAt: raw.updatedAt, property, best });
       }
     }
-    return keepTop(matches, options, (item) => [item.updatedAt, item.match.property.id]).map(
-      (item) => item.match,
+    // Chỉ dựng lời giải thích cho các BĐS được giữ lại.
+    return keepTop(matches, options, (item) => [item.updatedAt, item.property.id]).map(
+      ({ score, property, best }) => ({
+        property: {
+          id: property.id,
+          code: property.code,
+          title: property.title,
+          propertyType: property.propertyType,
+          transactionType: property.transactionType,
+          price: Number(property.price),
+          area: Number(property.area),
+        },
+        preferenceId: best.row.preferenceId,
+        score,
+        criteria: best.criteria,
+        explanation: explainMatch(score, best.criteria),
+      }),
     );
   }
 
@@ -306,6 +331,16 @@ function keepTop<T extends { score: number }>(
 /** PostgreSQL trả bigint/numeric dạng chuỗi. */
 function toNumber(value: string | null): number | null {
   return value === null ? null : Number(value);
+}
+
+/** Dòng BĐS thô cho matching (TASK-154); `price`, `area` là chuỗi số từ Postgres. */
+interface MatchPropertyRow extends Omit<MatchProperty, 'price' | 'area'> {
+  id: string;
+  code: string;
+  title: string;
+  price: string | number;
+  area: string | number;
+  updatedAt: Date;
 }
 
 function toPreference(row: PreferenceRow): MatchPreference {
