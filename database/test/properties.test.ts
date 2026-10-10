@@ -193,6 +193,24 @@ describe('TASK-014: bảng properties', () => {
     );
   });
 
+  it('TASK-154: search_vector_public chỉ gồm tiêu đề và mô tả, không có địa chỉ', async () => {
+    const property = await insertProperty({
+      title: 'Bán nhà gần chợ Đầm',
+      description: 'Sổ hồng riêng',
+      street_address: '99 Hoàng Diệu',
+    });
+    const match = async (keyword: string): Promise<boolean> => {
+      const rows: { id: string }[] = await db.query(
+        `SELECT id FROM properties
+          WHERE id = $2 AND search_vector_public @@ plainto_tsquery('simple', immutable_unaccent($1))`,
+        [keyword, property['id']],
+      );
+      return rows.length === 1;
+    };
+    assert.equal(await match('cho dam so hong'), true);
+    assert.equal(await match('hoang dieu'), false);
+  });
+
   it('môi giới, người tạo, người xác minh phải cùng công ty với BĐS', async () => {
     await assert.rejects(insertProperty({ agent_id: agentB }), /fk_properties_agent_id/);
     await assert.rejects(insertProperty({ created_by: agentB }), /fk_properties_created_by/);

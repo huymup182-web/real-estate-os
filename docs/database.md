@@ -263,6 +263,7 @@ Một chủ nhà có thể có nhiều BĐS; SĐT không bắt buộc duy nhất
 | last_verified_at                   | timestamptz           | NULL                                                                                                                                                     |
 | verified_by                        | uuid                  | NULL, T-FK users                                                                                                                                         |
 | search_vector                      | tsvector              | GENERATED `to_tsvector('simple', immutable_unaccent(title \|\| ' ' \|\| description \|\| ' ' \|\| street_address))`, dùng cho Full Text Search không dấu |
+| search_vector_public               | tsvector              | GENERATED như `search_vector` nhưng chỉ có title + description (TASK-154), cho người không được xem địa chỉ                                              |
 | created_by, updated_by             | uuid                  | NULL, T-FK users                                                                                                                                         |
 | created_at, updated_at, deleted_at | timestamptz           |                                                                                                                                                          |
 
@@ -520,18 +521,19 @@ Mọi index trên bảng nghiệp vụ bắt đầu bằng `tenant_id`, vì mọ
 | properties          | `(tenant_id, province_id, ward_id)`                                   | Lọc khu vực                        |
 | properties          | `(tenant_id, agent_id)`                                               | BĐS của môi giới                   |
 | properties          | GIST `(location)`                                                     | Bản đồ, tìm theo bán kính          |
-| properties          | GIN `(search_vector)`                                                 | Full Text Search                   |
+| properties          | GIN `(search_vector)`, GIN `(search_vector_public)`                   | Full Text Search                   |
 | properties          | `(tenant_id, last_verified_at)`                                       | Job đánh dấu `VERIFY_REQUIRED`     |
 | customers           | `(tenant_id, agent_id, status)`                                       | Pipeline của môi giới              |
 | customers           | `(tenant_id, phone)`                                                  | Tra trùng khách                    |
 | customer_activities | `(tenant_id, customer_id, occurred_at DESC)`                          | Timeline                           |
 | appointments        | `(tenant_id, agent_id, scheduled_at)`, `(tenant_id, customer_id)`     | Lịch, lịch sử khách                |
+| appointments        | `(tenant_id, property_id, scheduled_at)`                              | Lịch hẹn theo BĐS, thanh khoản     |
 | deals               | `(tenant_id, agent_id, stage)`, `(tenant_id, customer_id)`            | Báo cáo, lịch sử khách             |
 | notifications       | `(user_id, read_at, created_at DESC)`                                 | Hộp thư                            |
 | audit_logs          | `(tenant_id, created_at DESC)`, `(tenant_id, entity_type, entity_id)` | Tra cứu audit                      |
 | owners              | `(tenant_id, phone)`                                                  | Phát hiện trùng nguồn hàng         |
 
-Đã tạo ở migration `1791100552216-add-query-indexes`. Ghi chú:
+Đã tạo ở migration `1791100552216-add-query-indexes`; `search_vector_public` và index lịch hẹn theo BĐS ở `1791132000000-add-performance-indexes` (TASK-154, kết quả đo ở [performance.md](performance.md)). Ghi chú:
 
 - `customer_activities` dùng index `(customer_id, occurred_at DESC)` có từ TASK-019; `customer_id` là uuid nên thêm `tenant_id` ở đầu không giúp lọc thêm.
 - Index hộp thư `notifications (user_id, read_at, created_at DESC)` thay index `(user_id)` cũ.

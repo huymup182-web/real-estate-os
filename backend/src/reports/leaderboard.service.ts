@@ -8,7 +8,7 @@ import type { DashboardQueryDto } from './dto/dashboard-query.dto.js';
 import { ReportsService, reportPeriod } from './reports.service.js';
 
 /**
- * Điểm xếp hạng (MASTER_PLAN mục 17, mặc định đề xuất chờ Huy Lê xác nhận): mỗi tin đăng mới, mỗi khách được chăm
+ * Điểm xếp hạng (MASTER_PLAN mục 17, Huy Lê chọn ngày 2026-10-10): mỗi tin đăng mới, mỗi khách được chăm
  * sóc trong một ngày, mỗi buổi dẫn khách hoàn thành, mỗi giao dịch chốt. "Hỗ trợ đồng đội" chưa có dữ liệu nên chưa
  * tính.
  */
@@ -105,45 +105,88 @@ export class LeaderboardService {
     assertTenant(actor.tenantId);
     const period = reportPeriod(query);
     const inPeriod = (column: string): string => `${column} >= :from AND ${column} < :to`;
+    // Mỗi chỉ số gom theo người một lần rồi nối vào (TASK-154), thay vì đếm lại cho từng người.
     const rows = await this.reports
       .scoped(actor, scope, 'users', 'u', { agent: 'u.id', creator: 'u.id' })
+      .leftJoin(
+        (listings) =>
+          listings
+            .select('p.agent_id', 'user_id')
+            .addSelect('count(*)', 'n')
+            .from('properties', 'p')
+            .where('p.tenant_id = :leaderboardTenant AND p.deleted_at IS NULL')
+            .andWhere(inPeriod('p.created_at'))
+            .groupBy('p.agent_id'),
+        'l',
+        'l.user_id = u.id',
+      )
+      .leftJoin(
+        (care) =>
+          care
+            .select('cd.user_id', 'user_id')
+            .addSelect('count(*)', 'n')
+            .from(
+              (days) =>
+                days
+                  .select('a.user_id', 'user_id')
+                  .addSelect('a.customer_id', 'customer_id')
+                  .addSelect(`(a.created_at AT TIME ZONE '${DISPLAY_TIME_ZONE}')::date`, 'day')
+                  .distinct()
+                  .from('customer_activities', 'a')
+                  .innerJoin(
+                    'customers',
+                    'c',
+                    'c.tenant_id = a.tenant_id AND c.id = a.customer_id AND c.deleted_at IS NULL',
+                  )
+                  .where('a.tenant_id = :leaderboardTenant AND a.type IN (:...careTypes)')
+                  .andWhere(inPeriod('a.created_at')),
+              'cd',
+            )
+            .groupBy('cd.user_id'),
+        'cd',
+        'cd.user_id = u.id',
+      )
+      .leftJoin(
+        (viewings) =>
+          viewings
+            .select('ap.agent_id', 'user_id')
+            .addSelect('count(*)', 'n')
+            .from('appointments', 'ap')
+            .where('ap.tenant_id = :leaderboardTenant AND ap.deleted_at IS NULL')
+            .andWhere(`ap.status = 'COMPLETED'`)
+            .andWhere(inPeriod('ap.scheduled_at'))
+            .groupBy('ap.agent_id'),
+        'v',
+        'v.user_id = u.id',
+      )
+      .leftJoin(
+        (won) =>
+          won
+            .select('d.agent_id', 'user_id')
+            .addSelect('count(*)', 'n')
+            .addSelect('sum(d.deal_price)', 'revenue')
+            .from('deals', 'd')
+            .where('d.tenant_id = :leaderboardTenant AND d.deleted_at IS NULL')
+            .andWhere(`d.stage = 'WON'`)
+            .andWhere(inPeriod('d.closed_at'))
+            .groupBy('d.agent_id'),
+        'w',
+        'w.user_id = u.id',
+      )
       .select('u.id', 'id')
       .addSelect('u.full_name', 'full_name')
       .addSelect('u.avatar_url', 'avatar_url')
-      .addSelect(
-        `(SELECT count(*) FROM properties p
-           WHERE p.tenant_id = u.tenant_id AND p.agent_id = u.id AND p.deleted_at IS NULL
-             AND ${inPeriod('p.created_at')})::int`,
-        'listings',
-      )
-      .addSelect(
-        `(SELECT count(DISTINCT (a.customer_id, (a.created_at AT TIME ZONE '${DISPLAY_TIME_ZONE}')::date))
-            FROM customer_activities a
-            JOIN customers c ON c.tenant_id = a.tenant_id AND c.id = a.customer_id AND c.deleted_at IS NULL
-           WHERE a.tenant_id = u.tenant_id AND a.user_id = u.id AND a.type IN (:...careTypes)
-             AND ${inPeriod('a.created_at')})::int`,
-        'care_days',
-      )
-      .addSelect(
-        `(SELECT count(*) FROM appointments ap
-           WHERE ap.tenant_id = u.tenant_id AND ap.agent_id = u.id AND ap.deleted_at IS NULL
-             AND ap.status = 'COMPLETED' AND ${inPeriod('ap.scheduled_at')})::int`,
-        'viewings',
-      )
-      .addSelect(
-        `(SELECT count(*) FROM deals d
-           WHERE d.tenant_id = u.tenant_id AND d.agent_id = u.id AND d.deleted_at IS NULL
-             AND d.stage = 'WON' AND ${inPeriod('d.closed_at')})::int`,
-        'deals_won',
-      )
-      .addSelect(
-        `(SELECT coalesce(sum(d.deal_price), 0) FROM deals d
-           WHERE d.tenant_id = u.tenant_id AND d.agent_id = u.id AND d.deleted_at IS NULL
-             AND d.stage = 'WON' AND ${inPeriod('d.closed_at')})::text`,
-        'revenue',
-      )
+      .addSelect('coalesce(l.n, 0)::int', 'listings')
+      .addSelect('coalesce(cd.n, 0)::int', 'care_days')
+      .addSelect('coalesce(v.n, 0)::int', 'viewings')
+      .addSelect('coalesce(w.n, 0)::int', 'deals_won')
+      .addSelect('coalesce(w.revenue, 0)::text', 'revenue')
       .andWhere(`u.status = 'ACTIVE'`)
-      .setParameters({ ...period, careTypes: CARE_ACTIVITY_TYPES })
+      .setParameters({
+        ...period,
+        careTypes: CARE_ACTIVITY_TYPES,
+        leaderboardTenant: actor.tenantId,
+      })
       .getRawMany<AgentRow>();
 
     return {

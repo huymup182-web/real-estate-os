@@ -16,12 +16,14 @@ const EXPECTED: readonly (readonly [string, string])[] = [
   ['properties', 'idx_properties_tenant_id_agent_id'],
   ['properties', 'idx_properties_location'],
   ['properties', 'idx_properties_search_vector'],
+  ['properties', 'idx_properties_search_vector_public'],
   ['properties', 'idx_properties_tenant_id_last_verified_at'],
   ['customers', 'idx_customers_tenant_id_agent_id_status'],
   ['customers', 'idx_customers_tenant_id_phone'],
   ['customer_activities', 'idx_customer_activities_customer_id_occurred_at'],
   ['appointments', 'idx_appointments_tenant_id_agent_id_scheduled_at'],
   ['appointments', 'idx_appointments_tenant_id_customer_id'],
+  ['appointments', 'idx_appointments_tenant_id_property_id_scheduled_at'],
   ['deals', 'idx_deals_tenant_id_agent_id_stage'],
   ['deals', 'idx_deals_tenant_id_customer_id'],
   ['notifications', 'idx_notifications_user_id_read_at_created_at'],
@@ -99,6 +101,25 @@ describe('TASK-026: index truy vấn', () => {
         [109.19, 12.27],
       ),
       /idx_properties_location/,
+    );
+  });
+
+  it('TASK-154: tìm theo tiêu đề + mô tả và đếm lịch hẹn theo BĐS dùng index', async () => {
+    assert.match(
+      await plan(
+        `SELECT id FROM properties
+          WHERE search_vector_public @@ plainto_tsquery('simple'::regconfig, immutable_unaccent($1))`,
+        ['vinh hai'],
+      ),
+      /idx_properties_search_vector_public/,
+    );
+    assert.match(
+      await plan(
+        `SELECT id FROM appointments WHERE tenant_id = $1 AND property_id = $2
+          ORDER BY scheduled_at DESC LIMIT 20`,
+        [TENANT, USER],
+      ),
+      /idx_appointments_tenant_id_property_id_scheduled_at/,
     );
   });
 

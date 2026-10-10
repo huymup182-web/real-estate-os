@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, type SelectQueryBuilder } from 'typeorm';
 
+import { assertTenant } from '../database/tenant.repository.js';
 import {
   type Actor,
   PropertiesService,
@@ -385,74 +386,87 @@ export class MarketStatsService {
     scopes: PropertyScopes,
   ): Promise<MarketLiquidity> {
     const { months, groupBy, from, to } = periodOf(query);
-    const listings = (): SelectQueryBuilder<Property> =>
-      this.sales(actor, query, scopes)
-        .andWhere('p.status IN (:...marketStatuses)', { marketStatuses: MARKET_STATUSES })
-        .select(`${KEY_COLUMNS[groupBy]}::text`, 'key')
-        .addSelect(`p.status <> 'SOLD'`, 'open')
-        .addSelect('p.created_at', 'created_at')
-        .addSelect(
-          `CASE WHEN p.status = 'SOLD' THEN COALESCE((
-             SELECT max(a.created_at) FROM audit_logs a
-              WHERE a.tenant_id = p.tenant_id AND a.entity_type = 'property' AND a.entity_id = p.id
-                AND a.action = 'property.change_status' AND a.changes -> 'status' ->> 1 = 'SOLD'
-           ), p.updated_at) END`,
-          'sold_at',
-        )
-        .addSelect(
-          `(SELECT count(*) FROM property_views v
-             WHERE v.tenant_id = p.tenant_id AND v.property_id = p.id AND v.viewed_at >= :liquidityFrom)`,
-          'views',
-        )
-        .addSelect(
-          `(SELECT count(*) FROM appointments ap
-             WHERE ap.tenant_id = p.tenant_id AND ap.property_id = p.id AND ap.deleted_at IS NULL
-               AND ap.status <> 'CANCELLED' AND ap.scheduled_at >= :liquidityFrom
-               AND ap.scheduled_at < :liquidityTo)`,
-          'viewings',
-        )
-        .setParameters({ liquidityFrom: from, liquidityTo: to });
-    const aggregate = () => {
-      const inner = listings();
-      return this.dataSource
-        .createQueryBuilder()
-        .from(`(${inner.getQuery()})`, 't')
-        .setParameters(inner.getParameters())
-        .where('(t.open OR t.sold_at >= :liquidityFrom)', { liquidityFrom: from })
-        .select('(count(*) FILTER (WHERE t.open))::int', 'supply')
-        .addSelect('(count(*) FILTER (WHERE NOT t.open))::int', 'sold')
-        .addSelect(
-          `percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM t.sold_at - t.created_at) / 86400)
-             FILTER (WHERE NOT t.open)`,
-          'days_to_sell',
-        )
-        .addSelect(
-          `percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM now() - t.created_at) / 86400)
-             FILTER (WHERE t.open)`,
-          'days_listed',
-        )
-        .addSelect('coalesce(sum(t.views), 0)::int', 'views')
-        .addSelect('coalesce(sum(t.viewings), 0)::int', 'viewings');
-    };
+    assertTenant(actor.tenantId);
+    const listings = this.sales(actor, query, scopes)
+      .andWhere('p.status IN (:...marketStatuses)', { marketStatuses: MARKET_STATUSES })
+      .select('p.id', 'id')
+      .addSelect(`${KEY_COLUMNS[groupBy]}::text`, 'key')
+      .addSelect(`p.status <> 'SOLD'`, 'open')
+      .addSelect('p.created_at', 'created_at')
+      .addSelect(
+        `CASE WHEN p.status = 'SOLD' THEN COALESCE((
+           SELECT max(a.created_at) FROM audit_logs a
+            WHERE a.tenant_id = p.tenant_id AND a.entity_type = 'property' AND a.entity_id = p.id
+              AND a.action = 'property.change_status' AND a.changes -> 'status' ->> 1 = 'SOLD'
+         ), p.updated_at) END`,
+        'sold_at',
+      );
+    // Lượt xem, lượt dẫn khách trong kỳ gom theo BĐS một lần rồi nối vào (TASK-154), thay vì đếm từng BĐS.
+    // Tổng chung và từng nhóm tính trong cùng một truy vấn (GROUPING SETS).
+    const rows = await this.dataSource
+      .createQueryBuilder()
+      .from(`(${listings.getQuery()})`, 't')
+      .setParameters(listings.getParameters())
+      .leftJoin(
+        (views) =>
+          views
+            .select('v.property_id', 'property_id')
+            .addSelect('count(*)', 'n')
+            .from('property_views', 'v')
+            .where('v.tenant_id = :liquidityTenant AND v.viewed_at >= :liquidityFrom')
+            .groupBy('v.property_id'),
+        'pv',
+        'pv.property_id = t.id',
+      )
+      .leftJoin(
+        (viewings) =>
+          viewings
+            .select('ap.property_id', 'property_id')
+            .addSelect('count(*)', 'n')
+            .from('appointments', 'ap')
+            .where('ap.tenant_id = :liquidityTenant AND ap.deleted_at IS NULL')
+            .andWhere(`ap.status <> 'CANCELLED'`)
+            .andWhere('ap.scheduled_at >= :liquidityFrom AND ap.scheduled_at < :liquidityTo')
+            .groupBy('ap.property_id'),
+        'av',
+        'av.property_id = t.id',
+      )
+      .setParameters({ liquidityTenant: actor.tenantId, liquidityFrom: from, liquidityTo: to })
+      .where('(t.open OR t.sold_at >= :liquidityFrom)')
+      .select('t.key', 'key')
+      .addSelect('GROUPING(t.key) = 1', 'overall')
+      .addSelect('(count(*) FILTER (WHERE t.open))::int', 'supply')
+      .addSelect('(count(*) FILTER (WHERE NOT t.open))::int', 'sold')
+      .addSelect(
+        `percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM t.sold_at - t.created_at) / 86400)
+           FILTER (WHERE NOT t.open)`,
+        'days_to_sell',
+      )
+      .addSelect(
+        `percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM now() - t.created_at) / 86400)
+           FILTER (WHERE t.open)`,
+        'days_listed',
+      )
+      .addSelect('coalesce(sum(pv.n), 0)::int', 'views')
+      .addSelect('coalesce(sum(av.n), 0)::int', 'viewings')
+      .groupBy('GROUPING SETS ((t.key), ())')
+      .getRawMany<LiquidityRow & { key: string | null; overall: boolean }>();
+    const overall = rows.find((row) => row.overall);
+    const groups = rows
+      .filter((row): row is LiquidityRow & { key: string; overall: boolean } => !row.overall)
+      .sort(
+        (a, b) =>
+          b.supply + b.sold - (a.supply + a.sold) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+      );
 
-    const [overall, rows] = await Promise.all([
-      aggregate().getRawOne<LiquidityRow>(),
-      aggregate()
-        .addSelect('t.key', 'key')
-        .groupBy('t.key')
-        .orderBy('count(*)', 'DESC')
-        .addOrderBy('t.key', 'ASC')
-        .getRawMany<LiquidityRow & { key: string }>(),
-    ]);
-
-    const names = groupBy === 'ward' ? await this.wardNames(rows.map((row) => row.key)) : null;
+    const names = groupBy === 'ward' ? await this.wardNames(groups.map((row) => row.key)) : null;
     return {
       period: { from, to, months },
       groupBy,
       minSample: MARKET_MIN_SAMPLE,
       thresholds: { high: LIQUIDITY_HIGH_RATE, medium: LIQUIDITY_MEDIUM_RATE },
       overall: toLiquidity(overall),
-      groups: rows.map((row) => ({
+      groups: groups.map((row) => ({
         key: row.key,
         name: names?.get(row.key) ?? null,
         ...toLiquidity(row),
