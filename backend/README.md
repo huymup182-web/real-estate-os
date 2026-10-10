@@ -980,3 +980,7 @@ Kết quả rà soát theo MASTER_PLAN mục 29: [docs/security-audit.md](../doc
 ## Kiểm thử tải (TASK-156)
 
 `npm run perf:load` cho 50 người dùng ảo cùng thao tác 60 giây trên công ty 100.000 BĐS, 50.000 khách (database riêng `<db>_backend_load`). Đạt khi p95 từng thao tác < 1 giây và lỗi < 1%. Kết quả, điểm nghẽn đã sửa và sức chịu: [docs/load-testing.md](../docs/load-testing.md).
+
+## Sao lưu (TASK-157)
+
+`npm run backup -- create | list | check | restore <tên> <database mới>` (sau `npm run build`, cần `pg_dump`/`pg_restore` 16). Sao lưu toàn bộ database, gửi lên bucket riêng (`BACKUP_*`), diễn tập khôi phục và khôi phục vào database mới, không bao giờ ghi đè. Lịch, thời gian giữ và quy trình khi có sự cố: [docs/backup.md](../docs/backup.md).

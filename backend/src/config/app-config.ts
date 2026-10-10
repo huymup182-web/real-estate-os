@@ -108,7 +108,7 @@ function isNodeEnv(value: string): value is NodeEnv {
   return (NODE_ENVS as readonly string[]).includes(value);
 }
 
-function isPostgresUrl(value: string): boolean {
+export function isPostgresUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return (
@@ -227,7 +227,7 @@ function loadMailConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnv): MailConfig | 
   return { host, port, secure: rawSecure === 'true', user, password, from };
 }
 
-function isHttpUrl(value: string): boolean {
+export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return url.protocol === 'http:' || url.protocol === 'https:';
