@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { PropertiesModule } from '../properties/properties.module.js';
+import { ConversionAnalyticsService } from './conversion-analytics.service.js';
 import { LeaderboardService } from './leaderboard.service.js';
 import { MarketStatsService } from './market-stats.service.js';
 import { ReportsController } from './reports.controller.js';
@@ -11,6 +12,12 @@ import { SalesAnalyticsService } from './sales-analytics.service.js';
 @Module({
   imports: [PropertiesModule],
   controllers: [ReportsController],
-  providers: [ReportsService, MarketStatsService, LeaderboardService, SalesAnalyticsService],
+  providers: [
+    ReportsService,
+    MarketStatsService,
+    LeaderboardService,
+    SalesAnalyticsService,
+    ConversionAnalyticsService,
+  ],
 })
 export class ReportsModule {}

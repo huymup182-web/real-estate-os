@@ -60,3 +60,74 @@ export function fetchSales(
 export function changePercent(current: number, previous: number): number | null {
   return previous === 0 ? null : Math.round(((current - previous) / previous) * 1000) / 10;
 }
+
+/** Nhóm chuyển đổi theo nguồn khách hoặc người phụ trách (`key` null = chưa ghi nguồn / chưa giao). */
+export interface ConversionGroup {
+  key: string | null;
+  name: string | null;
+  leads: number;
+  contacted: number;
+  won: number;
+  conversionRate: number | null;
+}
+
+/** `GET /reports/conversion` (TASK-153). */
+export interface ConversionAnalytics {
+  period: { from: string; to: string };
+  scope: string;
+  funnel: {
+    step: string;
+    count: number;
+    rateFromLead: number | null;
+    rateFromPrevious: number | null;
+  }[];
+  lost: number;
+  medianDaysToContact: number | null;
+  medianDaysToWin: number | null;
+  bySource: ConversionGroup[];
+  byAgent: ConversionGroup[];
+}
+
+export const CONVERSION_STEP_LABELS: Record<string, string> = {
+  LEAD: 'Lead mới',
+  CONTACTED: 'Đã liên hệ',
+  VIEWED: 'Đã đi xem',
+  NEGOTIATED: 'Đàm phán',
+  WON: 'Chốt thành công',
+};
+
+/** Hai tab của trang Phân tích, qua `?tab=`. */
+export const ANALYTICS_TABS = { sales: 'Doanh số', conversion: 'Chuyển đổi' } as const;
+export type AnalyticsTab = keyof typeof ANALYTICS_TABS;
+
+export function analyticsTab(raw: string | string[] | undefined): AnalyticsTab {
+  return raw === 'conversion' ? 'conversion' : 'sales';
+}
+
+/** Link trang Phân tích, bỏ tham số mặc định. */
+export function analyticsHref(tab: AnalyticsTab, months: number): string {
+  const query = new URLSearchParams();
+  if (tab !== 'sales') {
+    query.set('tab', tab);
+  }
+  if (months !== DEFAULT_ANALYTICS_MONTHS) {
+    query.set('months', String(months));
+  }
+  const text = query.toString();
+  return text ? `/analytics?${text}` : '/analytics';
+}
+
+export function fetchConversion(
+  accessToken: string,
+  months: number,
+  now: Date = new Date(),
+  deps?: BackendDeps,
+): Promise<BackendResult<ConversionAnalytics>> {
+  const { from, to } = analyticsPeriod(months, now);
+  const query = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return callBackend<ConversionAnalytics>(
+    `/reports/conversion?${query.toString()}`,
+    { accessToken },
+    deps,
+  );
+}

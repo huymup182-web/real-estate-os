@@ -944,3 +944,17 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - `pipeline`: giao dịch đang mở hiện tại theo bước (đàm phán, đặt cọc, hợp đồng), kèm số lượng và tổng giá trị.
 - `trend`: mọi tháng trong kỳ (giờ Việt Nam), kể cả tháng không có giao dịch.
 - `byPropertyType`, `byWard` (10 phường/xã đầu): số giao dịch WON và doanh số, doanh số cao trước.
+
+## Phân tích chuyển đổi (TASK-153)
+
+`GET /api/v1/reports/conversion?from&to` (`report.view`) → `{period, scope, funnel, lost, medianDaysToContact, medianDaysToWin, bySource, byAgent}`. Theo MASTER_PLAN mục 15 (Conversion rate). Nhóm khách (lead) là khách tạo trong kỳ, trong phạm vi `report.view` (như dashboard); mỗi khách được xét đã đi tới bước nào tính đến hiện tại. Kỳ như dashboard: mặc định 30 ngày, dài nhất 366 ngày. Code: `src/reports/conversion-analytics.service.ts`. Chỉ đọc.
+
+- Các bước `LEAD` → `CONTACTED` → `VIEWED` → `NEGOTIATED` → `WON`. Một bước tính khách đã tới bước đó hoặc xa hơn, nên phễu luôn giảm dần.
+  - `CONTACTED`: có hoạt động liên hệ (gọi, nhắn, gửi BĐS, dẫn xem, đàm phán, đặt cọc), có lịch hẹn hoặc giao dịch, hoặc trạng thái khác NEW.
+  - `VIEWED`: có lịch dẫn khách hoàn thành hoặc trạng thái VIEWING.
+  - `NEGOTIATED`: có giao dịch hoặc trạng thái NEGOTIATING, DEPOSIT.
+  - `WON`: có giao dịch WON hoặc trạng thái WON.
+- `funnel[]`: `{step, count, rateFromLead, rateFromPrevious}`, tỷ lệ là %, null khi mẫu bằng 0.
+- `lost`: khách chuyển sang LOST mà chưa chốt.
+- `medianDaysToContact`, `medianDaysToWin`: số ngày giữa từ lúc tạo khách đến lần liên hệ đầu, đến lúc giao dịch WON đầu tiên chốt. Sự kiện ghi trước lúc tạo khách (dữ liệu nhập lại) tính là 0 ngày.
+- `bySource`: đủ mọi nguồn khách, `key: null` (chưa ghi nguồn) ở cuối. `byAgent`: theo người phụ trách (`key: null` là chưa giao), nhiều lead trước. Mỗi nhóm có `leads`, `contacted`, `won`, `conversionRate` (won / leads, %).
