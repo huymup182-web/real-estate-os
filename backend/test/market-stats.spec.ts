@@ -32,6 +32,41 @@ interface MarketPrices {
   groups: (Stats & { key: string; name: string | null })[];
 }
 
+interface PerM2 {
+  count: number;
+  avgPricePerM2: number | null;
+  medianPricePerM2: number | null;
+  minPricePerM2: number | null;
+  maxPricePerM2: number | null;
+}
+
+interface MarketPerM2 {
+  period: { from: string; to: string; months: number };
+  groupBy: string;
+  minSample: number;
+  overall: PerM2;
+  groups: (PerM2 & { key: string; name: string | null })[];
+  trend: (PerM2 & { month: string })[];
+}
+
+const NO_PER_M2 = {
+  avgPricePerM2: null,
+  medianPricePerM2: null,
+  minPricePerM2: null,
+  maxPricePerM2: null,
+};
+
+/** Tháng `YYYY-MM` theo giờ Việt Nam. */
+function vnMonth(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+  })
+    .format(date)
+    .slice(0, 7);
+}
+
 const NO_PRICES = {
   avgPrice: null,
   medianPrice: null,
@@ -46,7 +81,7 @@ const NO_PRICES = {
  * `own` chỉ xem BĐS mình phụ trách (3, 4, 5 tỷ); `noView` không có `property.view`. Công ty B có căn 50 tỷ ở
  * Vĩnh Hải.
  */
-describe('Thống kê giá thị trường (TASK-145)', () => {
+describe('Thống kê giá thị trường (TASK-145), giá/m² (TASK-146)', () => {
   let app: INestApplication;
   let baseUrl: string;
   let db: DataSource;
@@ -289,11 +324,98 @@ describe('Thống kê giá thị trường (TASK-145)', () => {
     );
   });
 
+  async function perM2(user: string, query = ''): Promise<MarketPerM2> {
+    const response = await request(
+      'GET',
+      `/reports/market/price-per-m2${query}`,
+      undefined,
+      tokens[user],
+    );
+    assert.equal(response.status, 200, await response.clone().text());
+    return ((await response.json()) as { data: MarketPerM2 }).data;
+  }
+
+  it('giá/m²: tổng, theo phường, nhóm dưới 3 tin ẩn giá', async () => {
+    // Giá/m²: Vĩnh Hải 50 tr, 57.142.857, 62,5 tr, 66.666.667; Lộc Thọ 40 tr, 40 tr.
+    const result = await perM2('admin');
+    assert.equal(result.groupBy, 'ward');
+    assert.equal(result.minSample, 3);
+    assert.deepEqual(result.overall, {
+      count: 6,
+      avgPricePerM2: 52_718_254,
+      medianPricePerM2: 53_571_429,
+      minPricePerM2: 40_000_000,
+      maxPricePerM2: 66_666_667,
+    });
+    assert.deepEqual(result.groups, [
+      {
+        key: vinhHai,
+        name: 'Vĩnh Hải',
+        count: 4,
+        avgPricePerM2: 59_077_381,
+        medianPricePerM2: 59_821_429,
+        minPricePerM2: 50_000_000,
+        maxPricePerM2: 66_666_667,
+      },
+      { key: locTho, name: 'Lộc Thọ', count: 2, ...NO_PER_M2 },
+    ]);
+    const byType = await perM2('admin', '?groupBy=propertyType');
+    assert.deepEqual(
+      byType.groups.map((group) => [group.key, group.count, group.medianPricePerM2]),
+      [
+        ['HOUSE', 4, 59_821_429],
+        ['APARTMENT', 2, null],
+      ],
+    );
+  });
+
+  it('giá/m² theo tháng: đủ mọi tháng trong kỳ, tháng không có tin count 0', async () => {
+    const result = await perM2('admin');
+    assert.equal(result.trend.length, 13);
+    const now = vnMonth(new Date());
+    assert.equal(result.trend.at(-1)?.month, now);
+    assert.deepEqual(result.trend.at(-1), {
+      month: now,
+      count: 6,
+      avgPricePerM2: 52_718_254,
+      medianPricePerM2: 53_571_429,
+      minPricePerM2: 40_000_000,
+      maxPricePerM2: 66_666_667,
+    });
+    assert.ok(result.trend.slice(0, -1).every((month) => month.count === 0));
+    const months = result.trend.map((month) => month.month);
+    assert.deepEqual(months, [...months].sort());
+
+    // 36 tháng: thêm căn 1 tỷ/50 m² đăng 2 năm trước, tháng đó 1 tin nên không hiện giá.
+    const longer = await perM2('admin', `?months=36&wardId=${vinhHai}`);
+    assert.equal(longer.trend.length, 37);
+    assert.equal(longer.overall.minPricePerM2, 20_000_000);
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setUTCFullYear(twoYearsAgo.getUTCFullYear() - 2);
+    assert.deepEqual(
+      longer.trend.filter((month) => month.count > 0).map((month) => [month.month, month.count]),
+      [
+        [vnMonth(twoYearsAgo), 1],
+        [now, 4],
+      ],
+    );
+  });
+
+  it('giá/m² chỉ tính BĐS trong phạm vi xem và trong công ty', async () => {
+    const own = await perM2('own');
+    assert.equal(own.overall.count, 3);
+    assert.equal(own.overall.medianPricePerM2, 57_142_857);
+    const other = await perM2('otherAdmin');
+    assert.deepEqual(other.overall, { count: 1, ...NO_PER_M2 });
+  });
+
   it('không có property.view → 403; chưa đăng nhập → 401', async () => {
-    const forbidden = await request('GET', '/reports/market/prices', undefined, tokens['noView']);
-    assert.equal(forbidden.status, 403);
-    const anonymous = await request('GET', '/reports/market/prices');
-    assert.equal(anonymous.status, 401);
+    for (const path of ['/reports/market/prices', '/reports/market/price-per-m2']) {
+      const forbidden = await request('GET', path, undefined, tokens['noView']);
+      assert.equal(forbidden.status, 403, path);
+      const anonymous = await request('GET', path);
+      assert.equal(anonymous.status, 401, path);
+    }
   });
 
   it('tham số sai → 400', async () => {
@@ -306,13 +428,10 @@ describe('Thống kê giá thị trường (TASK-145)', () => {
       '?wardId=abc',
       '?provinceId=1',
     ]) {
-      const response = await request(
-        'GET',
-        `/reports/market/prices${query}`,
-        undefined,
-        tokens['admin'],
-      );
-      assert.equal(response.status, 400, query);
+      for (const path of ['/reports/market/prices', '/reports/market/price-per-m2']) {
+        const response = await request('GET', `${path}${query}`, undefined, tokens['admin']);
+        assert.equal(response.status, 400, `${path}${query}`);
+      }
     }
   });
 });
