@@ -6,6 +6,7 @@ import { TenantId } from '../auth/tenant.guard.js';
 import { actorOf, scopesOf } from '../properties/properties.controller.js';
 import { DashboardQueryDto } from './dto/dashboard-query.dto.js';
 import { MarketPriceQueryDto } from './dto/market-price-query.dto.js';
+import { type Leaderboard, LeaderboardService } from './leaderboard.service.js';
 import {
   type MarketLiquidity,
   type MarketPricePerM2,
@@ -20,6 +21,7 @@ export class ReportsController {
   constructor(
     private readonly reports: ReportsService,
     private readonly market: MarketStatsService,
+    private readonly leaderboards: LeaderboardService,
   ) {}
 
   /** `GET /api/v1/reports/dashboard?from&to` → số liệu tổng và phễu trong phạm vi `report.view`. */
@@ -33,6 +35,21 @@ export class ReportsController {
     // Route đã có @RequirePermission nên user chắc chắn có scope của report.view.
     const scope = req.user.permissions['report.view'] ?? 'OWN';
     return this.reports.dashboard(actorOf(tenantId, req.user), query, scope);
+  }
+
+  /**
+   * `GET /api/v1/reports/leaderboard?from&to` → bảng xếp hạng môi giới trong phạm vi `report.view` (TASK-151): điểm,
+   * tin đăng, chăm sóc khách, dẫn khách, giao dịch chốt, doanh số trong kỳ.
+   */
+  @Get('leaderboard')
+  @RequirePermission('report.view')
+  leaderboard(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Query() query: DashboardQueryDto,
+  ): Promise<Leaderboard> {
+    const scope = req.user.permissions['report.view'] ?? 'OWN';
+    return this.leaderboards.leaderboard(actorOf(tenantId, req.user), query, scope);
   }
 
   /**

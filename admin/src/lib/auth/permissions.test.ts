@@ -30,5 +30,11 @@ describe('permissions', () => {
       ),
       ['/', '/notifications', '/properties', '/market'],
     );
+    assert.deepEqual(
+      navItemsFor({ permissions: [{ code: 'report.view', scope: 'OWN' }] }).map(
+        (item) => item.href,
+      ),
+      ['/', '/notifications', '/leaderboard'],
+    );
   });
 });

@@ -59,15 +59,7 @@ export class ReportsService {
     scope: PermissionScope,
   ): Promise<Dashboard> {
     assertTenant(actor.tenantId);
-    const to = query.to ?? new Date();
-    const from = query.from ?? new Date(to.getTime() - DASHBOARD_DEFAULT_DAYS * DAY_MS);
-    if (from.getTime() >= to.getTime()) {
-      throw invalid('to', 'to phải sau from');
-    }
-    if (to.getTime() - from.getTime() > DASHBOARD_MAX_DAYS * DAY_MS) {
-      throw invalid('from', `Kỳ thống kê dài nhất ${DASHBOARD_MAX_DAYS} ngày`);
-    }
-    const period = { from, to };
+    const period = reportPeriod(query);
     const inPeriod = (column: string): string => `${column} >= :from AND ${column} < :to`;
 
     const [properties, customers, viewings, deals, agents, statusRows, stageRows] =
@@ -151,9 +143,10 @@ export class ReportsService {
 
   /**
    * Truy vấn bảng `table` (alias `alias`) của công ty người xem, bỏ bản ghi đã xoá, chỉ lấy bản ghi trong
-   * phạm vi `scope`. Tên bảng, alias và cột là hằng số trong code, không lấy từ input.
+   * phạm vi `scope`. Tên bảng, alias và cột là hằng số trong code, không lấy từ input. Bảng xếp hạng (TASK-151)
+   * dùng chung.
    */
-  private scoped(
+  scoped(
     actor: Actor,
     scope: PermissionScope,
     table: string,
@@ -168,6 +161,19 @@ export class ReportsService {
       .andWhere(scopeCondition(scope, columns))
       .setParameter('scopeUserId', actor.userId);
   }
+}
+
+/** Kỳ `[from, to)` của báo cáo: mặc định 30 ngày gần nhất, dài nhất 366 ngày (dashboard TASK-102, xếp hạng TASK-151). */
+export function reportPeriod(query: DashboardQueryDto): { from: Date; to: Date } {
+  const to = query.to ?? new Date();
+  const from = query.from ?? new Date(to.getTime() - DASHBOARD_DEFAULT_DAYS * DAY_MS);
+  if (from.getTime() >= to.getTime()) {
+    throw invalid('to', 'to phải sau from');
+  }
+  if (to.getTime() - from.getTime() > DASHBOARD_MAX_DAYS * DAY_MS) {
+    throw invalid('from', `Kỳ thống kê dài nhất ${DASHBOARD_MAX_DAYS} ngày`);
+  }
+  return { from, to };
 }
 
 function invalid(field: string, message: string): AppException {
