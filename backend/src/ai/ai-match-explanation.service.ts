@@ -11,16 +11,20 @@ import { MatchingService, type PairMatch } from '../matching/matching.service.js
 import type { Actor, PropertyScopes } from '../properties/properties.service.js';
 import { AiGatewayService } from './ai-gateway.service.js';
 import {
-  DIRECTION_LABELS,
-  LEGAL_STATUS_LABELS,
   MATCH_EXPLANATION_SYSTEM_PROMPT,
   MATCH_EXPLANATION_TOOL,
   MAX_CONCERNS,
   MAX_STRENGTHS,
   matchExplanationTool,
-  PROPERTY_TYPE_LABELS,
-  ROAD_ACCESS_LABELS,
 } from './match-explanation.tool.js';
+import {
+  LEGAL_STATUS_LABELS,
+  PROPERTY_TYPE_LABELS,
+  propertyFacts,
+  ROAD_ACCESS_LABELS,
+  vnArea,
+  vnMoney,
+} from './property-facts.js';
 
 const MAX_TEXT_LENGTH = 500;
 
@@ -42,15 +46,6 @@ export interface AiMatchExplanation {
   /** Lời giải thích dựng sẵn từ tiêu chí (TASK-089), dùng khi không cần AI. */
   explanation: MatchExplanation;
   ai: AiMatchText;
-}
-
-/** "3,3 tỷ", "850 triệu" (giá trị gửi LLM, giữ đúng số trong database). */
-export function vnMoney(value: number): string {
-  const format = (n: number) =>
-    n.toLocaleString('vi-VN', { maximumFractionDigits: 3 }).replace(/\u00a0/g, ' ');
-  return value >= 1_000_000_000
-    ? `${format(value / 1_000_000_000)} tỷ`
-    : `${format(value / 1_000_000)} triệu`;
 }
 
 function range(min: number | null, max: number | null, unit: (n: number) => string): string | null {
@@ -162,29 +157,13 @@ export class AiMatchExplanationService {
       }
     }
     const areaNames = ids.map((id) => names.get(id)).filter((name) => name !== undefined);
-    const m2 = (n: number) => `${n.toLocaleString('vi-VN')} m²`;
 
     return {
-      bat_dong_san: {
-        ma: property.code,
-        tieu_de: property.title,
-        loai: PROPERTY_TYPE_LABELS[property.propertyType] ?? property.propertyType,
-        gia: vnMoney(property.price),
-        dien_tich: m2(property.area),
-        gia_m2: property.pricePerM2 === null ? null : `${vnMoney(property.pricePerM2)}/m²`,
-        phong_ngu: property.bedrooms,
-        phong_tam: property.bathrooms,
-        so_tang: property.floors,
-        huong: property.direction ? (DIRECTION_LABELS[property.direction] ?? null) : null,
-        phap_ly: property.legalStatus ? (LEGAL_STATUS_LABELS[property.legalStatus] ?? null) : null,
-        duong_vao: property.roadAccess ? (ROAD_ACCESS_LABELS[property.roadAccess] ?? null) : null,
-        do_rong_duong_m: property.roadWidth,
-        khu_vuc: `${property.wardName}, ${property.provinceName}`,
-      },
+      bat_dong_san: propertyFacts(property),
       nhu_cau_khach: {
         loai_bds: labels(preference.propertyTypes, PROPERTY_TYPE_LABELS),
         ngan_sach: range(preference.budgetMin, preference.budgetMax, vnMoney),
-        dien_tich: range(preference.areaMin, preference.areaMax, m2),
+        dien_tich: range(preference.areaMin, preference.areaMax, vnArea),
         phong_ngu_toi_thieu: preference.bedroomsMin,
         khu_vuc: areaNames.length > 0 ? areaNames : null,
         phap_ly: labels(preference.legalStatuses, LEGAL_STATUS_LABELS),

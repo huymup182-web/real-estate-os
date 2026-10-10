@@ -1,9 +1,10 @@
 import 'package:real_estate_os/features/ai/data/ai_repository.dart';
+import 'package:real_estate_os/features/ai/domain/ai_listing.dart';
 import 'package:real_estate_os/features/ai/domain/ai_match.dart';
 import 'package:real_estate_os/features/ai/domain/ai_search.dart';
 
 /// AiRepository giả: [status] trả về từ `GET /ai/status`; [onSearch] trả kết quả tìm bằng AI; [onExplain] trả
-/// lời AI giải thích matching.
+/// lời AI giải thích matching; [onListing] trả tin AI viết.
 class FakeAiRepository implements AiRepository {
   FakeAiRepository({
     this.currentStatus = const AiStatus(
@@ -29,6 +30,12 @@ class FakeAiRepository implements AiRepository {
     pitch: 'Căn này đúng tầm giá anh chị đang tìm.',
   );
   final explanations = <(String, String)>[];
+  Future<AiListing> Function(String propertyId, AiListingStyle style)
+  onListing = (propertyId, style) async => AiListing(
+    title: 'Bán nhà phố Vĩnh Hải (${style.label})',
+    description: 'Nhà mới xây gần chợ.\nGiá 3,5 tỷ, 70,5 m².',
+  );
+  final listings = <(String, AiListingStyle)>[];
   AiStatus currentStatus;
   Future<AiPropertySearch> Function(String query) onSearch;
   int statusCalls = 0;
@@ -53,5 +60,11 @@ class FakeAiRepository implements AiRepository {
   ) {
     explanations.add((customerId, propertyId));
     return onExplain(customerId, propertyId);
+  }
+
+  @override
+  Future<AiListing> listing(String propertyId, AiListingStyle style) {
+    listings.add((propertyId, style));
+    return onListing(propertyId, style);
   }
 }

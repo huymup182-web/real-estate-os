@@ -9,6 +9,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/detail_section.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../../ai/presentation/ai_listing_sheet.dart';
+import '../../ai/presentation/ai_providers.dart';
 import '../domain/property_detail.dart';
 import '../domain/property_labels.dart';
 import 'favorite_button.dart';
@@ -17,7 +19,8 @@ import 'property_detail_providers.dart';
 import 'property_gallery.dart';
 
 /// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Thanh tiêu đề có nút
-/// yêu thích; sửa được (`canEdit`) thì có thêm nút quản lý ảnh và nút sửa.
+/// yêu thích, AI bật thì có nút "AI viết tin" (TASK-136); sửa được (`canEdit`) thì có thêm nút quản lý ảnh và nút
+/// sửa.
 class PropertyDetailScreen extends ConsumerWidget {
   const PropertyDetailScreen({super.key, required this.propertyId});
 
@@ -26,6 +29,7 @@ class PropertyDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(propertyDetailProvider(propertyId));
+    final aiEnabled = ref.watch(aiStatusProvider).value?.enabled ?? false;
 
     // Kéo xuống tải lại: đang có dữ liệu thì giữ, lỗi thì báo snackbar.
     Future<void> refresh() async {
@@ -48,6 +52,13 @@ class PropertyDetailScreen extends ConsumerWidget {
         actions: [
           if (detail.value case final value?)
             FavoriteButton(propertyId: propertyId, loaded: value.isFavorite),
+          if (aiEnabled && detail.value != null)
+            IconButton(
+              tooltip: 'AI viết tin',
+              icon: const Icon(Icons.auto_awesome),
+              onPressed: () =>
+                  showAiListingSheet(context, propertyId: propertyId),
+            ),
           if (detail.value?.canEdit ?? false) ...[
             IconButton(
               tooltip: 'Quản lý ảnh',
