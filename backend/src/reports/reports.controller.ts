@@ -7,6 +7,7 @@ import { actorOf, scopesOf } from '../properties/properties.controller.js';
 import { DashboardQueryDto } from './dto/dashboard-query.dto.js';
 import { MarketPriceQueryDto } from './dto/market-price-query.dto.js';
 import {
+  type MarketLiquidity,
   type MarketPricePerM2,
   type MarketPriceStats,
   MarketStatsService,
@@ -61,5 +62,19 @@ export class ReportsController {
     @Query() query: MarketPriceQueryDto,
   ): Promise<MarketPricePerM2> {
     return this.market.pricePerM2(actorOf(tenantId, req.user), query, scopesOf(req.user));
+  }
+
+  /**
+   * `GET /api/v1/reports/market/liquidity?provinceId&wardId&propertyType&groupBy&months` → cung, số căn đã bán,
+   * tỷ lệ bán được, mức thanh khoản, số ngày bán, lượt xem và dẫn khách mỗi tin (TASK-147). Cần `property.view`.
+   */
+  @Get('market/liquidity')
+  @RequirePermission('property.view')
+  marketLiquidity(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Query() query: MarketPriceQueryDto,
+  ): Promise<MarketLiquidity> {
+    return this.market.liquidity(actorOf(tenantId, req.user), query, scopesOf(req.user));
   }
 }

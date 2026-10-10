@@ -67,6 +67,26 @@ function vnMonth(date: Date): string {
     .slice(0, 7);
 }
 
+interface Liquidity {
+  supply: number;
+  sold: number;
+  sellThroughRate: number | null;
+  level: string | null;
+  medianDaysToSell: number | null;
+  medianDaysListed: number | null;
+  viewsPerListing: number | null;
+  viewingsPerListing: number | null;
+}
+
+interface MarketLiquidity {
+  period: { months: number };
+  groupBy: string;
+  minSample: number;
+  thresholds: { high: number; medium: number };
+  overall: Liquidity;
+  groups: (Liquidity & { key: string; name: string | null })[];
+}
+
 const NO_PRICES = {
   avgPrice: null,
   medianPrice: null,
@@ -88,6 +108,7 @@ describe('Thống kê giá thị trường (TASK-145), giá/m² (TASK-146)', () 
   let khanhHoa: string;
   let vinhHai: string;
   let locTho: string;
+  let phuocLong: string;
   const tokens: Record<string, string> = {};
 
   before(async () => {
@@ -162,6 +183,75 @@ describe('Thống kê giá thị trường (TASK-145), giá/m² (TASK-146)', () 
       owned,
     ]);
     await create('otherAdmin', house(50, 80));
+
+    // Công ty C, Phước Long (thanh khoản). Nhà phố: đã bán sau 30, 70, 90 ngày (theo nhật ký), 200 ngày (BĐS cũ
+    // không có nhật ký: lấy lúc sửa), một căn bán từ năm ngoái (ngoài kỳ); 3 căn đang bán đăng 10, 40, 100 ngày
+    // trước; một căn đã ẩn. Căn hộ: 3 căn đang bán, chưa bán căn nào.
+    phuocLong = await insertId(
+      `INSERT INTO wards (province_id, code, name) VALUES ($1, '22384', 'Phước Long')`,
+      [khanhHoa],
+    );
+    const tenantC = await register('admin@c.vn');
+    tokens['adminC'] = await login('admin@c.vn');
+    const listing = (propertyType: string) => ({
+      title: 'Phước Long',
+      propertyType,
+      price: 3 * BILLION,
+      area: 60,
+      provinceId: khanhHoa,
+      wardId: phuocLong,
+    });
+    const age = (id: string, days: number) =>
+      db.query(
+        `UPDATE properties SET created_at = now() - make_interval(days => $2) WHERE id = $1`,
+        [id, days],
+      );
+    const soldAgo = async (id: string, listedDays: number, soldDays: number | null) => {
+      await db.query(`UPDATE properties SET status = 'SOLD' WHERE id = $1`, [id]);
+      await age(id, listedDays);
+      if (soldDays !== null) {
+        await db.query(
+          `INSERT INTO audit_logs (tenant_id, action, entity_type, entity_id, changes, created_at)
+           VALUES ($1, 'property.change_status', 'property', $2, $3, now() - make_interval(days => $4))`,
+          [tenantC, id, JSON.stringify({ status: ['AVAILABLE', 'SOLD'] }), soldDays],
+        );
+      }
+    };
+    await soldAgo(await create('adminC', listing('HOUSE')), 40, 10);
+    await soldAgo(await create('adminC', listing('HOUSE')), 90, 20);
+    await soldAgo(await create('adminC', listing('HOUSE')), 120, 30);
+    await soldAgo(await create('adminC', listing('HOUSE')), 200, null);
+    await soldAgo(await create('adminC', listing('HOUSE')), 500, 400);
+    const viewed = await create('adminC', listing('HOUSE'));
+    await age(viewed, 10);
+    await age(await create('adminC', listing('HOUSE')), 40);
+    await age(await create('adminC', listing('HOUSE')), 100);
+    await create('adminC', listing('HOUSE'), 'HIDDEN');
+    for (let i = 0; i < 3; i++) {
+      await create('adminC', listing('APARTMENT'));
+    }
+    const [adminC] = (await db.query(`SELECT id FROM users WHERE tenant_id = $1`, [tenantC])) as {
+      id: string;
+    }[];
+    assert.ok(adminC);
+    for (const days of [1, 2, 3, 800]) {
+      await db.query(
+        `INSERT INTO property_views (tenant_id, property_id, user_id, viewed_at)
+         VALUES ($1, $2, $3, now() - make_interval(days => $4))`,
+        [tenantC, viewed, adminC.id, days],
+      );
+    }
+    const customer = await insertId(
+      `INSERT INTO customers (tenant_id, full_name, phone) VALUES ($1, 'Khách', '+84900000001')`,
+      [tenantC],
+    );
+    for (const status of ['SCHEDULED', 'CANCELLED']) {
+      await db.query(
+        `INSERT INTO appointments (tenant_id, customer_id, property_id, agent_id, scheduled_at, status)
+         VALUES ($1, $2, $3, $4, now() - interval '1 day', $5)`,
+        [tenantC, customer, viewed, adminC.id, status],
+      );
+    }
   });
 
   after(async () => {
@@ -409,8 +499,88 @@ describe('Thống kê giá thị trường (TASK-145), giá/m² (TASK-146)', () 
     assert.deepEqual(other.overall, { count: 1, ...NO_PER_M2 });
   });
 
+  async function liquidity(user: string, query = ''): Promise<MarketLiquidity> {
+    const response = await request(
+      'GET',
+      `/reports/market/liquidity${query}`,
+      undefined,
+      tokens[user],
+    );
+    assert.equal(response.status, 200, await response.clone().text());
+    return ((await response.json()) as { data: MarketLiquidity }).data;
+  }
+
+  it('thanh khoản: cung, đã bán trong kỳ, tỷ lệ bán, mức, số ngày bán, lượt xem và dẫn khách', async () => {
+    const result = await liquidity('adminC', '?groupBy=propertyType');
+    assert.equal(result.minSample, 3);
+    assert.deepEqual(result.thresholds, { high: 30, medium: 10 });
+    assert.deepEqual(result.groups, [
+      {
+        key: 'HOUSE',
+        name: null,
+        supply: 3,
+        sold: 4,
+        sellThroughRate: 57.1,
+        level: 'HIGH',
+        // 30, 70, 90, 200 ngày.
+        medianDaysToSell: 80,
+        medianDaysListed: 40,
+        viewsPerListing: 0.4,
+        viewingsPerListing: 0.1,
+      },
+      {
+        key: 'APARTMENT',
+        name: null,
+        supply: 3,
+        sold: 0,
+        sellThroughRate: 0,
+        level: 'LOW',
+        medianDaysToSell: null,
+        medianDaysListed: 0,
+        viewsPerListing: 0,
+        viewingsPerListing: 0,
+      },
+    ]);
+    const byWard = await liquidity('adminC');
+    assert.deepEqual(
+      byWard.groups.map((group) => [group.name, group.supply, group.sold, group.sellThroughRate]),
+      [['Phước Long', 6, 4, 40]],
+    );
+    assert.equal(byWard.overall.level, 'HIGH');
+    // 24 tháng: thêm căn bán từ 400 ngày trước (bán sau 100 ngày).
+    const longer = await liquidity('adminC', '?months=24&propertyType=HOUSE');
+    assert.equal(longer.overall.sold, 5);
+    assert.equal(longer.overall.medianDaysToSell, 90);
+  });
+
+  it('thanh khoản: dưới 3 tin không xếp mức; chỉ tính BĐS trong phạm vi và công ty', async () => {
+    // Công ty A, Vĩnh Hải: đang bán 3, 4, 6 tỷ và căn 1 tỷ đăng 2 năm trước; căn 5 tỷ đã bán.
+    const a = await liquidity('admin');
+    assert.deepEqual(
+      a.groups.map((group) => [
+        group.key,
+        group.supply,
+        group.sold,
+        group.sellThroughRate,
+        group.level,
+      ]),
+      [
+        [vinhHai, 4, 1, 20, 'MEDIUM'],
+        [locTho, 2, 0, null, null],
+      ],
+    );
+    const own = await liquidity('own');
+    assert.deepEqual([own.overall.supply, own.overall.sold], [2, 1]);
+    const other = await liquidity('otherAdmin');
+    assert.deepEqual([other.overall.supply, other.overall.sold, other.overall.level], [1, 0, null]);
+  });
+
   it('không có property.view → 403; chưa đăng nhập → 401', async () => {
-    for (const path of ['/reports/market/prices', '/reports/market/price-per-m2']) {
+    for (const path of [
+      '/reports/market/prices',
+      '/reports/market/price-per-m2',
+      '/reports/market/liquidity',
+    ]) {
       const forbidden = await request('GET', path, undefined, tokens['noView']);
       assert.equal(forbidden.status, 403, path);
       const anonymous = await request('GET', path);
@@ -428,7 +598,11 @@ describe('Thống kê giá thị trường (TASK-145), giá/m² (TASK-146)', () 
       '?wardId=abc',
       '?provinceId=1',
     ]) {
-      for (const path of ['/reports/market/prices', '/reports/market/price-per-m2']) {
+      for (const path of [
+        '/reports/market/prices',
+        '/reports/market/price-per-m2',
+        '/reports/market/liquidity',
+      ]) {
         const response = await request('GET', `${path}${query}`, undefined, tokens['admin']);
         assert.equal(response.status, 400, `${path}${query}`);
       }

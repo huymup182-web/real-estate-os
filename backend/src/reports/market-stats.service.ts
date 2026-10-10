@@ -131,6 +131,86 @@ function monthsBetween(first: string, last: string): string[] {
   return result;
 }
 
+/** Mức thanh khoản theo tỷ lệ bán được trong kỳ. */
+export type LiquidityLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+
+/** Tỷ lệ bán được (%) từ mức này trở lên là Cao / Trung bình; thấp hơn là Thấp. */
+export const LIQUIDITY_HIGH_RATE = 30;
+export const LIQUIDITY_MEDIUM_RATE = 10;
+
+export interface LiquidityStats {
+  /** Tin đang bán, đang giao dịch (cung hiện tại). */
+  supply: number;
+  /** Căn chuyển sang Đã bán trong kỳ. */
+  sold: number;
+  /** sold / (sold + supply), %, 1 chữ số thập phân; null khi tổng dưới MARKET_MIN_SAMPLE. */
+  sellThroughRate: number | null;
+  level: LiquidityLevel | null;
+  /** Số ngày giữa từ ngày đăng đến ngày chuyển Đã bán; null khi bán dưới MARKET_MIN_SAMPLE căn. */
+  medianDaysToSell: number | null;
+  /** Số ngày giữa các tin đang bán đã đăng; null khi cung dưới MARKET_MIN_SAMPLE. */
+  medianDaysListed: number | null;
+  /** Lượt xem, lượt dẫn khách (trừ lịch huỷ) trong kỳ, chia cho số tin (cung + đã bán); null khi không có tin. */
+  viewsPerListing: number | null;
+  viewingsPerListing: number | null;
+}
+
+export interface LiquidityGroup extends LiquidityStats {
+  key: string;
+  name: string | null;
+}
+
+export interface MarketLiquidity {
+  period: { from: Date; to: Date; months: number };
+  groupBy: MarketGroupBy;
+  minSample: number;
+  thresholds: { high: number; medium: number };
+  overall: LiquidityStats;
+  /** Nhiều tin (cung + đã bán) trước. */
+  groups: LiquidityGroup[];
+}
+
+interface LiquidityRow {
+  supply: number;
+  sold: number;
+  days_to_sell: string | null;
+  days_listed: string | null;
+  views: number;
+  viewings: number;
+}
+
+/** Mức thanh khoản theo tỷ lệ bán được (Huy Lê chọn ngày 2026-10-10). */
+export function liquidityLevel(rate: number | null): LiquidityLevel | null {
+  if (rate === null) {
+    return null;
+  }
+  if (rate >= LIQUIDITY_HIGH_RATE) {
+    return 'HIGH';
+  }
+  return rate >= LIQUIDITY_MEDIUM_RATE ? 'MEDIUM' : 'LOW';
+}
+
+function perListing(total: number, listings: number): number | null {
+  return listings === 0 ? null : Math.round((total / listings) * 10) / 10;
+}
+
+function toLiquidity(row: LiquidityRow | undefined): LiquidityStats {
+  const supply = row?.supply ?? 0;
+  const sold = row?.sold ?? 0;
+  const listings = supply + sold;
+  const rate = listings < MARKET_MIN_SAMPLE ? null : Math.round((sold / listings) * 1000) / 10;
+  return {
+    supply,
+    sold,
+    sellThroughRate: rate,
+    level: liquidityLevel(rate),
+    medianDaysToSell: sold < MARKET_MIN_SAMPLE ? null : round(row?.days_to_sell ?? null),
+    medianDaysListed: supply < MARKET_MIN_SAMPLE ? null : round(row?.days_listed ?? null),
+    viewsPerListing: perListing(row?.views ?? 0, listings),
+    viewingsPerListing: perListing(row?.viewings ?? 0, listings),
+  };
+}
+
 interface StatsRow {
   key?: string;
   count: number;
@@ -292,18 +372,113 @@ export class MarketStatsService {
     };
   }
 
-  /** BĐS tính vào thống kê thị trường, đã lọc theo [query]. */
+  /**
+   * Thanh khoản (TASK-147, MASTER_PLAN mục 21: cung, cầu, số ngày bán) theo phường/xã hoặc loại BĐS:
+   * - Cung: tin bán đang bán, đang giao dịch hiện có (không kể ngày đăng).
+   * - Đã bán: căn đang ở Đã bán mà lần chuyển sang Đã bán gần nhất (nhật ký `property.change_status`; BĐS cũ
+   *   chưa có nhật ký thì lấy lúc sửa gần nhất) nằm trong kỳ.
+   * - Cầu: lượt xem và lượt dẫn khách (trừ lịch huỷ) trong kỳ của các tin trên.
+   */
+  async liquidity(
+    actor: Actor,
+    query: MarketPriceQueryDto,
+    scopes: PropertyScopes,
+  ): Promise<MarketLiquidity> {
+    const { months, groupBy, from, to } = periodOf(query);
+    const listings = (): SelectQueryBuilder<Property> =>
+      this.sales(actor, query, scopes)
+        .andWhere('p.status IN (:...marketStatuses)', { marketStatuses: MARKET_STATUSES })
+        .select(`${KEY_COLUMNS[groupBy]}::text`, 'key')
+        .addSelect(`p.status <> 'SOLD'`, 'open')
+        .addSelect('p.created_at', 'created_at')
+        .addSelect(
+          `CASE WHEN p.status = 'SOLD' THEN COALESCE((
+             SELECT max(a.created_at) FROM audit_logs a
+              WHERE a.tenant_id = p.tenant_id AND a.entity_type = 'property' AND a.entity_id = p.id
+                AND a.action = 'property.change_status' AND a.changes -> 'status' ->> 1 = 'SOLD'
+           ), p.updated_at) END`,
+          'sold_at',
+        )
+        .addSelect(
+          `(SELECT count(*) FROM property_views v
+             WHERE v.tenant_id = p.tenant_id AND v.property_id = p.id AND v.viewed_at >= :liquidityFrom)`,
+          'views',
+        )
+        .addSelect(
+          `(SELECT count(*) FROM appointments ap
+             WHERE ap.tenant_id = p.tenant_id AND ap.property_id = p.id AND ap.deleted_at IS NULL
+               AND ap.status <> 'CANCELLED' AND ap.scheduled_at >= :liquidityFrom
+               AND ap.scheduled_at < :liquidityTo)`,
+          'viewings',
+        )
+        .setParameters({ liquidityFrom: from, liquidityTo: to });
+    const aggregate = () => {
+      const inner = listings();
+      return this.dataSource
+        .createQueryBuilder()
+        .from(`(${inner.getQuery()})`, 't')
+        .setParameters(inner.getParameters())
+        .where('(t.open OR t.sold_at >= :liquidityFrom)', { liquidityFrom: from })
+        .select('(count(*) FILTER (WHERE t.open))::int', 'supply')
+        .addSelect('(count(*) FILTER (WHERE NOT t.open))::int', 'sold')
+        .addSelect(
+          `percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM t.sold_at - t.created_at) / 86400)
+             FILTER (WHERE NOT t.open)`,
+          'days_to_sell',
+        )
+        .addSelect(
+          `percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM now() - t.created_at) / 86400)
+             FILTER (WHERE t.open)`,
+          'days_listed',
+        )
+        .addSelect('coalesce(sum(t.views), 0)::int', 'views')
+        .addSelect('coalesce(sum(t.viewings), 0)::int', 'viewings');
+    };
+
+    const [overall, rows] = await Promise.all([
+      aggregate().getRawOne<LiquidityRow>(),
+      aggregate()
+        .addSelect('t.key', 'key')
+        .groupBy('t.key')
+        .orderBy('count(*)', 'DESC')
+        .addOrderBy('t.key', 'ASC')
+        .getRawMany<LiquidityRow & { key: string }>(),
+    ]);
+
+    const names = groupBy === 'ward' ? await this.wardNames(rows.map((row) => row.key)) : null;
+    return {
+      period: { from, to, months },
+      groupBy,
+      minSample: MARKET_MIN_SAMPLE,
+      thresholds: { high: LIQUIDITY_HIGH_RATE, medium: LIQUIDITY_MEDIUM_RATE },
+      overall: toLiquidity(overall),
+      groups: rows.map((row) => ({
+        key: row.key,
+        name: names?.get(row.key) ?? null,
+        ...toLiquidity(row),
+      })),
+    };
+  }
+
+  /** BĐS tính vào thống kê giá: tin đăng trong kỳ ở trạng thái MARKET_STATUSES, đã lọc theo [query]. */
   private filtered(
     actor: Actor,
     query: MarketPriceQueryDto,
     scopes: PropertyScopes,
     from: Date,
   ): SelectQueryBuilder<Property> {
-    let builder = this.properties
-      .visible(actor, scopes)
-      .andWhere(`p.transactionType = 'SALE'`)
+    return this.sales(actor, query, scopes)
       .andWhere('p.status IN (:...marketStatuses)', { marketStatuses: MARKET_STATUSES })
       .andWhere('p.createdAt >= :marketFrom', { marketFrom: from });
+  }
+
+  /** BĐS bán (SALE) người xem được xem, lọc theo tỉnh, phường/xã, loại BĐS của [query]. */
+  private sales(
+    actor: Actor,
+    query: MarketPriceQueryDto,
+    scopes: PropertyScopes,
+  ): SelectQueryBuilder<Property> {
+    let builder = this.properties.visible(actor, scopes).andWhere(`p.transactionType = 'SALE'`);
     if (query.provinceId) {
       builder = builder.andWhere('p.provinceId = :provinceId', { provinceId: query.provinceId });
     }
