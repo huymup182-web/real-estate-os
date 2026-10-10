@@ -11,6 +11,7 @@ import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { DealsModule } from './deals/deals.module.js';
 import { HealthModule } from './health/health.module.js';
+import { MonitoringModule } from './monitoring/monitoring.module.js';
 import { LocationsModule } from './locations/locations.module.js';
 import { MatchingModule } from './matching/matching.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module.js';
     ScheduleModule.forRoot(),
     DatabaseModule,
     CommonModule,
+    MonitoringModule,
     HealthModule,
     AuthModule,
     PropertiesModule,

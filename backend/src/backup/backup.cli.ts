@@ -49,6 +49,20 @@ async function locate(config: BackupConfig, nameOrPath: string | undefined): Pro
   return downloadBackup(config.storage, nameOrPath, config.dir);
 }
 
+/** Báo dịch vụ giám sát là đã sao lưu xong. Gọi lỗi chỉ ghi log: bản sao lưu đã có, không tính là lỗi. */
+async function sendHeartbeat(url: string): Promise<void> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) {
+      log('Gọi heartbeat sao lưu không thành công', { status: response.status });
+    }
+  } catch (error) {
+    log('Gọi heartbeat sao lưu lỗi', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function main(argv: string[]): Promise<void> {
   const [command, ...args] = argv;
   const config = loadBackupConfig();
@@ -69,6 +83,9 @@ async function main(argv: string[]): Promise<void> {
       const removed = await pruneLocalBackups(config.dir, config.keepDays);
       if (removed.length > 0) {
         log('Đã xoá bản sao lưu cũ trên máy', { keepDays: config.keepDays, removed });
+      }
+      if (config.heartbeatUrl) {
+        await sendHeartbeat(config.heartbeatUrl);
       }
       return;
     }

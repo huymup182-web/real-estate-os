@@ -22,11 +22,25 @@ describe('loadAppConfig', () => {
       logLevel: 'log',
       jwtSecret: JWT_SECRET,
       trustProxyHops: 0,
+      metricsToken: null,
       mail: null,
       storage: null,
       fcm: null,
       ai: null,
     });
+  });
+
+  it('TASK-158: METRICS_TOKEN tuỳ chọn, đặt thì phải đủ 32 ký tự', () => {
+    const token = 'm'.repeat(32);
+    assert.equal(
+      loadAppConfig({ DATABASE_URL, JWT_SECRET, METRICS_TOKEN: token }).metricsToken,
+      token,
+    );
+    assert.equal(loadAppConfig({ DATABASE_URL, JWT_SECRET, METRICS_TOKEN: '' }).metricsToken, null);
+    assert.throws(
+      () => loadAppConfig({ DATABASE_URL, JWT_SECRET, METRICS_TOKEN: 'ngan' }),
+      /METRICS_TOKEN phải có ít nhất 32 ký tự/,
+    );
   });
 
   it('TASK-155: đọc TRUST_PROXY_HOPS 0–5, từ chối giá trị khác', () => {

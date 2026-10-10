@@ -23,6 +23,11 @@ export interface BackupConfig {
   keepDays: number;
   /** null: chỉ lưu trên máy (không cho phép ở production). */
   storage: BackupStorageConfig | null;
+  /**
+   * URL gọi GET sau mỗi lần sao lưu thành công (TASK-158, docs/monitoring.md), để dịch vụ giám sát báo khi
+   * quá lâu không nhận được tín hiệu. null = không gọi.
+   */
+  heartbeatUrl: string | null;
 }
 
 export const DEFAULT_BACKUP_DIR = 'backups';
@@ -51,11 +56,17 @@ export function loadBackupConfig(env: NodeJS.ProcessEnv = process.env): BackupCo
     throw new Error('Thiếu BACKUP_BUCKET: production phải gửi bản sao lưu ra kho lưu trữ khác');
   }
 
+  const heartbeatUrl = env['BACKUP_HEARTBEAT_URL'] || null;
+  if (heartbeatUrl !== null && !isHttpUrl(heartbeatUrl)) {
+    throw new Error('BACKUP_HEARTBEAT_URL không hợp lệ: cần http:// hoặc https://');
+  }
+
   return {
     databaseUrl,
     dir: resolve(env['BACKUP_DIR'] || DEFAULT_BACKUP_DIR),
     keepDays,
     storage,
+    heartbeatUrl,
   };
 }
 

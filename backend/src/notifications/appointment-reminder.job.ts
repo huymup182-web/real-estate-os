@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 
+import { MetricsService } from '../monitoring/metrics.service.js';
+
 import {
   APPOINTMENT_REMINDER_LEAD_MINUTES,
   DISPLAY_TIME_ZONE,
@@ -52,6 +54,7 @@ export class AppointmentReminderJob {
   constructor(
     private readonly dataSource: DataSource,
     private readonly notifications: NotificationsService,
+    private readonly metrics: MetricsService,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: APPOINTMENT_REMINDER_JOB })
@@ -61,7 +64,9 @@ export class AppointmentReminderJob {
       if (count > 0) {
         this.logger.log('Đã nhắc lịch hẹn', { count });
       }
+      this.metrics.jobFinished(APPOINTMENT_REMINDER_JOB, true);
     } catch (error: unknown) {
+      this.metrics.jobFinished(APPOINTMENT_REMINDER_JOB, false);
       this.logger.error('Job nhắc lịch hẹn lỗi', {
         error: error instanceof Error ? error.message : String(error),
       });

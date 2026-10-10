@@ -17,6 +17,8 @@ export interface AppConfig {
    * IP người gọi từ `X-Forwarded-For` cho giới hạn số lần gọi và nhật ký phiên đăng nhập.
    */
   trustProxyHops: number;
+  /** Token đọc `GET /api/v1/metrics` (TASK-158). null = tắt endpoint (404). Là secret. */
+  metricsToken: string | null;
   /** null khi chưa cấu hình SMTP (chỉ cho phép ngoài production): email không được gửi. */
   mail: MailConfig | null;
   /** null khi chưa cấu hình object storage (chỉ cho phép ngoài production): không upload ảnh được. */
@@ -100,6 +102,8 @@ const DEFAULT_PORT = 3000;
 export const JWT_SECRET_MIN_LENGTH = 32;
 /** Số proxy tin cậy tối đa trong TRUST_PROXY_HOPS. */
 export const MAX_TRUST_PROXY_HOPS = 5;
+/** Độ dài tối thiểu của METRICS_TOKEN. */
+export const METRICS_TOKEN_MIN_LENGTH = 32;
 
 /** Khoá dev đã commit trong .env.development: không bao giờ được dùng ở production. */
 const DEV_JWT_SECRET = 'dev-only-insecure-jwt-secret-change-me';
@@ -178,6 +182,11 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     );
   }
 
+  const metricsToken = env['METRICS_TOKEN'] || null;
+  if (metricsToken !== null && metricsToken.length < METRICS_TOKEN_MIN_LENGTH) {
+    throw new Error(`METRICS_TOKEN phải có ít nhất ${METRICS_TOKEN_MIN_LENGTH} ký tự`);
+  }
+
   return {
     port,
     nodeEnv,
@@ -185,6 +194,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     logLevel: loadLogLevel(env),
     jwtSecret,
     trustProxyHops,
+    metricsToken,
     mail: loadMailConfig(env, nodeEnv),
     storage: loadStorageConfig(env, nodeEnv),
     fcm: loadFcmConfig(env),
