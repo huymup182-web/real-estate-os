@@ -56,3 +56,6 @@ desktop.ini
 !.vscode/extensions.json
 *.swp
 *~
+
+# Bản sao lưu database (TASK-157)
+backups/

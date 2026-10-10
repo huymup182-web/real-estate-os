@@ -14,7 +14,8 @@
     "test": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env --test --test-concurrency=1 '.test-dist/test/**/*.spec.js'",
     "perf:search": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env .test-dist/test/perf/search.perf.js",
     "perf:crm": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env .test-dist/test/perf/crm.perf.js",
-    "perf:load": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env .test-dist/test/perf/load.perf.js"
+    "perf:load": "tsc -p tsconfig.json --outDir .test-dist && node --env-file-if-exists=../.env.development --env-file-if-exists=../.env .test-dist/test/perf/load.perf.js",
+    "backup": "node --env-file-if-exists=../.env.development --env-file-if-exists=../.env dist/backup/backup.cli.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",
