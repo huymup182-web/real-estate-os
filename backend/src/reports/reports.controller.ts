@@ -14,6 +14,7 @@ import {
   MarketStatsService,
 } from './market-stats.service.js';
 import { type Dashboard, ReportsService } from './reports.service.js';
+import { type SalesAnalytics, SalesAnalyticsService } from './sales-analytics.service.js';
 
 /** Báo cáo, chỉ đọc (TASK-102). */
 @Controller('reports')
@@ -22,6 +23,7 @@ export class ReportsController {
     private readonly reports: ReportsService,
     private readonly market: MarketStatsService,
     private readonly leaderboards: LeaderboardService,
+    private readonly salesAnalytics: SalesAnalyticsService,
   ) {}
 
   /** `GET /api/v1/reports/dashboard?from&to` → số liệu tổng và phễu trong phạm vi `report.view`. */
@@ -50,6 +52,21 @@ export class ReportsController {
   ): Promise<Leaderboard> {
     const scope = req.user.permissions['report.view'] ?? 'OWN';
     return this.leaderboards.leaderboard(actorOf(tenantId, req.user), query, scope);
+  }
+
+  /**
+   * `GET /api/v1/reports/sales?from&to` → phân tích doanh số trong phạm vi `report.view` (TASK-152): doanh số, tỷ lệ
+   * thắng, thời gian chốt, pipeline, xu hướng theo tháng, theo loại BĐS và khu vực.
+   */
+  @Get('sales')
+  @RequirePermission('report.view')
+  sales(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+    @Query() query: DashboardQueryDto,
+  ): Promise<SalesAnalytics> {
+    const scope = req.user.permissions['report.view'] ?? 'OWN';
+    return this.salesAnalytics.sales(actorOf(tenantId, req.user), query, scope);
   }
 
   /**
