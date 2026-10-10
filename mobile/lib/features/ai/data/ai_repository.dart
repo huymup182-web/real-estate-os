@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../domain/ai_customer_summary.dart';
 import '../domain/ai_listing.dart';
 import '../domain/ai_match.dart';
 import '../domain/ai_search.dart';
@@ -36,5 +37,11 @@ class AiRepository {
           '/properties/$propertyId/ai-listing',
           body: {'style': style.code},
         )).object,
+      );
+
+  /// AI tóm tắt nhu cầu và lịch sử chăm sóc khách [customerId] (cần `customer.view`). Mỗi lần gọi tính một lượt AI.
+  Future<AiCustomerSummary> customerSummary(String customerId) async =>
+      AiCustomerSummary.fromJson(
+        (await _api.post('/customers/$customerId/ai-summary')).object,
       );
 }

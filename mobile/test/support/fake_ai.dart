@@ -1,4 +1,5 @@
 import 'package:real_estate_os/features/ai/data/ai_repository.dart';
+import 'package:real_estate_os/features/ai/domain/ai_customer_summary.dart';
 import 'package:real_estate_os/features/ai/domain/ai_listing.dart';
 import 'package:real_estate_os/features/ai/domain/ai_match.dart';
 import 'package:real_estate_os/features/ai/domain/ai_search.dart';
@@ -37,6 +38,15 @@ class FakeAiRepository implements AiRepository {
     description: 'Nhà mới xây gần chợ.\nGiá 3,5 tỷ, 70,5 m².',
   );
   final listings = <(String, AiListingStyle)>[];
+  Future<AiCustomerSummary> Function(String customerId) onSummary =
+      (customerId) async => const AiCustomerSummary(
+        summary:
+            'Khách cần nhà phố ở Vĩnh Hải 4–6 tỷ, đã hẹn xem nhà cuối tuần.',
+        keyPoints: ['Muốn gần trường học.'],
+        openQuestions: ['Khách cần mấy phòng tắm?'],
+        activityCount: 2,
+      );
+  final summaries = <String>[];
   AiStatus currentStatus;
   Future<AiPropertySearch> Function(String query) onSearch;
   int statusCalls = 0;
@@ -67,5 +77,11 @@ class FakeAiRepository implements AiRepository {
   Future<AiListing> listing(String propertyId, AiListingStyle style) {
     listings.add((propertyId, style));
     return onListing(propertyId, style);
+  }
+
+  @override
+  Future<AiCustomerSummary> customerSummary(String customerId) {
+    summaries.add(customerId);
+    return onSummary(customerId);
   }
 }

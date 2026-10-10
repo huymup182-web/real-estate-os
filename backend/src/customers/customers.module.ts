@@ -28,7 +28,7 @@ import { CustomersService } from './customers.service.js';
     CustomerNotesController,
     CustomerActivitiesController,
   ],
-  exports: [CustomersService],
+  exports: [CustomersService, CustomerPreferencesService, CustomerActivitiesService],
   providers: [CustomersService, CustomerPreferencesService, CustomerActivitiesService],
 })
 export class CustomersModule {}

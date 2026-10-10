@@ -832,3 +832,11 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - LLM nhận thông số BĐS như TASK-135 (`src/ai/property-facts.ts`) và mô tả môi giới đã nhập (nguồn duy nhất của tiện ích, đặc điểm). Không gửi địa chỉ chi tiết, chủ nhà, môi giới, hoa hồng.
 - Số điện thoại Việt Nam (`0…`, `+84…`, có khoảng trắng, chấm, gạch) bị thay bằng "[đã ẩn số điện thoại]" trong mô tả gửi LLM và trong tin trả về, vì tin để đăng công khai.
 - LLM bắt buộc gọi tool `property_listing` (`src/ai/listing-writer.tool.ts`). Tiêu đề tối đa 255 ký tự, nội dung tối đa 5000 ký tự (cùng giới hạn của BĐS). Tiêu đề hoặc nội dung trống → 503.
+
+## AI tóm tắt khách (TASK-140)
+
+`POST /api/v1/customers/:id/ai-summary` (`customer.view`) → `{customerId, summary, keyPoints, openQuestions, activityCount}`. Theo MASTER_PLAN mục 20 ("Tóm tắt lịch sử khách này"). Chỉ trả kết quả, không lưu. Mỗi lần gọi tính một lượt AI.
+
+- Khách ngoài phạm vi `customer.view` → 404, không gọi AI.
+- LLM nhận bước pipeline, mục đích, thời gian mua, nguồn, ghi chú, lý do mất khách, mọi nhu cầu (kể cả đang tạm dừng, `src/ai/customer-facts.ts`) và tối đa 30 hoạt động gần nhất theo thứ tự thời gian (giờ Việt Nam, loại, nội dung, đổi bước). Không gửi tên, số điện thoại, email của khách hay tên người chăm sóc. Số điện thoại trong ghi chú và nội dung hoạt động bị ẩn (`src/ai/redact.ts`).
+- LLM bắt buộc gọi tool `customer_summary` (`src/ai/customer-summary.tool.ts`). Tối đa 5 ý chính, 3 câu nên hỏi thêm, mỗi câu tối đa 500 ký tự. Tóm tắt trống → 503.

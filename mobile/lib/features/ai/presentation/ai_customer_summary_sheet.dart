@@ -1,51 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/error/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
-import '../domain/ai_match.dart';
+import '../domain/ai_customer_summary.dart';
 import 'ai_points.dart';
 import 'ai_providers.dart';
 
-/// Mở lời AI giải thích vì sao BĐS phù hợp với khách (TASK-135). Mở là gọi AI một lần.
-Future<void> showAiMatchSheet(
+/// Mở tóm tắt khách do AI viết (TASK-140). Mở là gọi AI một lần.
+Future<void> showAiCustomerSummarySheet(
   BuildContext context, {
   required String customerId,
-  required String propertyId,
-  required String propertyLabel,
 }) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   useRootNavigator: true,
   useSafeArea: true,
   showDragHandle: true,
-  builder: (context) => AiMatchSheet(
-    customerId: customerId,
-    propertyId: propertyId,
-    propertyLabel: propertyLabel,
-  ),
+  builder: (context) => AiCustomerSummarySheet(customerId: customerId),
 );
 
-class AiMatchSheet extends ConsumerStatefulWidget {
-  const AiMatchSheet({
-    super.key,
-    required this.customerId,
-    required this.propertyId,
-    required this.propertyLabel,
-  });
+class AiCustomerSummarySheet extends ConsumerStatefulWidget {
+  const AiCustomerSummarySheet({super.key, required this.customerId});
 
   final String customerId;
-  final String propertyId;
-  final String propertyLabel;
 
   @override
-  ConsumerState<AiMatchSheet> createState() => _AiMatchSheetState();
+  ConsumerState<AiCustomerSummarySheet> createState() =>
+      _AiCustomerSummarySheetState();
 }
 
-class _AiMatchSheetState extends ConsumerState<AiMatchSheet> {
-  AiMatchExplanation? _result;
+class _AiCustomerSummarySheetState
+    extends ConsumerState<AiCustomerSummarySheet> {
+  AiCustomerSummary? _result;
   Object? _error;
 
   @override
@@ -63,7 +51,7 @@ class _AiMatchSheetState extends ConsumerState<AiMatchSheet> {
     try {
       final result = await container
           .read(aiRepositoryProvider)
-          .matchExplanation(widget.customerId, widget.propertyId);
+          .customerSummary(widget.customerId);
       if (mounted) {
         setState(() => _result = result);
       }
@@ -93,18 +81,10 @@ class _AiMatchSheetState extends ConsumerState<AiMatchSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('AI giải thích', style: theme.textTheme.titleLarge),
-          const SizedBox(height: AppSpacing.s4),
-          Text(
-            widget.propertyLabel,
-            style: theme.textTheme.bodyMedium?.copyWith(color: muted),
-          ),
+          Text('AI tóm tắt khách', style: theme.textTheme.titleLarge),
           const SizedBox(height: AppSpacing.s16),
           if (error != null)
-            error is ApiException &&
-                    error.code == ErrorCodes.businessRuleViolation
-                ? Text(error.message)
-                : ErrorRetry(error: error, onRetry: _load)
+            ErrorRetry(error: error, onRetry: _load)
           else if (result == null)
             const Padding(
               padding: EdgeInsets.all(AppSpacing.s16),
@@ -112,39 +92,27 @@ class _AiMatchSheetState extends ConsumerState<AiMatchSheet> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: AppSpacing.s12),
-                  Text('AI đang đọc nhu cầu và thông tin BĐS…'),
+                  Text('AI đang đọc nhu cầu và lịch sử chăm sóc…'),
                 ],
               ),
             )
           else ...[
-            Text(
-              '${result.score}% phù hợp',
-              key: const Key('ai-match-score'),
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.s8),
             Text(result.summary),
-            if (result.strengths.isNotEmpty)
+            if (result.keyPoints.isNotEmpty)
               AiPoints(
-                title: 'Điểm hợp',
+                title: 'Ý chính',
                 icon: Icons.check_circle_outline,
-                items: result.strengths,
+                items: result.keyPoints,
               ),
-            if (result.concerns.isNotEmpty)
+            if (result.openQuestions.isNotEmpty)
               AiPoints(
-                title: 'Cần lưu ý',
-                icon: Icons.error_outline,
-                items: result.concerns,
+                title: 'Nên hỏi thêm',
+                icon: Icons.help_outline,
+                items: result.openQuestions,
               ),
-            if (result.pitch.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.s16),
-              Text('Gợi ý nói với khách', style: theme.textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.s4),
-              SelectableText(result.pitch),
-            ],
             const SizedBox(height: AppSpacing.s16),
             Text(
-              'Điểm do hệ thống chấm theo nhu cầu của khách; AI chỉ viết lời giải thích, nên kiểm lại trước khi gửi khách.',
+              'AI đọc nhu cầu, ghi chú và ${result.activityCount} hoạt động gần nhất của khách. Nên kiểm lại với lịch sử bên dưới.',
               style: theme.textTheme.bodySmall?.copyWith(color: muted),
             ),
           ],
