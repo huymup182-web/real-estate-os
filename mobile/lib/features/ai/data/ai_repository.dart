@@ -6,6 +6,7 @@ import '../domain/ai_listing.dart';
 import '../domain/ai_match.dart';
 import '../domain/ai_search.dart';
 import '../domain/ai_valuation.dart';
+import '../domain/ai_video.dart';
 
 /// Gọi API AI của backend. App không bao giờ gọi thẳng nhà cung cấp LLM (TASK-133).
 class AiRepository {
@@ -47,6 +48,16 @@ class AiRepository {
   Future<AiValuation> valuation(String propertyId) async =>
       AiValuation.fromJson(
         (await _api.post('/properties/$propertyId/ai-valuation')).object,
+      );
+
+  /// Kịch bản video AI dài [durationSeconds] giây từ ảnh và dữ liệu BĐS [propertyId] (cần `property.view`). Mỗi lần
+  /// gọi tính một lượt AI; BĐS chưa có ảnh → `BUSINESS_RULE_VIOLATION`, không tính lượt.
+  Future<AiVideo> video(String propertyId, int durationSeconds) async =>
+      AiVideo.fromJson(
+        (await _api.post(
+          '/properties/$propertyId/ai-video',
+          body: {'durationSeconds': durationSeconds},
+        )).object,
       );
 
   /// AI tóm tắt nhu cầu và lịch sử chăm sóc khách [customerId] (cần `customer.view`). Mỗi lần gọi tính một lượt AI.

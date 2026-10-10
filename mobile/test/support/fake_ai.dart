@@ -6,9 +6,10 @@ import 'package:real_estate_os/features/ai/domain/ai_listing.dart';
 import 'package:real_estate_os/features/ai/domain/ai_match.dart';
 import 'package:real_estate_os/features/ai/domain/ai_search.dart';
 import 'package:real_estate_os/features/ai/domain/ai_valuation.dart';
+import 'package:real_estate_os/features/ai/domain/ai_video.dart';
 
 /// AiRepository giả: [status] trả về từ `GET /ai/status`; [onSearch] trả kết quả tìm bằng AI; [onExplain] trả
-/// lời AI giải thích matching; [onListing] trả tin AI viết; [onValuation] trả định giá AI.
+/// lời AI giải thích matching; [onListing] trả tin AI viết; [onValuation] trả định giá AI; [onVideo] trả kịch bản video AI.
 class FakeAiRepository implements AiRepository {
   FakeAiRepository({
     this.currentStatus = const AiStatus(
@@ -88,6 +89,34 @@ class FakeAiRepository implements AiRepository {
         'askingVsEstimatePercent': -1.2,
       });
   final valuations = <String>[];
+  Future<AiVideo> Function(String propertyId, int durationSeconds) onVideo =
+      (propertyId, durationSeconds) async => AiVideo.fromJson(const {
+        'property': {'id': 'p1', 'code': 'BDS-000001'},
+        'durationSeconds': 15,
+        'scenes': [
+          {
+            'kind': 'INTRO',
+            'imageUrl': 'https://cdn.test/1.jpg',
+            'durationSeconds': 5,
+            'title': 'Nhà phố Vĩnh Hải mới xây',
+          },
+          {
+            'kind': 'FACTS',
+            'imageUrl': 'https://cdn.test/2.jpg',
+            'durationSeconds': 5,
+            'title': 'Thông tin',
+            'lines': ['Giá 5 tỷ', 'Diện tích 80 m²', 'Vĩnh Hải, Khánh Hòa'],
+          },
+          {
+            'kind': 'CTA',
+            'imageUrl': 'https://cdn.test/1.jpg',
+            'durationSeconds': 5,
+            'title': 'Nhắn tin để đi xem nhà',
+            'lines': ['Liên hệ để xem nhà'],
+          },
+        ],
+      });
+  final videos = <(String, int)>[];
   Future<AiCustomerSummary> Function(String customerId) onSummary =
       (customerId) async => const AiCustomerSummary(
         summary:
@@ -172,6 +201,12 @@ class FakeAiRepository implements AiRepository {
   Future<AiListing> listing(String propertyId, AiListingStyle style) {
     listings.add((propertyId, style));
     return onListing(propertyId, style);
+  }
+
+  @override
+  Future<AiVideo> video(String propertyId, int durationSeconds) {
+    videos.add((propertyId, durationSeconds));
+    return onVideo(propertyId, durationSeconds);
   }
 
   @override

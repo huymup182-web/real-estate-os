@@ -917,3 +917,12 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - AI (tool `property_valuation`, `src/ai/valuation.tool.ts`) so sánh pháp lý, hướng, đường vào, số tầng, số phòng... và trả `adjustmentPercent`. Backend kẹp trong ±10% (Huy Lê chọn ngày 2026-10-10), rồi nhân vào giá gốc và khoảng giá. Mức chỉnh không phải số → 0. Nhận xét trống → 503.
 - `confidence`: `HIGH` khi có từ 8 căn và (p75 − p25) / trung vị ≤ 0,25; `MEDIUM` khi từ 5 căn và ≤ 0,5; còn lại `LOW`.
 - LLM không nhận địa chỉ, toạ độ, chủ nhà, môi giới, hoa hồng, tiêu đề tin, giá chào bán của BĐS cần định giá; mô tả đã ẩn số điện thoại. BĐS tương tự chỉ gửi mã, trạng thái, giá, diện tích và thông số. Kết quả không trả toạ độ hay khoảng cách.
+
+## Video AI (TASK-150)
+
+`POST /api/v1/properties/:id/ai-video` (`property.view`) `{durationSeconds?: 15 | 30 | 45 | 60}` (mặc định 30) → `{property {id, code}, durationSeconds, scenes [{kind, imageId, imageUrl, durationSeconds, title, lines}]}`. Theo MASTER_PLAN mục 19: video 15–60 giây từ ảnh và dữ liệu thật, gồm ảnh, chữ, giá, diện tích, khu vực, lời mời. Backend chỉ trả kịch bản cảnh; app phát video từ kịch bản này, không dựng file trên server. Code: `src/ai/ai-video.service.ts`, phần dựng cảnh ở `src/ai/video.ts`. Không lưu vào BĐS. Mỗi lần gọi tính một lượt AI (`ai_requests.feature` = `video`).
+
+- Cảnh theo thứ tự: `INTRO` (câu mở đầu, ảnh đầu), `HIGHLIGHT` (mỗi cảnh một điểm nổi bật, ảnh kế tiếp; hết ảnh thì quay lại), `FACTS` ("Thông tin": giá, diện tích, số phòng ngủ, pháp lý, khu vực, do backend ghi từ database), `CTA` (lời mời, "Liên hệ để xem nhà"). Dùng tối đa 8 ảnh đầu theo thứ tự hiển thị.
+- Mỗi cảnh dài ít nhất 3 giây, nên video 15 giây có tối đa 2 cảnh nổi bật, 30 giây có tối đa 6. Tổng thời lượng các cảnh đúng bằng `durationSeconds`; giây dư dồn cho cảnh thông tin.
+- AI (tool `property_video`, `src/ai/video.tool.ts`) chỉ viết câu mở đầu, điểm nổi bật, lời mời, mỗi dòng tối đa 60 ký tự. Backend ẩn số điện thoại và bỏ hashtag. AI không xem ảnh. LLM không nhận địa chỉ chi tiết, chủ nhà, môi giới, hoa hồng hay link ảnh.
+- BĐS chưa có ảnh → 422, không gọi AI. Câu mở đầu hoặc lời mời trống → 503.
