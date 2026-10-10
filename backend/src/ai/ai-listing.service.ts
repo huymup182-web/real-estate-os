@@ -15,6 +15,7 @@ import {
   LISTING_TITLE_MAX,
   LISTING_WRITER_TOOL,
   MAX_HASHTAGS,
+  MAX_TITLE_HASHTAGS,
   type ListingStyle,
   listingWriterSystemPrompt,
   listingWriterTool,
@@ -41,7 +42,7 @@ export function hidePhones(text: string): string {
   return text.replace(PHONE, HIDDEN_PHONE);
 }
 
-/** Giữ [max] hashtag đầu tiên, bỏ các hashtag sau (bài Facebook TASK-137, tin Zalo TASK-138). */
+/** Giữ [max] hashtag đầu tiên, bỏ các hashtag sau (bài Facebook TASK-137, tin Zalo TASK-138, TikTok TASK-139). */
 export function limitHashtags(text: string, max: number): string {
   let count = 0;
   return text
@@ -52,7 +53,7 @@ export function limitHashtags(text: string, max: number): string {
 }
 
 /**
- * AI viết tin đăng từ dữ liệu thật của BĐS (TASK-136, MASTER_PLAN mục 18), cả bài Facebook (TASK-137), tin Zalo (TASK-138). Không gửi LLM địa chỉ chi tiết,
+ * AI viết tin đăng từ dữ liệu thật của BĐS (TASK-136, MASTER_PLAN mục 18), cả bài Facebook (TASK-137), tin Zalo (TASK-138), kịch bản TikTok (TASK-139). Không gửi LLM địa chỉ chi tiết,
  * chủ nhà, môi giới, hoa hồng; mô tả gửi kèm đã ẩn số điện thoại.
  */
 @Injectable()
@@ -84,7 +85,11 @@ export class AiListingService {
       maxTokens: 2048,
     });
     const input = response.toolCalls.find((call) => call.name === LISTING_WRITER_TOOL)?.input;
-    const title = clean(input?.['title'], LISTING_TITLE_MAX).replace(/\s+/g, ' ');
+    let title = clean(input?.['title'], LISTING_TITLE_MAX).replace(/\s+/g, ' ');
+    const maxTitleHashtags = MAX_TITLE_HASHTAGS[style];
+    if (maxTitleHashtags !== undefined) {
+      title = limitHashtags(title, maxTitleHashtags);
+    }
     let description = clean(input?.['description'], LISTING_DESCRIPTION_MAX);
     const maxHashtags = MAX_HASHTAGS[style];
     if (maxHashtags !== undefined) {

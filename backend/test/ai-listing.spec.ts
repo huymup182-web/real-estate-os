@@ -255,6 +255,32 @@ describe('AI viết tin đăng POST /api/v1/properties/:id/ai-listing (TASK-136)
     assert.equal(row?.feature, 'zalo_post');
   });
 
+  it('kịch bản TikTok (TASK-139): caption tối đa 5 hashtag, kịch bản không hashtag, ghi lượt là tiktok_script', async () => {
+    llm.reply = toolReply({
+      title: 'Nhà phố Vĩnh Hải 5 tỷ #nhapho #vinhhai #nhatrang #khanhhoa #bannha #muaban',
+      description:
+        'Cảnh 1 (0–5 giây): mặt tiền | Lời thoại: Nhà 5 tỷ ở Vĩnh Hải đây ạ #nhapho\nCảnh 2 (5–15 giây): phòng khách | Lời thoại: 3 phòng ngủ rộng rãi.',
+    });
+    const response = await write('admin', { style: 'TIKTOK' });
+    assert.equal(response.status, 200, await response.clone().text());
+    const { data } = (await response.json()) as {
+      data: { style: string; title: string; description: string };
+    };
+    assert.equal(data.style, 'TIKTOK');
+    assert.equal(data.title, 'Nhà phố Vĩnh Hải 5 tỷ #nhapho #vinhhai #nhatrang #khanhhoa #bannha');
+    assert.equal(
+      data.description,
+      'Cảnh 1 (0–5 giây): mặt tiền | Lời thoại: Nhà 5 tỷ ở Vĩnh Hải đây ạ\nCảnh 2 (5–15 giây): phòng khách | Lời thoại: 3 phòng ngủ rộng rãi.',
+    );
+    const system = String(llm.calls[0]?.body['system']);
+    assert.match(system, /Video TikTok 30–60 giây/);
+    assert.match(system, /Cảnh 1 \(0–5 giây\)/);
+    const [row] = (await db.query(
+      `SELECT feature FROM ai_requests ORDER BY created_at DESC LIMIT 1`,
+    )) as { feature: string }[];
+    assert.equal(row?.feature, 'tiktok_script');
+  });
+
   it('cần đăng nhập, quyền property.view, BĐS trong phạm vi xem, style hợp lệ; không gọi LLM khi bị chặn', async () => {
     assert.equal((await write(undefined)).status, 401);
     assert.equal((await write('noRole')).status, 403);
