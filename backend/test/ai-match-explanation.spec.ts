@@ -242,11 +242,13 @@ describe('AI giải thích matching POST /customers/:id/matching-properties/:pid
     assert.equal(facts['bat_dong_san']?.['duong_vao'], 'Ô tô vào được');
     assert.equal(facts['bat_dong_san']?.['khu_vuc'], 'Vĩnh Hải, Khánh Hòa');
     assert.deepEqual(facts['nhu_cau_khach'], {
+      giao_dich: 'Mua',
       loai_bds: ['Nhà phố, nhà riêng'],
       ngan_sach: 'tối đa 6 tỷ',
       dien_tich: null,
       phong_ngu_toi_thieu: 3,
       khu_vuc: ['Vĩnh Hải'],
+      huong: null,
       phap_ly: null,
       duong_vao_toi_thieu: null,
     });

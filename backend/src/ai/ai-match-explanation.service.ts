@@ -17,14 +17,8 @@ import {
   MAX_STRENGTHS,
   matchExplanationTool,
 } from './match-explanation.tool.js';
-import {
-  LEGAL_STATUS_LABELS,
-  PROPERTY_TYPE_LABELS,
-  propertyFacts,
-  ROAD_ACCESS_LABELS,
-  vnArea,
-  vnMoney,
-} from './property-facts.js';
+import { preferenceFacts } from './customer-facts.js';
+import { propertyFacts } from './property-facts.js';
 
 const MAX_TEXT_LENGTH = 500;
 
@@ -46,20 +40,6 @@ export interface AiMatchExplanation {
   /** Lời giải thích dựng sẵn từ tiêu chí (TASK-089), dùng khi không cần AI. */
   explanation: MatchExplanation;
   ai: AiMatchText;
-}
-
-function range(min: number | null, max: number | null, unit: (n: number) => string): string | null {
-  if (min !== null && max !== null) {
-    return `${unit(min)} – ${unit(max)}`;
-  }
-  if (min !== null) {
-    return `từ ${unit(min)}`;
-  }
-  return max !== null ? `tối đa ${unit(max)}` : null;
-}
-
-function labels(values: string[] | null, map: Readonly<Record<string, string>>): string[] | null {
-  return values?.length ? values.map((value) => map[value] ?? value) : null;
 }
 
 function cleanText(value: unknown): string {
@@ -139,38 +119,10 @@ export class AiMatchExplanationService {
   /** Dữ liệu gửi LLM: chỉ thông số BĐS, nhu cầu (không tên, liên hệ) và điểm từng tiêu chí. */
   private async facts(pair: PairMatch): Promise<Record<string, unknown>> {
     const { property, preference } = pair;
-    const ids = [
-      ...(preference.provinceIds ?? []),
-      ...(preference.districtIds ?? []),
-      ...(preference.wardIds ?? []),
-    ];
-    const names = new Map<string, string>();
-    if (ids.length > 0) {
-      const rows: { id: string; name: string }[] = await this.dataSource.query(
-        `SELECT id, name FROM provinces WHERE id = ANY($1::uuid[])
-         UNION ALL SELECT id, name FROM districts WHERE id = ANY($1::uuid[])
-         UNION ALL SELECT id, name FROM wards WHERE id = ANY($1::uuid[])`,
-        [ids],
-      );
-      for (const row of rows) {
-        names.set(row.id, row.name);
-      }
-    }
-    const areaNames = ids.map((id) => names.get(id)).filter((name) => name !== undefined);
-
+    const [needs] = await preferenceFacts(this.dataSource, [preference]);
     return {
       bat_dong_san: propertyFacts(property),
-      nhu_cau_khach: {
-        loai_bds: labels(preference.propertyTypes, PROPERTY_TYPE_LABELS),
-        ngan_sach: range(preference.budgetMin, preference.budgetMax, vnMoney),
-        dien_tich: range(preference.areaMin, preference.areaMax, vnArea),
-        phong_ngu_toi_thieu: preference.bedroomsMin,
-        khu_vuc: areaNames.length > 0 ? areaNames : null,
-        phap_ly: labels(preference.legalStatuses, LEGAL_STATUS_LABELS),
-        duong_vao_toi_thieu: preference.minRoadAccess
-          ? (ROAD_ACCESS_LABELS[preference.minRoadAccess] ?? null)
-          : null,
-      },
+      nhu_cau_khach: needs,
       diem_phu_hop: `${pair.score}%`,
       tieu_chi: pair.criteria.map((item) => ({
         ten: CRITERION_LABELS[item.criterion],

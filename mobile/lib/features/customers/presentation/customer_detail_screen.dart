@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/detail_section.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../../ai/presentation/ai_customer_summary_sheet.dart';
 import '../../ai/presentation/ai_match_sheet.dart';
 import '../../ai/presentation/ai_providers.dart';
 import '../../auth/presentation/session_controller.dart';
@@ -92,6 +93,9 @@ class _Body extends ConsumerWidget {
     final theme = Theme.of(context);
     String label(Map<String, String> labels, String? value) =>
         value == null ? '—' : labelOf(labels, value);
+    final canEdit =
+        ref.watch(sessionProvider).value?.user?.can('customer.edit') ?? false;
+    final aiEnabled = ref.watch(aiStatusProvider).value?.enabled ?? false;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -114,17 +118,29 @@ class _Body extends ConsumerWidget {
             ],
           ),
         ),
-        if (ref.watch(sessionProvider).value?.user?.can('customer.edit') ??
-            false)
+        if (canEdit || aiEnabled)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () => _changeStatus(context),
-                icon: const Icon(Icons.swap_horiz),
-                label: const Text('Đổi bước'),
-              ),
+            child: Wrap(
+              spacing: AppSpacing.s8,
+              runSpacing: AppSpacing.s8,
+              children: [
+                if (canEdit)
+                  OutlinedButton.icon(
+                    onPressed: () => _changeStatus(context),
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Đổi bước'),
+                  ),
+                if (aiEnabled)
+                  OutlinedButton.icon(
+                    onPressed: () => showAiCustomerSummarySheet(
+                      context,
+                      customerId: customer.id,
+                    ),
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('AI tóm tắt'),
+                  ),
+              ],
             ),
           ),
         const SizedBox(height: AppSpacing.s8),

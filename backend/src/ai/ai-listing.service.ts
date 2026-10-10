@@ -21,6 +21,7 @@ import {
   listingWriterTool,
 } from './listing-writer.tool.js';
 import { propertyFacts } from './property-facts.js';
+import { hidePhones } from './redact.js';
 
 /** Tin đăng AI viết (TASK-136). Chỉ là bản nháp: không lưu vào BĐS. */
 export interface AiListing {
@@ -28,18 +29,6 @@ export interface AiListing {
   style: ListingStyle;
   title: string;
   description: string;
-}
-
-/**
- * Số điện thoại Việt Nam (0xxx hoặc +84xxx, có thể cách bởi khoảng trắng, chấm, gạch; không tính số nằm trong
- * số lớn hơn như 5.000.000.000). Ẩn khỏi mô tả trước khi
- * gửi LLM và khỏi tin AI viết, vì tin để đăng công khai.
- */
-const PHONE = /(?<![\d.,])(?:\+84|0)(?:[\s.-]?\d){8,10}(?!\d)/g;
-const HIDDEN_PHONE = '[đã ẩn số điện thoại]';
-
-export function hidePhones(text: string): string {
-  return text.replace(PHONE, HIDDEN_PHONE);
 }
 
 /** Giữ [max] hashtag đầu tiên, bỏ các hashtag sau (bài Facebook TASK-137, tin Zalo TASK-138, TikTok TASK-139). */

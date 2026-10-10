@@ -7,7 +7,8 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import type { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-import { hidePhones, limitHashtags } from '../src/ai/ai-listing.service.js';
+import { limitHashtags } from '../src/ai/ai-listing.service.js';
+import { hidePhones } from '../src/ai/redact.js';
 import { createApp } from '../src/app.factory.js';
 import { hashPassword } from '../src/auth/password.js';
 import { type FakeLlm, setEnv, startFakeLlm } from './support/fake-llm.js';
