@@ -4,6 +4,7 @@ import 'package:real_estate_os/features/customers/data/customers_repository.dart
 import 'package:real_estate_os/features/customers/domain/customer_detail.dart';
 import 'package:real_estate_os/features/customers/domain/customer_query.dart';
 import 'package:real_estate_os/features/customers/domain/customer_summary.dart';
+import 'package:real_estate_os/features/customers/domain/property_match.dart';
 
 /// CustomersRepository giả: [onList] trả từng trang (mặc định rỗng). Điều kiện của lần gọi đang chạy là
 /// `listedQueries.last`.
@@ -39,6 +40,9 @@ class FakeCustomersRepository implements CustomersRepository {
   Future<CustomerDetail> Function(String id, String status, String? reason)
   onChangeStatus = (id, status, reason) async =>
       customerDetail(id, status: status, lostReason: reason);
+  Future<List<PropertyMatch>> Function(String id) onMatches = (id) async =>
+      const [];
+  final matchCalls = <String>[];
   final statusChanges =
       <({String id, String status, String? lostReason, DateTime expected})>[];
   final detailCalls = <String>[];
@@ -70,6 +74,15 @@ class FakeCustomersRepository implements CustomersRepository {
   Future<Page<CustomerActivity>> activities(String id, {required int page}) {
     activityPages.add(page);
     return onActivities(page);
+  }
+
+  @override
+  Future<List<PropertyMatch>> matchingProperties(
+    String id, {
+    int limit = CustomersRepository.matchLimit,
+  }) {
+    matchCalls.add(id);
+    return onMatches(id);
   }
 
   @override

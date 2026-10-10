@@ -3,6 +3,7 @@ import '../../../core/network/page.dart';
 import '../domain/customer_detail.dart';
 import '../domain/customer_query.dart';
 import '../domain/customer_summary.dart';
+import '../domain/property_match.dart';
 
 /// Gọi API khách hàng.
 class CustomersRepository {
@@ -45,6 +46,17 @@ class CustomersRepository {
     ),
     CustomerActivity.fromJson,
   );
+
+  /// Tối đa [limit] BĐS đang bán phù hợp với khách, điểm cao trước (BĐS ngoài phạm vi xem bị bỏ).
+  Future<List<PropertyMatch>> matchingProperties(
+    String id, {
+    int limit = matchLimit,
+  }) async => (await _api.get(
+    '/customers/$id/matching-properties',
+    query: {'limit': limit},
+  )).list.map(PropertyMatch.fromJson).toList();
+
+  static const matchLimit = 10;
 
   /// Họ tên một người dùng (cần `user.view`), để hiện môi giới phụ trách.
   Future<String> userName(String userId) async =>
