@@ -31,6 +31,21 @@ import type { CustomerListQueryDto } from './dto/customer-list-query.dto.js';
 import { EDITABLE_CUSTOMER_FIELDS, type UpdateCustomerDto } from './dto/update-customer.dto.js';
 
 /** Phạm vi các quyền khách hàng của user, lấy từ `req.user.permissions`. Không có key = không có quyền. */
+/** Một khách cần chăm sóc (TASK-141). */
+export interface FollowUpCandidate {
+  id: string;
+  fullName: string;
+  status: string;
+  purpose: string | null;
+  purchaseTimeline: string | null;
+  agentId: string | null;
+  /** Lần chăm sóc gần nhất (hoạt động mới nhất, hoặc lúc tạo khách nếu chưa có hoạt động). */
+  lastContactAt: Date;
+  lastActivity: { type: string; content: string | null; occurredAt: Date } | null;
+  /** Số nhu cầu đang bật. */
+  activeNeeds: number;
+}
+
 export interface CustomerScopes {
   view: PermissionScope | undefined;
   edit: PermissionScope | undefined;
@@ -324,6 +339,79 @@ export class CustomersService {
    * Truy vấn khách (alias `c`) trong phạm vi `customer.view`, đã có điều kiện công ty và bỏ khách đã xoá;
    * thêm điều kiện bằng andWhere. Dùng cho dashboard và matching (TASK-087).
    */
+  /**
+   * Khách cần chăm sóc (TASK-141), cùng luật với `followUpNeeded` của dashboard: chưa WON/LOST, không có hoạt
+   * động nào (tính cả lúc tạo) trong `FOLLOW_UP_AFTER_DAYS` ngày. Khách ở bước gần chốt hơn đứng trước, cùng
+   * bước thì lâu chưa chăm sóc hơn đứng trước. Tối đa [limit] khách, kèm hoạt động gần nhất và số nhu cầu đang bật.
+   */
+  async followUps(
+    actor: Actor,
+    scopes: CustomerScopes,
+    limit: number,
+  ): Promise<FollowUpCandidate[]> {
+    const lastContact = `GREATEST(c.created_at, (
+        SELECT max(ca.occurred_at) FROM customer_activities ca
+         WHERE ca.tenant_id = c.tenant_id AND ca.customer_id = c.id))`;
+    const rows = await this.visible(actor, scopes)
+      .select('c.id', 'id')
+      .addSelect('c.full_name', 'fullName')
+      .addSelect('c.status', 'status')
+      .addSelect('c.purpose', 'purpose')
+      .addSelect('c.purchase_timeline', 'purchaseTimeline')
+      .addSelect('c.agent_id', 'agentId')
+      .addSelect(lastContact, 'lastContactAt')
+      .addSelect('array_position(CAST(:statuses AS text[]), c.status)', 'step')
+      .andWhere('c.status NOT IN (:...closed)')
+      .andWhere(`${lastContact} < :followUpBefore`)
+      .setParameters({
+        statuses: [...CUSTOMER_STATUSES],
+        closed: [...CLOSED_CUSTOMER_STATUSES],
+        followUpBefore: new Date(Date.now() - FOLLOW_UP_AFTER_DAYS * DAY_MS),
+      })
+      .orderBy('step', 'DESC')
+      .addOrderBy('"lastContactAt"', 'ASC')
+      .addOrderBy('c.id', 'ASC')
+      .limit(limit)
+      .getRawMany<Omit<FollowUpCandidate, 'lastActivity' | 'activeNeeds'>>();
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const ids = rows.map((row) => row.id);
+    const activities = (await this.dataSource.query(
+      `SELECT DISTINCT ON (customer_id) customer_id, type, content, occurred_at
+         FROM customer_activities WHERE tenant_id = $1 AND customer_id = ANY($2::uuid[])
+        ORDER BY customer_id, occurred_at DESC, created_at DESC`,
+      [actor.tenantId, ids],
+    )) as { customer_id: string; type: string; content: string | null; occurred_at: Date }[];
+    const needs = (await this.dataSource.query(
+      `SELECT customer_id, count(*)::int AS count FROM customer_preferences
+        WHERE tenant_id = $1 AND customer_id = ANY($2::uuid[]) AND is_active GROUP BY customer_id`,
+      [actor.tenantId, ids],
+    )) as { customer_id: string; count: number }[];
+    const lastActivity = new Map(activities.map((row) => [row.customer_id, row]));
+    const activeNeeds = new Map(needs.map((row) => [row.customer_id, row.count]));
+
+    return rows.map(
+      ({ id, fullName, status, purpose, purchaseTimeline, agentId, lastContactAt }) => {
+        const activity = lastActivity.get(id);
+        return {
+          id,
+          fullName,
+          status,
+          purpose,
+          purchaseTimeline,
+          agentId,
+          lastContactAt: new Date(lastContactAt),
+          lastActivity: activity
+            ? { type: activity.type, content: activity.content, occurredAt: activity.occurred_at }
+            : null,
+          activeNeeds: activeNeeds.get(id) ?? 0,
+        };
+      },
+    );
+  }
+
   visible(actor: Actor, scopes: CustomerScopes): SelectQueryBuilder<Customer> {
     return this.customers
       .createQueryBuilder(actor.tenantId, 'c', (builder) =>

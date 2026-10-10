@@ -7,11 +7,34 @@ import { ParseUuidPipe } from '../common/validation/parse-uuid.pipe.js';
 import { customerScopesOf } from '../customers/customers.controller.js';
 import { actorOf } from '../properties/properties.controller.js';
 import { type AiCustomerSummary, AiCustomerSummaryService } from './ai-customer-summary.service.js';
+import { type AiFollowUps, AiFollowUpService } from './ai-follow-up.service.js';
 
-/** AI cho khách hàng (TASK-140). Mỗi lần gọi tính một lượt AI (TASK-133). */
+/** AI cho khách hàng (TASK-140, TASK-141). Mỗi lần gọi AI tính một lượt (TASK-133). */
 @Controller()
 export class AiCustomerController {
-  constructor(private readonly summaries: AiCustomerSummaryService) {}
+  constructor(
+    private readonly summaries: AiCustomerSummaryService,
+    private readonly followUps: AiFollowUpService,
+  ) {}
+
+  /**
+   * `POST /api/v1/ai/follow-ups` → {thresholdDays, items: [{customer, lastContactAt, daysSinceContact,
+   * suggestion {action, reason, message} | null}]}: tối đa 10 khách trong phạm vi `customer.view` cần chăm sóc,
+   * AI gợi ý việc làm tiếp. Không có khách nào thì `items` rỗng và không gọi AI.
+   */
+  @Post('ai/follow-ups')
+  @HttpCode(200)
+  @RequirePermission('customer.view')
+  suggestFollowUps(
+    @TenantId() tenantId: string,
+    @Req() req: { user: RequestUser },
+  ): Promise<AiFollowUps> {
+    return this.followUps.suggest(
+      req.user,
+      actorOf(tenantId, req.user),
+      customerScopesOf(req.user),
+    );
+  }
 
   /**
    * `POST /api/v1/customers/:id/ai-summary` → {customerId, summary, keyPoints, openQuestions, activityCount}.
