@@ -898,3 +898,12 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 
 - `overall`, mỗi nhóm và mỗi tháng: `count`, `avgPricePerM2`, `medianPricePerM2`, `minPricePerM2`, `maxPricePerM2`. Dưới 3 tin thì chỉ có `count`.
 - `trend`: mọi tháng trong kỳ theo ngày đăng tin, giờ Việt Nam (`YYYY-MM`, cũ trước). Tháng không có tin có `count` 0.
+
+## Thanh khoản BĐS (TASK-147)
+
+`GET /api/v1/reports/market/liquidity?provinceId&wardId&propertyType&groupBy&months` (`property.view`) → `{period, groupBy, minSample, thresholds, overall, groups}`, theo MASTER_PLAN mục 21 (cung, cầu, số ngày bán). Cùng tham số với `market/prices`.
+
+- `supply`: tin bán Đang bán, Đang giao dịch hiện có. `sold`: căn Đã bán mà lần chuyển sang Đã bán gần nhất nằm trong kỳ. Ngày bán lấy từ nhật ký `property.change_status`; BĐS cũ chưa có nhật ký thì lấy lúc sửa gần nhất.
+- `sellThroughRate` = sold / (sold + supply), %. `level` (Huy Lê chọn ngày 2026-10-10): `HIGH` từ 30%, `MEDIUM` từ 10%, `LOW` dưới 10%. Dưới 3 tin thì cả hai là null.
+- `medianDaysToSell` (từ ngày đăng đến ngày bán) chỉ có khi bán được từ 3 căn. `medianDaysListed` (số ngày tin đang bán đã đăng) chỉ có khi cung từ 3 tin.
+- `viewsPerListing`, `viewingsPerListing`: lượt xem và lượt dẫn khách (trừ lịch huỷ) trong kỳ, chia cho số tin (cung + đã bán).
