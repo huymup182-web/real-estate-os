@@ -2,6 +2,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/page.dart';
 import '../domain/property_detail.dart';
 import '../domain/property_draft.dart';
+import '../domain/property_duplicates.dart';
 import '../domain/property_query.dart';
 import '../domain/property_summary.dart';
 
@@ -60,6 +61,15 @@ class PropertiesRepository {
     )).object;
     return (id: data['id'] as String, code: data['code'] as String);
   }
+
+  /// BĐS sắp tạo có thể trùng BĐS nào trong công ty (TASK-144, cần `property.create`). Chỉ kiểm, không tạo.
+  Future<DuplicateReport> duplicateCheck(PropertyDraft draft) async =>
+      DuplicateReport.fromJson(
+        (await _api.post(
+          '/properties/duplicate-check',
+          body: draft.toCreateJson(),
+        )).object,
+      );
 
   /// Sửa BĐS [id] (cần `property.edit` với BĐS). Người khác đã lưu sau [expectedUpdatedAt] → `ApiException`
   /// `CONFLICT`. Trả chi tiết sau khi sửa.

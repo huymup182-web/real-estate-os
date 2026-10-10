@@ -9,6 +9,7 @@ import {
   formatArea,
   formatPrice,
   getProperty,
+  getPropertyDuplicates,
   getPropertyImages,
   getProvinces,
   getWards,
@@ -79,12 +80,13 @@ export default async function PropertyPage({
   }
   const can = (code: string) => me.ok && hasPermission(me.data, code);
   const data = property.data;
-  const [images, provinces, wards, agent, agents] = await Promise.all([
+  const [images, provinces, wards, agent, agents, duplicates] = await Promise.all([
     getPropertyImages(token, id),
     getProvinces(token),
     getWards(token, data.provinceId),
     can('user.view') ? getUser(token, data.agentId) : null,
     can('property.assign') && can('user.view') ? listAgentOptions(token) : null,
+    getPropertyDuplicates(token, id),
   ]);
   const province = provinces.ok ? provinces.data.find((item) => item.id === data.provinceId) : null;
   const ward = wards.ok ? wards.data.find((item) => item.id === data.wardId) : null;
@@ -172,6 +174,60 @@ export default async function PropertyPage({
         </dl>
         {data.description && <p className="prewrap">{data.description}</p>}
       </section>
+
+      {duplicates.ok && duplicates.data.matches.length > 0 && (
+        <section className="card">
+          <h2>Nghi trùng</h2>
+          <p className="muted">
+            Các BĐS giống BĐS này từ {duplicates.data.threshold}% trở lên (vị trí, giá, diện tích,
+            chủ nhà, địa chỉ, mô tả). Hệ thống không tự xoá: kiểm tra rồi ẩn hoặc xoá bản trùng nếu
+            đúng.
+          </p>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>BĐS</th>
+                  <th>Độ giống</th>
+                  <th>Giống ở</th>
+                </tr>
+              </thead>
+              <tbody>
+                {duplicates.data.matches.map((match) => (
+                  <tr key={match.code}>
+                    <td>
+                      {match.property ? (
+                        <Link href={`/properties/${match.property.id}`}>
+                          <code>{match.code}</code>
+                        </Link>
+                      ) : (
+                        <code>{match.code}</code>
+                      )}
+                    </td>
+                    <td>
+                      {match.property ? (
+                        <>
+                          {match.property.title}
+                          <span className="muted">
+                            {' '}
+                            · {formatPrice(match.property.price)} ·{' '}
+                            {formatArea(match.property.area)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="muted">Bạn không xem được BĐS này</span>
+                      )}
+                    </td>
+                    <td>{match.similarity}%</td>
+                    <td>{match.reasons.join(', ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {data.ownerContactVisible && (
         <section className="card">

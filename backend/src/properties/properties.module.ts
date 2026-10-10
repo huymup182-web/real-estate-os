@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuditModule } from '../audit/audit.module.js';
 import { StorageModule } from '../storage/storage.module.js';
+import { PropertyDuplicatesController } from './property-duplicates.controller.js';
+import { PropertyDuplicatesService } from './property-duplicates.service.js';
 import { PropertiesController } from './properties.controller.js';
 import { PropertiesService } from './properties.service.js';
 import { Property } from './property.entity.js';
@@ -23,6 +25,7 @@ import { PropertyVerificationJob } from './property-verification.job.js';
   imports: [TypeOrmModule.forFeature([Property]), StorageModule, AuditModule],
   controllers: [
     PropertiesController,
+    PropertyDuplicatesController,
     PropertyImagesController,
     PropertyDocumentsController,
     PropertyShareLinksController,
@@ -31,6 +34,7 @@ import { PropertyVerificationJob } from './property-verification.job.js';
   providers: [
     PropertiesService,
     PropertyEvents,
+    PropertyDuplicatesService,
     PropertyImagesService,
     PropertyDocumentsService,
     PropertyShareLinksService,

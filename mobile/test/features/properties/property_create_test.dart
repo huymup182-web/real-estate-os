@@ -8,6 +8,7 @@ import 'package:real_estate_os/features/auth/domain/current_user.dart';
 import 'package:real_estate_os/features/auth/presentation/session_controller.dart';
 import 'package:real_estate_os/features/locations/presentation/location_providers.dart';
 import 'package:real_estate_os/features/properties/domain/property_draft.dart';
+import 'package:real_estate_os/features/properties/domain/property_duplicates.dart';
 import 'package:real_estate_os/features/properties/presentation/property_form.dart';
 import 'package:real_estate_os/features/properties/presentation/property_list_controller.dart';
 
@@ -232,6 +233,7 @@ void main() {
       await fillRequired(tester);
       await save(tester);
       expect(find.text('Đã thêm BĐS BDS-000099.'), findsOneWidget);
+      expect(repository.duplicateChecks, hasLength(1));
       expect(repository.detailCalls, ['new-id']);
 
       final listCalls = repository.listedPages.length;
@@ -239,6 +241,62 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Nhà phố số 1'), findsOneWidget);
       expect(repository.listedPages.length, listCalls + 1);
+    });
+
+    testWidgets(
+      'nghi trùng: hỏi lại; "Xem lại" không lưu, "Vẫn lưu" thì lưu (TASK-144)',
+      (tester) async {
+        repository.onDuplicateCheck = (draft) async => const DuplicateReport(
+          threshold: 70,
+          matches: [
+            DuplicateMatch(
+              code: 'BDS-000125',
+              similarity: 87,
+              reasons: ['Cùng phường/xã', 'Giá lệch 2%'],
+              propertyId: 'p125',
+              title: 'Căn hộ Vĩnh Hải',
+            ),
+            DuplicateMatch(code: 'BDS-000130', similarity: 72),
+          ],
+        );
+        await openApp(tester, _creator);
+        await tester.tap(find.text('Thêm BĐS'));
+        await tester.pumpAndSettle();
+        await fillRequired(tester);
+        await save(tester);
+
+        expect(repository.duplicateChecks.single.title, 'Nhà phố gần biển');
+        expect(find.text('Có thể trùng BĐS đã có'), findsOneWidget);
+        expect(find.text('BĐS này giống từ 70% trở lên với:'), findsOneWidget);
+        expect(find.text('BDS-000125 · giống 87%'), findsOneWidget);
+        expect(find.text('Căn hộ Vĩnh Hải'), findsOneWidget);
+        expect(find.text('Cùng phường/xã, Giá lệch 2%'), findsOneWidget);
+        expect(find.text('BDS-000130 · giống 72%'), findsOneWidget);
+
+        await tester.tap(find.text('Xem lại'));
+        await tester.pumpAndSettle();
+        expect(repository.created, isEmpty);
+        expect(find.widgetWithText(AppBar, 'Thêm BĐS'), findsOneWidget);
+
+        await save(tester);
+        await tester.tap(find.text('Vẫn lưu'));
+        await tester.pumpAndSettle();
+        expect(repository.duplicateChecks, hasLength(2));
+        expect(repository.created, hasLength(1));
+        expect(find.text('Đã thêm BĐS BDS-000099.'), findsOneWidget);
+      },
+    );
+
+    testWidgets('kiểm trùng lỗi thì vẫn lưu, không hỏi', (tester) async {
+      repository.onDuplicateCheck = (draft) async =>
+          throw const ApiException(code: 'INTERNAL_ERROR', message: 'Lỗi');
+      await openApp(tester, _creator);
+      await tester.tap(find.text('Thêm BĐS'));
+      await tester.pumpAndSettle();
+      await fillRequired(tester);
+      await save(tester);
+      expect(find.text('Có thể trùng BĐS đã có'), findsNothing);
+      expect(repository.created, hasLength(1));
     });
 
     testWidgets('đã nhập mà bấm quay lại: hỏi trước khi bỏ', (tester) async {

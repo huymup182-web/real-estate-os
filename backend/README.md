@@ -873,3 +873,13 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - Không gửi LLM tên, liên hệ khách, chủ nhà, địa chỉ chi tiết. Tool lỗi (mã lạ, tool không có) trả lỗi cho LLM tự trả lời.
 - Mỗi lần gọi LLM tính một lượt AI (`feature` `copilot`). LLM được gọi tool tối đa 3 lần, lần thứ 4 bắt buộc trả lời chữ, nên một câu hỏi dùng 1–4 lượt. Câu trả lời trống → 503.
 - `properties` là các BĐS tool đã trả (app hiện thẻ bấm vào chi tiết).
+
+## BĐS nghi trùng (TASK-144)
+
+Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự xoá; admin quyết định.
+
+- `POST /api/v1/properties/duplicate-check` (`property.create`, body như `POST /properties`) → `{threshold, matches}`: BĐS sắp đăng có thể trùng BĐS nào. Không tạo gì. App mobile gọi trước khi lưu BĐS mới; có BĐS nghi trùng thì hỏi lại, người dùng vẫn lưu được.
+- `GET /api/v1/properties/:id/duplicates` (`property.view`, ngoài phạm vi → 404) → `{threshold, matches}`. Admin web hiện thẻ "Nghi trùng" trên trang chi tiết BĐS.
+- `matches[]`: `{code, similarity, reasons, property}`, giống nhất trước, tối đa 5. Người hỏi không xem được BĐS đó (vd BĐS đã ẩn của người khác) thì `property` null, chỉ có mã. Không trả SĐT chủ nhà.
+- So trong cả công ty: cùng loại giao dịch, cùng loại BĐS, cùng phường/xã hoặc cách tối đa 300 m (200 BĐS mới nhất). Độ giống (`src/properties/duplicate-score.ts`) là tổng điểm các tiêu chí có dữ liệu ở cả hai BĐS chia tổng trọng số của chúng: phường/xã 10, toạ độ 15 (≤ 30 m / 100 m / 300 m), giá 15 và diện tích 15 (lệch ≤ 2% / 5% / 10%), SĐT chủ nhà 20 (chỉ khi BĐS đã có chủ nhà), địa chỉ 15 và mô tả 10 (độ giống trigram không dấu, dưới 0,4 coi như khác).
+- Ngưỡng `DUPLICATE_THRESHOLD` = 70% (Huy Lê chọn ngày 2026-10-10). Ảnh chưa so (PRD: trùng bằng ảnh để sau MVP).

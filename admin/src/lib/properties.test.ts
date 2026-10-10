@@ -5,6 +5,7 @@ import {
   emptyPropertyForm,
   formatArea,
   formatPrice,
+  getPropertyDuplicates,
   propertyFilters,
   propertyFormValues,
   propertyPayload,
@@ -148,5 +149,26 @@ describe('form BĐS', () => {
     assert.equal(values.bathrooms, '1');
     assert.equal(values.roadWidth, '4.5');
     assert.equal(values.streetAddress, '');
+  });
+});
+
+describe('BĐS nghi trùng (TASK-144)', () => {
+  it('GET /properties/:id/duplicates kèm token', async () => {
+    const data = {
+      threshold: 70,
+      matches: [{ code: 'BDS-000125', similarity: 87, reasons: ['Cùng giá'], property: null }],
+    };
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ success: true, data }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const result = await getPropertyDuplicates('tok', 'p 1', {
+      fetchImpl,
+      env: { API_INTERNAL_URL: 'http://backend:3000' },
+    });
+    assert.deepEqual(result, { ok: true, status: 200, data });
+    assert.equal(calls[0]?.url, 'http://backend:3000/api/v1/properties/p%201/duplicates');
+    assert.equal((calls[0]?.init.headers as Record<string, string>)['authorization'], 'Bearer tok');
   });
 });

@@ -28,7 +28,11 @@ class PropertyForm<T> extends ConsumerStatefulWidget {
     required this.submit,
     required this.onSaved,
     this.showStreetAddress = true,
+    this.beforeSubmit,
   });
+
+  /// Gọi sau khi form hợp lệ, trước [submit]; trả false thì dừng lại cho người dùng sửa (vd cảnh báo nghi trùng).
+  final Future<bool> Function(PropertyDraft draft)? beforeSubmit;
 
   final PropertyDraft? initial;
 
@@ -71,6 +75,9 @@ class _PropertyFormState<T> extends ConsumerState<PropertyForm<T>> {
 
   var _dirty = false;
   var _submitting = false;
+
+  /// Đang chạy [PropertyForm.beforeSubmit] (có thể đang mở hộp thoại): khoá nút lưu, không hiện vòng quay.
+  var _checking = false;
   String? _error;
   var _serverErrors = <String, String>{};
 
@@ -145,9 +152,22 @@ class _PropertyFormState<T> extends ConsumerState<PropertyForm<T>> {
       setState(() => _error = 'Vui lòng kiểm tra lại các ô báo lỗi.');
       return;
     }
+    final draft = _draft();
+    final beforeSubmit = widget.beforeSubmit;
+    if (beforeSubmit != null) {
+      setState(() => _checking = true);
+      final proceed = await beforeSubmit(draft);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _checking = false);
+      if (!proceed) {
+        return;
+      }
+    }
     setState(() => _submitting = true);
     try {
-      final result = await widget.submit(_draft());
+      final result = await widget.submit(draft);
       if (!mounted) {
         return;
       }
@@ -353,7 +373,7 @@ class _PropertyFormState<T> extends ConsumerState<PropertyForm<T>> {
                 ),
               ),
             FilledButton(
-              onPressed: _submitting ? null : _save,
+              onPressed: _submitting || _checking ? null : _save,
               child: _submitting
                   ? const SizedBox.square(
                       dimension: 20,
