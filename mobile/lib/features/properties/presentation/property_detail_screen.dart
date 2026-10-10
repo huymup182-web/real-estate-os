@@ -11,6 +11,7 @@ import '../../../core/widgets/detail_section.dart';
 import '../../../core/widgets/error_retry.dart';
 import '../../ai/presentation/ai_listing_sheet.dart';
 import '../../ai/presentation/ai_providers.dart';
+import '../../ai/presentation/ai_valuation_sheet.dart';
 import '../domain/property_detail.dart';
 import '../domain/property_labels.dart';
 import 'favorite_button.dart';
@@ -19,7 +20,7 @@ import 'property_detail_providers.dart';
 import 'property_gallery.dart';
 
 /// Chi tiết BĐS: ảnh, giá, địa chỉ, thông số, mô tả, chủ nhà (nếu được xem), xác minh. Thanh tiêu đề có nút
-/// yêu thích, AI bật thì có nút "AI viết tin" (TASK-136); sửa được (`canEdit`) thì có thêm nút quản lý ảnh và nút
+/// yêu thích, AI bật thì có nút "AI viết tin" (TASK-136) và nút "AI định giá" dưới giá (TASK-149); sửa được (`canEdit`) thì có thêm nút quản lý ảnh và nút
 /// sửa.
 class PropertyDetailScreen extends ConsumerWidget {
   const PropertyDetailScreen({super.key, required this.propertyId});
@@ -84,7 +85,7 @@ class PropertyDetailScreen extends ConsumerWidget {
       body: switch (detail) {
         AsyncValue(:final value?) => RefreshIndicator(
           onRefresh: refresh,
-          child: _Body(property: value),
+          child: _Body(property: value, aiEnabled: aiEnabled),
         ),
         AsyncError(:final error) => Center(
           child: Padding(
@@ -109,9 +110,10 @@ class PropertyDetailScreen extends ConsumerWidget {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.property});
+  const _Body({required this.property, required this.aiEnabled});
 
   final PropertyDetail property;
+  final bool aiEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +172,17 @@ class _Body extends StatelessWidget {
                 ].join(' · '),
                 style: theme.textTheme.bodyMedium?.copyWith(color: muted),
               ),
+              if (aiEnabled)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.price_check),
+                  label: const Text('AI định giá'),
+                  onPressed: () =>
+                      showAiValuationSheet(context, propertyId: property.id),
+                ),
               const SizedBox(height: AppSpacing.s8),
               Text(property.title, style: theme.textTheme.titleLarge),
               if (property.address.isNotEmpty) ...[

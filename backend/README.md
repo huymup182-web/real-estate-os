@@ -907,3 +907,13 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - `sellThroughRate` = sold / (sold + supply), %. `level` (Huy Lê chọn ngày 2026-10-10): `HIGH` từ 30%, `MEDIUM` từ 10%, `LOW` dưới 10%. Dưới 3 tin thì cả hai là null.
 - `medianDaysToSell` (từ ngày đăng đến ngày bán) chỉ có khi bán được từ 3 căn. `medianDaysListed` (số ngày tin đang bán đã đăng) chỉ có khi cung từ 3 tin.
 - `viewsPerListing`, `viewingsPerListing`: lượt xem và lượt dẫn khách (trừ lịch huỷ) trong kỳ, chia cho số tin (cung + đã bán).
+
+## Định giá AI (TASK-149)
+
+`POST /api/v1/properties/:id/ai-valuation` (`property.view`) → `{property, estimate {price, pricePerM2}, range {low, high}, base {price, pricePerM2}, adjustmentPercent, maxAdjustmentPercent, confidence, factors [{factor, impact, note}], summary, comparables [{id, code, title, status, price, area, pricePerM2, sameWard}], askingPrice, askingVsEstimatePercent}`. Prototype theo MASTER_PLAN mục 18. Code: `src/ai/ai-valuation.service.ts`, phần tính toán `src/ai/valuation.ts`. Kết quả chỉ để tham khảo, không lưu vào BĐS. Mỗi lần gọi tính một lượt AI (`ai_requests.feature` = `valuation`).
+
+- BĐS tương tự: trong phạm vi `property.view` của người dùng, cùng kiểu giao dịch và loại BĐS, Đang bán, Đang giao dịch hoặc Đã bán, có giá/m², đăng trong 24 tháng, diện tích từ 1/2 đến 2 lần. Phải cùng phường, hoặc cách không quá 2 km khi cả hai có toạ độ. Lấy tối đa 10 căn: cùng phường trước, rồi gần hơn, rồi diện tích sát hơn. Dưới 3 căn → 422, không gọi AI.
+- Giá gốc = giá/m² trung vị × diện tích. Khoảng giá = phân vị 25..75 của giá/m² × diện tích. Giá làm tròn tới triệu.
+- AI (tool `property_valuation`, `src/ai/valuation.tool.ts`) so sánh pháp lý, hướng, đường vào, số tầng, số phòng... và trả `adjustmentPercent`. Backend kẹp trong ±10% (Huy Lê chọn ngày 2026-10-10), rồi nhân vào giá gốc và khoảng giá. Mức chỉnh không phải số → 0. Nhận xét trống → 503.
+- `confidence`: `HIGH` khi có từ 8 căn và (p75 − p25) / trung vị ≤ 0,25; `MEDIUM` khi từ 5 căn và ≤ 0,5; còn lại `LOW`.
+- LLM không nhận địa chỉ, toạ độ, chủ nhà, môi giới, hoa hồng, tiêu đề tin, giá chào bán của BĐS cần định giá; mô tả đã ẩn số điện thoại. BĐS tương tự chỉ gửi mã, trạng thái, giá, diện tích và thông số. Kết quả không trả toạ độ hay khoảng cách.

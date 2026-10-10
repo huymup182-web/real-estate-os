@@ -244,6 +244,10 @@ lib/
   (`GET /teams/:id`): thông tin và thành viên (trưởng nhóm lên đầu, đánh dấu "(bạn)", tài khoản không hoạt động
   thì ghi trạng thái). Tạo, sửa nhóm làm trên web admin (TASK-106).
 
+## Định giá AI (TASK-149)
+
+Chi tiết BĐS có nút "AI định giá" dưới giá khi AI bật. Bấm là gọi `POST /properties/:id/ai-valuation` một lần và mở sheet: giá ước tính, khoảng giá, giá/m², độ tin cậy, so với giá chào bán, nhận xét, yếu tố ảnh hưởng, các BĐS tương tự và mức AI đã chỉnh. Chưa đủ BĐS tương tự thì hiện lý do, không có nút thử lại. Code: `lib/features/ai/presentation/ai_valuation_sheet.dart`.
+
 ## Theme (TASK-114)
 
 `lib/core/theme/`, theo bảng token đề xuất ở design system (brand xanh `#1D4ED8`, nền slate, Material 3):

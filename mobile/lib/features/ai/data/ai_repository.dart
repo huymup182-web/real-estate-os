@@ -5,6 +5,7 @@ import '../domain/ai_follow_up.dart';
 import '../domain/ai_listing.dart';
 import '../domain/ai_match.dart';
 import '../domain/ai_search.dart';
+import '../domain/ai_valuation.dart';
 
 /// Gọi API AI của backend. App không bao giờ gọi thẳng nhà cung cấp LLM (TASK-133).
 class AiRepository {
@@ -39,6 +40,13 @@ class AiRepository {
           '/properties/$propertyId/ai-listing',
           body: {'style': style.code},
         )).object,
+      );
+
+  /// Định giá AI BĐS [propertyId] từ BĐS tương tự (cần `property.view`). Mỗi lần gọi tính một lượt AI; dưới 3 BĐS
+  /// tương tự → `BUSINESS_RULE_VIOLATION`, không tính lượt.
+  Future<AiValuation> valuation(String propertyId) async =>
+      AiValuation.fromJson(
+        (await _api.post('/properties/$propertyId/ai-valuation')).object,
       );
 
   /// AI tóm tắt nhu cầu và lịch sử chăm sóc khách [customerId] (cần `customer.view`). Mỗi lần gọi tính một lượt AI.
