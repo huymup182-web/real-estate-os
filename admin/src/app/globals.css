@@ -392,6 +392,23 @@ fieldset.field {
   color: var(--color-danger);
 }
 
+/* Mức thanh khoản (TASK-148): luôn kèm chữ Cao / Trung bình / Thấp. */
+.badge-liquidity-high {
+  color: var(--color-success);
+}
+
+.badge-liquidity-medium {
+  color: var(--color-muted);
+}
+
+.badge-liquidity-low {
+  color: var(--color-danger);
+}
+
+.stat .badge {
+  align-self: flex-start;
+}
+
 .pager {
   display: flex;
   justify-content: space-between;
