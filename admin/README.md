@@ -145,3 +145,7 @@ src/
 ## Thị trường (TASK-148)
 
 Trang `/market` (menu "Thị trường", cần `property.view`) gom ba API thị trường của backend (TASK-145–147): giá giữa, giá/m² giữa và xu hướng theo tháng, cung, số căn đã bán, tỷ lệ bán kèm mức thanh khoản, và bảng xếp hạng theo phường/xã hoặc loại BĐS. Lọc theo tỉnh/thành, loại BĐS, cách chia nhóm và kỳ 3, 6, 12 hoặc 24 tháng (`?provinceId&propertyType&groupBy&months`). Code: `src/lib/market.ts`, `src/app/(app)/market/page.tsx`.
+
+## Xếp hạng (TASK-151)
+
+Trang `/leaderboard` (menu "Xếp hạng", cần `report.view`) hiển thị bảng xếp hạng môi giới trong phạm vi xem. Có bốn bảng: Top môi giới (theo điểm), Top doanh số, Top tin đăng, Top giao dịch (`?by=points|revenue|listings|deals`). Kỳ 7, 30 hoặc 90 ngày (`?days=`). Mỗi dòng có điểm, tin đăng, chăm sóc, dẫn khách, giao dịch chốt và doanh số. Bằng chỉ số thì cùng hạng. Code: `src/lib/leaderboard.ts`, `src/app/(app)/leaderboard/page.tsx`.

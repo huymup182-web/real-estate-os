@@ -926,3 +926,11 @@ Theo MASTER_PLAN mục 9: chỉ cảnh báo, không chặn đăng, không tự x
 - Mỗi cảnh dài ít nhất 3 giây, nên video 15 giây có tối đa 2 cảnh nổi bật, 30 giây có tối đa 6. Tổng thời lượng các cảnh đúng bằng `durationSeconds`; giây dư dồn cho cảnh thông tin.
 - AI (tool `property_video`, `src/ai/video.tool.ts`) chỉ viết câu mở đầu, điểm nổi bật, lời mời, mỗi dòng tối đa 60 ký tự. Backend ẩn số điện thoại và bỏ hashtag. AI không xem ảnh. LLM không nhận địa chỉ chi tiết, chủ nhà, môi giới, hoa hồng hay link ảnh.
 - BĐS chưa có ảnh → 422, không gọi AI. Câu mở đầu hoặc lời mời trống → 503.
+
+## Bảng xếp hạng môi giới (TASK-151)
+
+`GET /api/v1/reports/leaderboard?from&to` (`report.view`) → `{period, scope, points, agents [{rank, userId, fullName, avatarUrl, points, listings, careDays, viewings, dealsWon, revenue}]}`. Theo MASTER_PLAN mục 17 (Top môi giới, doanh số, tin đăng, giao dịch). Kỳ như dashboard: mặc định 30 ngày, dài nhất 366 ngày. Code: `src/reports/leaderboard.service.ts`. Chỉ đọc, không ghi gì vào dữ liệu giao dịch.
+
+- Người dùng đang hoạt động trong phạm vi `report.view` (OWN chỉ mình, DEPARTMENT cả phòng ban, COMPANY cả công ty).
+- `listings`: BĐS mình phụ trách, tạo trong kỳ. `careDays`: số lượt (khách, ngày theo giờ Việt Nam) có hoạt động chăm sóc mình ghi trong kỳ. Một khách một ngày chỉ tính một lần; không tính đổi trạng thái, giao khách, khách đã xoá. `viewings`: lịch dẫn khách hoàn thành, hẹn trong kỳ. `dealsWon`, `revenue`: giao dịch WON chốt trong kỳ và tổng `deal_price`.
+- Điểm (mặc định đề xuất, chờ Huy Lê xác nhận): tin đăng 5, chăm sóc 1, dẫn khách 3, giao dịch chốt 20. "Hỗ trợ đồng đội" chưa có dữ liệu nên chưa tính. Bằng điểm thì cùng hạng (1, 1, 3), xếp theo doanh số, số giao dịch rồi tên.
