@@ -59,6 +59,13 @@ class PropertyDetailScreen extends ConsumerWidget {
               onPressed: () =>
                   showAiListingSheet(context, propertyId: propertyId),
             ),
+          if (aiEnabled && detail.value != null)
+            IconButton(
+              tooltip: 'Hỏi Copilot',
+              icon: const Icon(Icons.forum_outlined),
+              onPressed: () =>
+                  context.push(AppRoutes.copilot(propertyId: propertyId)),
+            ),
           if (detail.value?.canEdit ?? false) ...[
             IconButton(
               tooltip: 'Quản lý ảnh',

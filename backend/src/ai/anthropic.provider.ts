@@ -1,6 +1,7 @@
 import type { AiConfig } from '../config/app-config.js';
 import {
   LlmError,
+  type LlmMessage,
   LlmProvider,
   type LlmRequest,
   type LlmResponse,
@@ -53,7 +54,7 @@ export class AnthropicProvider extends LlmProvider {
     const body: Record<string, unknown> = {
       model: this.model,
       max_tokens: request.maxTokens,
-      messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: request.messages.map(toAnthropicMessage),
     };
     if (request.system) {
       body['system'] = request.system;
@@ -64,7 +65,9 @@ export class AnthropicProvider extends LlmProvider {
         description: t.description,
         input_schema: t.inputSchema,
       }));
-      if (request.forceTool) {
+      if (request.noToolCalls) {
+        body['tool_choice'] = { type: 'none' };
+      } else if (request.forceTool) {
         body['tool_choice'] = { type: 'tool', name: request.forceTool };
       }
     }
@@ -93,6 +96,31 @@ export class AnthropicProvider extends LlmProvider {
     }
     return parseResponse(await readJson(response));
   }
+}
+
+/**
+ * Lượt có tool thì gửi dạng khối: `tool_result` đứng đầu lượt user, `tool_use` sau chữ của lượt assistant
+ * (https://docs.anthropic.com/en/docs/build-with-claude/tool-use).
+ */
+function toAnthropicMessage(message: LlmMessage): Record<string, unknown> {
+  const { role, content, toolCalls = [], toolResults = [] } = message;
+  if (toolCalls.length === 0 && toolResults.length === 0) {
+    return { role, content };
+  }
+  const text = content === '' ? [] : [{ type: 'text', text: content }];
+  const results = toolResults.map((result) => ({
+    type: 'tool_result',
+    tool_use_id: result.toolCallId,
+    content: result.content,
+    ...(result.isError ? { is_error: true } : {}),
+  }));
+  const calls = toolCalls.map((call) => ({
+    type: 'tool_use',
+    id: call.id,
+    name: call.name,
+    input: call.input,
+  }));
+  return { role, content: [...results, ...text, ...calls] };
 }
 
 function errorCodeFor(status: number): LlmError['code'] {

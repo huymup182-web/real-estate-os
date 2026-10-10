@@ -8,6 +8,7 @@ import type { AppConfig } from '../config/app-config.js';
 import { MatchingModule } from '../matching/matching.module.js';
 import { PropertiesModule } from '../properties/properties.module.js';
 import { AiController } from './ai.controller.js';
+import { AiCopilotService } from './ai-copilot.service.js';
 import { AiCustomerController } from './ai-customer.controller.js';
 import { AiCustomerSummaryService } from './ai-customer-summary.service.js';
 import { AiDealController } from './ai-deal.controller.js';
@@ -43,6 +44,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
  * TASK-140: AI tóm tắt khách `POST /customers/:id/ai-summary` (`AiCustomerSummaryService`).
  * TASK-141: AI gợi ý chăm sóc `POST /ai/follow-ups` (`AiFollowUpService`).
  * TASK-142: trợ lý bán hàng `POST /deals/:id/ai-assistant` (`AiSalesAssistantService`).
+ * TASK-143: AI Copilot chat `POST /ai/copilot` (`AiCopilotService`), LLM gọi tool, backend chạy qua service.
  */
 @Module({
   imports: [AuthModule, CustomersModule, DealsModule, MatchingModule, PropertiesModule],
@@ -61,6 +63,7 @@ export function llmProviderFor(config: AppConfig): LlmProvider | null {
     AiCustomerSummaryService,
     AiFollowUpService,
     AiSalesAssistantService,
+    AiCopilotService,
     { provide: LLM_PROVIDER, inject: [APP_CONFIG], useFactory: llmProviderFor },
   ],
   exports: [AiGatewayService],

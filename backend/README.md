@@ -857,3 +857,19 @@ Module `src/ai` (bảng `ai_requests`, docs/database.md mục 4.11). Mọi lời
 - Giao dịch ngoài phạm vi `deal.view` → 404, không gọi AI.
 - LLM nhận bước giao dịch, giá chốt, tiền cọc, ngày cọc, ngày tạo, ghi chú (số điện thoại bị ẩn), thông số BĐS như TASK-136 và, nếu người hỏi xem được khách, bước pipeline, mục đích, thời gian mua, nhu cầu và tối đa 10 hoạt động gần nhất. Người không có `property.view`/`customer.view` với BĐS/khách đó chỉ gửi mã và tiêu đề BĐS, không gửi khách. Không gửi tên, liên hệ khách, chủ nhà, địa chỉ chi tiết.
 - LLM bắt buộc gọi tool `sales_assistant` (`src/ai/sales-assistant.tool.ts`). Tối đa 4 việc nên làm, 4 ý nói với khách, 3 rủi ro, mỗi câu tối đa 500 ký tự. Nhận định trống → 503.
+
+## AI Copilot chat (TASK-143)
+
+`POST /api/v1/ai/copilot` `{messages: [{role, content}], context?: {customerId?, propertyId?}}` → `{reply, toolsUsed, properties, customers}`. Theo MASTER_PLAN mục 20: môi giới hỏi bằng câu tự nhiên, LLM gọi tool (function calling) để lấy dữ liệu, không truy cập database.
+
+- Backend không lưu hội thoại: app gửi lại tối đa 20 lượt, bắt đầu và kết thúc bằng câu hỏi của `user`, `user`/`assistant` xen kẽ (sai → 400). Số điện thoại trong câu người dùng gõ bị ẩn trước khi gửi AI.
+- Cần `property.view` hoặc `customer.view` (không có → 403). `context` là khách/BĐS đang mở trên app; ngoài phạm vi xem → 404, thiếu quyền xem loại đó → 403. Kiểm trước khi gọi AI.
+- Tool (`src/ai/copilot.tools.ts`), mỗi tool chạy qua service layer với quyền, phạm vi xem và tenant của người hỏi; chỉ gửi LLM tool người hỏi có quyền:
+  - `search_properties` (`property.view`): cùng bộ lọc với TASK-134, tối đa 5 BĐS kèm trạng thái và số ngày đã đăng.
+  - `get_property` (`property.view`): một BĐS theo mã, thêm mô tả (số điện thoại bị ẩn).
+  - `current_customer` (`customer.view`, có `context.customerId`): dữ liệu khách như TASK-140.
+  - `matching_properties` (`customer.view` + `property.view`, có `context.customerId`): 5 BĐS điểm cao nhất theo luật TASK-086.
+  - `follow_up_customers` (`customer.view`): khách cần chăm sóc như TASK-141, LLM chỉ thấy mã K1, K2…; tên trả cho app ở `customers`.
+- Không gửi LLM tên, liên hệ khách, chủ nhà, địa chỉ chi tiết. Tool lỗi (mã lạ, tool không có) trả lỗi cho LLM tự trả lời.
+- Mỗi lần gọi LLM tính một lượt AI (`feature` `copilot`). LLM được gọi tool tối đa 3 lần, lần thứ 4 bắt buộc trả lời chữ, nên một câu hỏi dùng 1–4 lượt. Câu trả lời trống → 503.
+- `properties` là các BĐS tool đã trả (app hiện thẻ bấm vào chi tiết).

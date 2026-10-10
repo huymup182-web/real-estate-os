@@ -8,6 +8,7 @@ import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/error_retry.dart';
+import '../../ai/presentation/ai_providers.dart';
 import '../../auth/presentation/session_controller.dart';
 import '../domain/home_summary.dart';
 import 'home_providers.dart';
@@ -25,6 +26,7 @@ class HomeScreen extends ConsumerWidget {
     final appointments = ref.watch(upcomingAppointmentsProvider);
     final theme = Theme.of(context);
     final canViewAppointments = user?.can('appointment.view') ?? false;
+    final aiEnabled = ref.watch(aiStatusProvider).value?.enabled ?? false;
 
     Future<void> refresh() async {
       ref
@@ -40,6 +42,12 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Trang chủ'),
         actions: [
+          if (aiEnabled)
+            IconButton(
+              tooltip: 'Copilot AI',
+              icon: const Icon(Icons.forum_outlined),
+              onPressed: () => context.push(AppRoutes.copilot()),
+            ),
           if (canViewAppointments)
             IconButton(
               tooltip: 'Lịch hẹn',
