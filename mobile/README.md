@@ -190,8 +190,17 @@ lib/
 - "Nhu cầu" (`GET /customers/:id/preferences`) tóm tắt một dòng như web admin, tên tỉnh lấy từ danh mục tỉnh;
   nhu cầu tắt ghi "(tạm dừng)". "Hoạt động" (`GET /customers/:id/activities`) mới nhất trước, "Xem thêm" tải trang
   sau. Hai phần này tải riêng, lỗi thì thử lại riêng. Kéo xuống để tải lại cả màn.
-- `core/widgets/detail_section.dart` (`DetailSection`, `InfoRow`) dùng chung với chi tiết BĐS. Đổi bước, ghi
-  hoạt động chưa làm ở đây.
+- `core/widgets/detail_section.dart` (`DetailSection`, `InfoRow`) dùng chung với chi tiết BĐS. Ghi hoạt động
+  chưa làm trên app.
+
+## Pipeline khách hàng (TASK-128)
+
+- Tab "Khách hàng" có nút "Pipeline" → `/customers/pipeline` (`GET /customers/pipeline`): số khách xem được ở
+  từng bước, thanh dài theo bước đông nhất. Chạm một bước → về danh sách chỉ lọc bước đó (hàng nút tự cuộn tới).
+- Chi tiết khách có nút "Đổi bước" khi có `customer.edit`: chọn bước mới (chuyển tự do giữa mọi bước, theo luật
+  TASK-082); sang "Mất khách" bắt buộc lý do. `POST /customers/:id/status` kèm `expectedUpdatedAt`; người khác vừa
+  sửa (409) thì báo và tải lại. Xong thì chi tiết, timeline, danh sách, pipeline đều tải lại. Timeline hiện
+  "bước trước → bước sau".
 
 ## Theme (TASK-114)
 

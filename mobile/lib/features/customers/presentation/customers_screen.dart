@@ -15,7 +15,8 @@ import 'customer_card.dart';
 import 'customer_list_controller.dart';
 
 /// Tab "Khách hàng": tìm theo tên, số điện thoại, email; lọc theo bước pipeline (chọn nhiều); danh sách khách
-/// trong phạm vi xem, mới tạo trước. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết.
+/// trong phạm vi xem, mới tạo trước. Cuộn gần cuối thì tải thêm, kéo xuống để tải lại. Chạm thẻ để xem chi tiết;
+/// nút trên thanh tiêu đề mở pipeline.
 class CustomersScreen extends ConsumerWidget {
   const CustomersScreen({super.key});
 
@@ -26,7 +27,16 @@ class CustomersScreen extends ConsumerWidget {
     final queryController = ref.read(customerQueryProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Khách hàng')),
+      appBar: AppBar(
+        title: const Text('Khách hàng'),
+        actions: [
+          IconButton(
+            tooltip: 'Pipeline',
+            icon: const Icon(Icons.view_kanban_outlined),
+            onPressed: () => context.push(AppRoutes.customerPipeline),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -43,32 +53,7 @@ class CustomersScreen extends ConsumerWidget {
               onSearch: queryController.setKeyword,
             ),
           ),
-          // 9 nút cố định: dựng hết một lần (không cần danh sách lười).
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.gutter,
-              vertical: AppSpacing.s8,
-            ),
-            child: Row(
-              children: [
-                FilterChip(
-                  label: const Text('Tất cả'),
-                  selected: query.statuses.isEmpty,
-                  onSelected: (_) => queryController.clearStatuses(),
-                ),
-                for (final MapEntry(key: status, value: label)
-                    in customerStatusLabels.entries) ...[
-                  const SizedBox(width: AppSpacing.s8),
-                  FilterChip(
-                    label: Text(label),
-                    selected: query.statuses.contains(status),
-                    onSelected: (_) => queryController.toggleStatus(status),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          const _StatusChips(),
           Expanded(child: _body(context, ref, list)),
         ],
       ),
@@ -185,5 +170,70 @@ class CustomersScreen extends ConsumerWidget {
       ),
       _ => const Center(child: CircularProgressIndicator()),
     };
+  }
+}
+
+/// Hàng nút lọc theo bước. 9 nút cố định nên dựng hết một lần (không cần danh sách lười). Bước được chọn từ nơi
+/// khác (màn pipeline) mà nằm khuất thì cuộn tới.
+class _StatusChips extends ConsumerStatefulWidget {
+  const _StatusChips();
+
+  @override
+  ConsumerState<_StatusChips> createState() => _StatusChipsState();
+}
+
+class _StatusChipsState extends ConsumerState<_StatusChips> {
+  final _keys = {
+    for (final status in customerStatusLabels.keys) status: GlobalKey(),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final query = ref.watch(customerQueryProvider);
+    final controller = ref.read(customerQueryProvider.notifier);
+    ref.listen(customerQueryProvider, (previous, next) {
+      final first = customerStatusLabels.keys
+          .where(next.statuses.contains)
+          .firstOrNull;
+      if (first == null || next.statuses == previous?.statuses) {
+        return;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final chip = _keys[first]!.currentContext;
+        if (chip != null && chip.mounted) {
+          Scrollable.ensureVisible(
+            chip,
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+            duration: const Duration(milliseconds: 200),
+          );
+        }
+      });
+    });
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.gutter,
+        vertical: AppSpacing.s8,
+      ),
+      child: Row(
+        children: [
+          FilterChip(
+            label: const Text('Tất cả'),
+            selected: query.statuses.isEmpty,
+            onSelected: (_) => controller.clearStatuses(),
+          ),
+          for (final MapEntry(key: status, value: label)
+              in customerStatusLabels.entries) ...[
+            const SizedBox(width: AppSpacing.s8),
+            FilterChip(
+              key: _keys[status],
+              label: Text(label),
+              selected: query.statuses.contains(status),
+              onSelected: (_) => controller.toggleStatus(status),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

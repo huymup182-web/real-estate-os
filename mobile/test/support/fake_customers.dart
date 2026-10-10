@@ -25,6 +25,22 @@ class FakeCustomersRepository implements CustomersRepository {
       );
   Future<String> Function(String userId) onUserName = (userId) async =>
       'Môi giới $userId';
+  Future<List<({String status, int count})>> Function() onPipeline = () async =>
+      const [
+        (status: 'NEW', count: 4),
+        (status: 'CONTACTED', count: 2),
+        (status: 'QUALIFIED', count: 0),
+        (status: 'VIEWING', count: 1),
+        (status: 'NEGOTIATING', count: 0),
+        (status: 'DEPOSIT', count: 0),
+        (status: 'WON', count: 3),
+        (status: 'LOST', count: 1),
+      ];
+  Future<CustomerDetail> Function(String id, String status, String? reason)
+  onChangeStatus = (id, status, reason) async =>
+      customerDetail(id, status: status, lostReason: reason);
+  final statusChanges =
+      <({String id, String status, String? lostReason, DateTime expected})>[];
   final detailCalls = <String>[];
   final activityPages = <int>[];
   final userNameCalls = <String>[];
@@ -54,6 +70,25 @@ class FakeCustomersRepository implements CustomersRepository {
   Future<Page<CustomerActivity>> activities(String id, {required int page}) {
     activityPages.add(page);
     return onActivities(page);
+  }
+
+  @override
+  Future<List<({String status, int count})>> pipeline() => onPipeline();
+
+  @override
+  Future<CustomerDetail> changeStatus(
+    String id, {
+    required String status,
+    String? lostReason,
+    required DateTime expectedUpdatedAt,
+  }) {
+    statusChanges.add((
+      id: id,
+      status: status,
+      lostReason: lostReason,
+      expected: expectedUpdatedAt,
+    ));
+    return onChangeStatus(id, status, lostReason);
   }
 
   @override

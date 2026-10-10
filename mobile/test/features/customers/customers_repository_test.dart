@@ -144,7 +144,7 @@ void main() {
             'type': 'STATUS_CHANGE',
             'content': null,
             'propertyIds': null,
-            'metadata': {'from': 'NEW', 'to': 'LOST'},
+            'metadata': {'fromStatus': 'NEW', 'toStatus': 'LOST'},
             'user': {'id': 'u1', 'fullName': 'Nguyễn Văn An'},
             'occurredAt': '2026-10-08T03:00:00.000Z',
             'createdAt': '2026-10-08T03:00:00.000Z',
@@ -190,6 +190,8 @@ void main() {
     expect(timeline.meta.hasNext, isFalse);
     expect(timeline.items.single.userName, 'Nguyễn Văn An');
     expect(timeline.items.single.content, isNull);
+    expect(timeline.items.single.fromStatus, 'NEW');
+    expect(timeline.items.single.toStatus, 'LOST');
 
     expect(await repository.userName('u2'), 'Lê Văn Cường');
     expect(
@@ -206,4 +208,72 @@ void main() {
       'pageSize': 20,
     });
   });
+
+  test(
+    'pipeline; đổi bước gửi lý do chỉ khi mất khách, kèm expectedUpdatedAt',
+    () async {
+      final api = FakeAdapter(
+        (options) => (
+          200,
+          {
+            'success': true,
+            'message': null,
+            'data': options.path.endsWith('/pipeline')
+                ? [
+                    {'status': 'NEW', 'count': 3},
+                    {'status': 'WON', 'count': 0},
+                  ]
+                : {
+                    'id': 'c1',
+                    'fullName': 'Bình',
+                    'phone': '+84901234567',
+                    'status': 'LOST',
+                    'lostReason': 'Mua chỗ khác',
+                    'createdAt': '2026-10-01T03:00:00.000Z',
+                    'updatedAt': '2026-10-09T03:00:00.000Z',
+                  },
+          },
+        ),
+      );
+      final repository = CustomersRepository(
+        ApiClient(
+          baseUrl: 'https://api.example.vn/api/v1',
+          tokens: MemoryTokenStorage(),
+          dio: Dio()..httpClientAdapter = api,
+        ),
+      );
+
+      expect(await repository.pipeline(), [
+        (status: 'NEW', count: 3),
+        (status: 'WON', count: 0),
+      ]);
+      final updated = await repository.changeStatus(
+        'c1',
+        status: 'LOST',
+        lostReason: 'Mua chỗ khác',
+        expectedUpdatedAt: DateTime.utc(2026, 10, 8, 3),
+      );
+      expect(updated.updatedAt, DateTime.utc(2026, 10, 9, 3));
+      await repository.changeStatus(
+        'c1',
+        status: 'WON',
+        lostReason: 'bỏ qua',
+        expectedUpdatedAt: DateTime.utc(2026, 10, 9, 3),
+      );
+      final [_, lost, won] = api.requests;
+      expect(
+        '${lost.options.method} ${lost.options.path}',
+        'POST /customers/c1/status',
+      );
+      expect(lost.body, {
+        'status': 'LOST',
+        'lostReason': 'Mua chỗ khác',
+        'expectedUpdatedAt': '2026-10-08T03:00:00.000Z',
+      });
+      expect(won.body, {
+        'status': 'WON',
+        'expectedUpdatedAt': '2026-10-09T03:00:00.000Z',
+      });
+    },
+  );
 }

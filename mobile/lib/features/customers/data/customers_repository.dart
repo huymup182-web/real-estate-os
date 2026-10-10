@@ -49,4 +49,33 @@ class CustomersRepository {
   /// Họ tên một người dùng (cần `user.view`), để hiện môi giới phụ trách.
   Future<String> userName(String userId) async =>
       (await _api.get('/users/$userId')).object['fullName'] as String;
+
+  /// Số khách xem được ở từng bước pipeline, theo thứ tự pipeline (bước không có khách là 0).
+  Future<List<({String status, int count})>> pipeline() async =>
+      (await _api.get('/customers/pipeline')).list
+          .map(
+            (row) => (
+              status: row['status'] as String,
+              count: (row['count'] as num).toInt(),
+            ),
+          )
+          .toList();
+
+  /// Chuyển khách sang bước [status] (cần `customer.edit` với khách). Sang `LOST` bắt buộc [lostReason]. Người
+  /// khác đã lưu sau [expectedUpdatedAt] → `ApiException` `CONFLICT`. Trả chi tiết sau khi chuyển.
+  Future<CustomerDetail> changeStatus(
+    String id, {
+    required String status,
+    String? lostReason,
+    required DateTime expectedUpdatedAt,
+  }) async => CustomerDetail.fromJson(
+    (await _api.post(
+      '/customers/$id/status',
+      body: {
+        'status': status,
+        if (status == 'LOST') 'lostReason': lostReason,
+        'expectedUpdatedAt': expectedUpdatedAt.toUtc().toIso8601String(),
+      },
+    )).object,
+  );
 }

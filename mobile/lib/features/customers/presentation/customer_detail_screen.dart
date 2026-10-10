@@ -16,9 +16,11 @@ import '../domain/customer_labels.dart';
 import '../domain/preference_summary.dart';
 import 'customer_card.dart';
 import 'customer_detail_providers.dart';
+import 'pipeline_controller.dart';
+import 'status_sheet.dart';
 
-/// Chi tiết khách: thông tin liên hệ, nhu cầu, môi giới phụ trách, ghi chú và timeline chăm sóc. Kéo xuống để tải
-/// lại.
+/// Chi tiết khách: thông tin liên hệ, nhu cầu, môi giới phụ trách, ghi chú và timeline chăm sóc. Có
+/// `customer.edit` thì có nút "Đổi bước". Kéo xuống để tải lại.
 class CustomerDetailScreen extends ConsumerWidget {
   const CustomerDetailScreen({super.key, required this.customerId});
 
@@ -105,6 +107,20 @@ class _Body extends ConsumerWidget {
             ],
           ),
         ),
+        if (ref.watch(sessionProvider).value?.user?.can('customer.edit') ??
+            false)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.gutter),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => _changeStatus(context),
+                icon: const Icon(Icons.swap_horiz),
+                label: const Text('Đổi bước'),
+              ),
+            ),
+          ),
+        const SizedBox(height: AppSpacing.s8),
         DetailSection(
           title: 'Thông tin',
           child: Column(
@@ -155,6 +171,36 @@ class _Body extends ConsumerWidget {
           child: _Timeline(customerId: customer.id),
         ),
       ],
+    );
+  }
+
+  Future<void> _changeStatus(BuildContext context) async {
+    final container = ProviderScope.containerOf(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final choice = await showStatusSheet(
+      context,
+      current: customer.status,
+      lostReason: customer.lostReason,
+    );
+    if (choice == null) {
+      return;
+    }
+    final error = await changeCustomerStatus(
+      container,
+      customer,
+      status: choice.status,
+      lostReason: choice.lostReason,
+    );
+    final label = labelOf(customerStatusLabels, choice.status);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(switch (error) {
+          null => 'Đã chuyển sang bước "$label".',
+          ApiException(code: ErrorCodes.conflict) =>
+            'Khách vừa được người khác cập nhật. Đã tải lại, vui lòng thử lại.',
+          _ => ErrorRetry.messageOf(error),
+        }),
+      ),
     );
   }
 
@@ -291,6 +337,16 @@ class _ActivityTile extends StatelessWidget {
             heading,
             style: theme.textTheme.bodySmall?.copyWith(color: muted),
           ),
+          if ((activity.fromStatus, activity.toStatus) case (
+            final from?,
+            final to?,
+          )) ...[
+            const SizedBox(height: AppSpacing.s2),
+            Text(
+              '${labelOf(customerStatusLabels, from)} → '
+              '${labelOf(customerStatusLabels, to)}',
+            ),
+          ],
           if (activity.content case final content?) ...[
             const SizedBox(height: AppSpacing.s2),
             Text(content),

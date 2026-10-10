@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:real_estate_os/app.dart';
 import 'package:real_estate_os/core/error/api_exception.dart';
+import 'package:real_estate_os/core/network/api_response.dart';
+import 'package:real_estate_os/core/network/page.dart' as api;
 import 'package:real_estate_os/core/router/app_router.dart';
 import 'package:real_estate_os/features/auth/domain/current_user.dart';
 import 'package:real_estate_os/features/auth/presentation/session_controller.dart';
@@ -191,6 +193,30 @@ void main() {
       expect(find.text('Xem thêm'), findsNothing);
     },
   );
+
+  testWidgets('đổi bước trên timeline: hiện bước trước → sau', (tester) async {
+    repository.onActivities = (page) async => api.Page(
+      items: [
+        CustomerActivity(
+          id: 'a1',
+          type: 'STATUS_CHANGE',
+          occurredAt: DateTime.utc(2026, 10, 9, 2),
+          fromStatus: 'NEW',
+          toStatus: 'LOST',
+          content: 'Mua chỗ khác',
+          userName: 'Nguyễn Văn An',
+        ),
+      ],
+      meta: const PageMeta(page: 1, pageSize: 20, total: 1, totalPages: 1),
+    );
+    await open(tester, location: AppRoutes.customerDetail('c1'));
+    expect(
+      find.text('09:00 09/10/2026 · Đổi bước · Nguyễn Văn An'),
+      findsOneWidget,
+    );
+    expect(find.text('Mới → Mất khách'), findsOneWidget);
+    expect(find.text('Mua chỗ khác'), findsOneWidget);
+  });
 
   testWidgets('lỗi nhu cầu, timeline: thông tin vẫn hiện, thử lại riêng', (
     tester,
