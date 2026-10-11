@@ -270,3 +270,10 @@ Chi tiết BĐS có nút "AI làm video" dưới giá khi AI bật. Người dù
 - Test kiểm độ tương phản WCAG AA cho mọi cặp chữ/nền ở cả hai theme.
 - Font: font hệ thống (Roboto trên Android, SF Pro trên iOS). Font Be Vietnam Pro trong đề xuất design system chưa
   thêm vì cần đóng gói file font.
+## Giao diện đăng nhập
+
+Màn đăng nhập dùng ảnh nền thành phố tại `assets/images/login-city.png`, hai lớp kính mờ và form tương tác bằng Flutter. Email hoặc số điện thoại vẫn được chấp nhận; nút hiện/ẩn mật khẩu, kiểm tra dữ liệu và luồng xác thực giữ nguyên.
+
+Các liên kết **Quên mật khẩu?** và **Đăng ký tài khoản mới** mở hướng dẫn liên hệ quản trị viên công ty. Chúng chưa phải luồng tự khôi phục mật khẩu hay tự tạo tài khoản.
+
+Kiểm tra phần này: `flutter analyze` và `flutter test test/features/auth/login_screen_test.dart`.

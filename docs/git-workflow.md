@@ -71,3 +71,9 @@ Trong Settings → Branches (hoặc Rules) của repo, bật cho `main` và `dev
 - Require a pull request before merging
 - Block force pushes và chặn xoá branch
 - Khi có CI: Require status checks to pass
+
+## Cấu hình bảo vệ đã áp dụng
+
+`main` và `develop` bắt buộc dùng pull request và đủ 7 kiểm tra CI thành công, với nhánh nguồn cập nhật theo nhánh đích. Quy tắc áp dụng cả cho quản trị viên; force-push và xoá hai nhánh này bị chặn. Các cuộc thảo luận review phải được xử lý trước khi merge.
+
+Số lượt approve bắt buộc hiện là 0 để repo do một người quản lý vẫn làm việc được. Khi bổ sung người review, có thể tăng lên 1. Nếu đổi tên job CI, phải cập nhật các required checks tương ứng trong cấu hình bảo vệ nhánh.
