@@ -1,20 +1,70 @@
-# Build và đẩy image lên GitHub Container Registry sau mỗi lần merge vào main (TASK-160, docs/deployment.md).
-# Tag image = commit git (và latest). Triển khai lên máy chủ bằng workflow Deploy, chạy tay.
+# Chỉ phát hành image từ commit main đã vượt qua CI. Deploy production vẫn chạy tay.
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Xác minh CI trước khi phát hành
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.ci.outputs.sha }}
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        id: ci
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const automatic = context.eventName === 'workflow_run';
+            if (!automatic && context.ref !== 'refs/heads/main') {
+              throw new Error('Manual releases must run from main.');
+            }
+            const sha = automatic ? context.payload.workflow_run.head_sha : context.sha;
+            const { data: branch } = await github.rest.repos.getBranch({ owner, repo, branch: 'main' });
+            if (branch.commit.sha !== sha) {
+              throw new Error('main has advanced; release the latest validated commit instead.');
+            }
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: 'ci.yml', head_sha: sha, event: 'push',
+              branch: 'main', status: 'completed', per_page: 100,
+            });
+            const passed = data.workflow_runs.some(run =>
+              run.head_sha === sha && run.head_branch === 'main' &&
+              run.event === 'push' && run.conclusion === 'success' &&
+              run.head_repository?.full_name === `${owner}/${repo}`
+            );
+            if (!passed) {
+              throw new Error('CI has not passed for this exact main commit.');
+            }
+            core.setOutput('sha', sha);
+
   images:
     name: Đẩy image
+    needs: verify
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         image:
@@ -23,6 +73,8 @@ jobs:
           - { name: migrate, dockerfile: database/Dockerfile }
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -35,10 +87,10 @@ jobs:
           file: ${{ matrix.image.dockerfile }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/real-estate-os-${{ matrix.image.name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/real-estate-os-${{ matrix.image.name }}:${{ needs.verify.outputs.sha }}
             ghcr.io/${{ github.repository_owner }}/real-estate-os-${{ matrix.image.name }}:latest
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ needs.verify.outputs.sha }}
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
