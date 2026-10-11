@@ -39,7 +39,7 @@ void main() {
     expect(find.text('Nhập email hoặc số điện thoại'), findsOneWidget);
     expect(find.text('Nhập mật khẩu'), findsOneWidget);
 
-    await tester.enterText(field('Email hoặc số điện thoại'), '090123');
+    await tester.enterText(field('Email'), '090123');
     await tester.tap(find.widgetWithText(FilledButton, 'Đăng nhập'));
     await tester.pump();
     expect(find.text('Email hoặc số điện thoại chưa đúng'), findsOneWidget);
@@ -50,7 +50,7 @@ void main() {
     tester,
   ) async {
     await openLogin(tester);
-    await tester.enterText(field('Email hoặc số điện thoại'), '090 123 4567');
+    await tester.enterText(field('Email'), '090 123 4567');
     await tester.enterText(field('Mật khẩu'), 'mat-khau-dung');
     await tester.tap(find.widgetWithText(FilledButton, 'Đăng nhập'));
     await tester.pumpAndSettle();
@@ -68,7 +68,7 @@ void main() {
       statusCode: 401,
     );
     await openLogin(tester);
-    await tester.enterText(field('Email hoặc số điện thoại'), 'an@demo.vn');
+    await tester.enterText(field('Email'), 'an@demo.vn');
     await tester.enterText(field('Mật khẩu'), 'sai');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
