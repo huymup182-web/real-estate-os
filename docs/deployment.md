@@ -69,13 +69,13 @@ Sau bước 4, mở `https://admin.<tên miền>`. Công ty đầu tiên đăng 
 
 ## GitHub
 
-- **CI** (`.github/workflows/ci.yml`) chạy với mỗi pull request và mỗi lần push lên `main`:
+- **CI** (`.github/workflows/ci.yml`) chạy với mỗi pull request và mỗi lần push lên `main` hoặc `develop`:
   - lint, format, typecheck;
   - test database và backend với PostgreSQL thật;
   - test và build admin;
   - format, analyze, test mobile;
   - build 3 image.
-- **Release** (`release.yml`): khi merge vào `main`, build và đẩy image lên GHCR bằng `GITHUB_TOKEN`, không cần secret thêm.
+- **Release** (`release.yml`): chỉ chạy sau khi CI của chính commit trên `main` đạt. Workflow kiểm tra lại SHA của `main`, build đúng SHA đó và đẩy image lên GHCR bằng `GITHUB_TOKEN`. Chạy Release thủ công cũng phải chọn `main` và có CI thành công cho cùng commit. Các lượt Release chạy nối tiếp để tránh ghi đè image `latest` giữa hai bản.
 - **Deploy** (`deploy.yml`) chỉ chạy tay: Actions → Deploy → Run workflow, nhập commit hoặc để trống.
   - Workflow chép `deploy/` lên máy chủ và đăng nhập GHCR bằng token tạm của job, rồi chạy `deploy.sh`.
   - Cần tạo environment `production` (Settings → Environments) gồm:
